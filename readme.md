@@ -37,3 +37,70 @@ can fill the transaction records manually as well.
 So, with that being said, let's hop into it, tomorrow. And, hopefully, there
 will be an exact same app, with completely different tech stack, in another
 month or two, so I can see how fast I learn new techs.
+
+# Installation
+
+## Prequisites
+
+### MongoDB
+
+Download the [latest version of MongoDB](https://www.mongodb.com/try/download/community)
+and the [MongoSHell](https://docs.mongodb.com/manual/reference/mongo-shell/)
+then install them.
+
+Add MongoDB to your PATH by creating a path file
+
+```zsh
+sudo mkdir /usr/local/mongodb
+```
+Copy the downloaded folder into the path above, for example
+
+```zsh
+sudo cp -r mongodb-linux-x86_64-ubuntu2004-4.4.21 /usr/local/mongodb
+```
+
+Remember to also add the Mongoshell to mongodb/bin.
+
+After that, add the path to the path file
+
+```zsh
+export PATH=$PATH:/usr/local/mongodb/bin
+```
+
+Now specify the location of the database
+
+```zsh
+mongod --dbpath /usr/local/var/mongodb --logpath /usr/local/var/log/mongodb.log --fork
+```
+
+Then run
+
+```zsh
+mongo
+```
+
+### Golang
+
+Download the [latest version of Golang](https://golang.org/dl/) and install it.
+Add Golang to your PATH by
+
+```zsh
+export PATH=$PATH:/usr/local/go/bin
+```
+
+Remember to run
+
+```zsh
+go mod tidy
+```
+
+if it's the first time
+
+### React
+
+Just do it, it's easy.
+
+# Changelog
+
+- 2024/11/30: readme.md
+- 2024/12/01: Installed MongoDB, React and Golang. Make them work together.
