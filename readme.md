@@ -104,3 +104,4 @@ Just do it, it's easy.
 
 - 2024/11/30: readme.md
 - 2024/12/01: Installed MongoDB, React and Golang. Make them work together.
+- 2024/12/02: Basic signup feature. Tested for validity on server side.
