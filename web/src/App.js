@@ -1,67 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import SignInForm from "./pages/SignInForm";
+import SignUpForm from "./pages/SignUpForm";
 
-const SignUp = () => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    const [error, setError] = useState('');
+function App() {
+  const [isSignIn, setIsSignIn] = useState(true);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+  return (
+    <div style={{ textAlign: "center", padding: "20px" }}>
+      <h1>Welcome to the App</h1>
+      <div style={{ marginBottom: "20px" }}>
+        <button
+          onClick={() => setIsSignIn(true)}
+          style={{
+            padding: "10px 20px",
+            marginRight: "10px",
+            backgroundColor: isSignIn ? "#007BFF" : "#f0f0f0",
+            color: isSignIn ? "white" : "black",
+            border: "1px solid #007BFF",
+            cursor: "pointer",
+          }}
+        >
+          Sign In
+        </button>
+        <button
+          onClick={() => setIsSignIn(false)}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: !isSignIn ? "#007BFF" : "#f0f0f0",
+            color: !isSignIn ? "white" : "black",
+            border: "1px solid #007BFF",
+            cursor: "pointer",
+          }}
+        >
+          Sign Up
+        </button>
+      </div>
+      {isSignIn ? <SignInForm /> : <SignUpForm />}
+    </div>
+  );
+}
 
-        // Basic validation (client-side)
-        if (!username || !password || !name) {
-            setError("All fields are required.");
-            return;
-        }
-
-        const userData = { username, password, name };
-
-        try {
-            const response = await fetch('http://localhost:8080/api/signup', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(userData),
-            }) ;
-
-            if (response.ok) {
-                alert('Account created successfully!');
-                // Redirect to login page or dashboard
-            } else {
-                const errorData = await response.text();
-                console.log('Error response:', errorData); // Log error details
-                setError(errorData|| 'Something went wrong');
-            }
-        } catch (err) {
-            console.log('Fetch error:', err); // Log fetch error details
-            setError('Server error dmm: ' + err.message);
-        }
-    };
-
-    return (
-        <div>
-            <h2>Sign Up ddmm</h2>
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>Name:</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div>
-                    <label>Username:</label>
-                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
-                </div>
-                <div>
-                    <label>Password:</label>
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                {error && <div style={{ color: 'red' }}>{error}</div>}
-                <button type="submit">Sign Up</button>
-            </form>
-        </div>
-    );
-};
-
-export default SignUp;
+export default App;
 

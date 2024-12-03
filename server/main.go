@@ -13,6 +13,7 @@ func main() {
 	util.InitDB()
 
 	http.HandleFunc("/api/signup", handler.SignUpHandler)
+	http.HandleFunc("/api/signin", handler.SignInHandler)
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
