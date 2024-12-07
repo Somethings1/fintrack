@@ -14,6 +14,9 @@ func main() {
 
 	http.HandleFunc("/api/signup", handler.SignUpHandler)
 	http.HandleFunc("/api/signin", handler.SignInHandler)
+	http.HandleFunc("/api/verify", handler.VerifyHandler)
+	http.HandleFunc("/api/refresh", handler.RefreshHandler)
+	http.HandleFunc("/api/logout", handler.LogoutHandler)
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
