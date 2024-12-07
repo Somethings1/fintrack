@@ -110,4 +110,5 @@ Just do it, it's easy.
 Got the access token and fresh token to work, so authentication is basically done.
 Maybe I have to add some login-related features in the future, but it handles the basics
 well enough.
-
+Oh and also: it's so fun spending an entire day just to know that I have to use
+a proxy in package.json to make the cookie thingies work in safari. Good job, apple.
