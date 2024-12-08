@@ -104,3 +104,11 @@ Just do it, it's easy.
 
 - 2024/11/30: readme.md
 - 2024/12/01: Installed MongoDB, React and Golang. Make them work together.
+- 2024/12/02: Basic signup feature. Tested for validity on server side.
+- 2024/12/03: Basic login feature.
+- 2024/12/07: Been sick for 3 days straight. Finally added proper login feature.
+Got the access token and fresh token to work, so authentication is basically done.
+Maybe I have to add some login-related features in the future, but it handles the basics
+well enough.
+Oh and also: it's so fun spending an entire day just to know that I have to use
+a proxy in package.json to make the cookie thingies work in safari. Good job, apple.
