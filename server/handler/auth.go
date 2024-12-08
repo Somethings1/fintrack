@@ -3,12 +3,15 @@ package handler
 import (
     "fmt"
     "time"
+    "errors"
+    "context"
     "net/http"
     "encoding/json"
-    "fintrack/server/service"
+	"golang.org/x/crypto/bcrypt"
     "fintrack/server/model"
     "fintrack/server/util"
     "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/bson"
     "github.com/golang-jwt/jwt/v4"
 )
 
@@ -29,6 +32,44 @@ type Claims struct {
 // Helper methods
 ///////////////////
 
+func hashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+func validatePassword(storedPassword, enteredPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(enteredPassword))
+	return err == nil
+}
+
+func VerifyUser (user model.User) error {
+    ctx, close := context.WithTimeout(context.Background(), 10*time.Second)
+    defer close()
+    filter := bson.M{"username": user.Username}
+    result := util.UserCollection.FindOne(ctx, filter)
+
+    // Check if user exists
+    if result.Err() != nil {
+        if result.Err() == mongo.ErrNoDocuments {
+            return errors.New("User not found")
+        }
+        return result.Err()
+    }
+    var dbUser model.User
+    err := result.Decode(&dbUser)
+
+    if err != nil {
+        return err
+    }
+
+    if !validatePassword(dbUser.Password, user.Password) {
+        return errors.New("Invalid password")
+    }
+    return nil
+}
 func parseUser(r *http.Request) (model.User, error) {
     var user model.User
 
@@ -157,7 +198,7 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // Hash password
-    hashedPassword, err := service.HashPassword(user.Password)
+    hashedPassword, err := hashPassword(user.Password)
     if err != nil {
         http.Error(w, "Internal server error (hashing not available)", http.StatusInternalServerError)
         return
@@ -197,7 +238,7 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // Verify user info
-    err = service.VerifyUser(user)
+    err = VerifyUser(user)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
