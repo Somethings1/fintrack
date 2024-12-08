@@ -112,3 +112,25 @@ Maybe I have to add some login-related features in the future, but it handles th
 well enough.
 Oh and also: it's so fun spending an entire day just to know that I have to use
 a proxy in package.json to make the cookie thingies work in safari. Good job, apple.
+- 2024/12/08: Taking the TOEIC test, so not much work is done.
+
+Tomorrow's work: write all CRUD operations on the backend. There are:
+
+- Add transaction
+- Edit transaction
+- Get transaction by year
+- Delete transaction
+- Add account
+- Edit account
+- adjust account balance
+- delete account
+- get all accounts of a user
+- Add a category
+- edit a category
+- delete a category
+- get all categories of a user
+
+- assert information (3 functions)
+
+So that would be a total of 16 functions. Plus the test, there should be 29
+functions. I would call it a day.
