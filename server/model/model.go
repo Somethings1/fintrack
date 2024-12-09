@@ -18,7 +18,7 @@ func (user User) ToString() string {
 
 type Transaction struct {
     ID              primitive.ObjectID `bson:"_id,omitempty"`
-    Creator         primitive.ObjectID `bson:"creator"`
+    Creator         string             `bson:"creator"`
     Amount          float64            `bson:"amount"`
     DateTime        time.Time          `bson:"date_time"`
     Type            string             `bson:"type"` // income, expense, transfer
@@ -29,7 +29,7 @@ type Transaction struct {
 
 type Account struct {
     ID      primitive.ObjectID `bson:"_id,omitempty"`
-    Owner   primitive.ObjectID `bson:"owner"`
+    Owner   string             `bson:"owner"`
     Balance float64            `bson:"balance"`
     Icon    string             `bson:"icon"`
     Name    string             `bson:"name"`
@@ -38,7 +38,7 @@ type Account struct {
 
 type Category struct {
     ID      primitive.ObjectID `bson:"_id,omitempty"`
-    Owner   primitive.ObjectID `bson:"owner"`
+    Owner   string             `bson:"owner"`
     Type    string             `bson:"type"` // income or expense
     Icon    string             `bson:"icon"`
     Name    string             `bson:"name"`

@@ -3,31 +3,62 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"fintrack/server/handler"
 	"fintrack/server/util"
-	"github.com/rs/cors"
+	"github.com/gin-contrib/cors"
+    "github.com/gin-gonic/gin"
 )
 
 func main() {
 	util.InitDB()
 
-	http.HandleFunc("/api/signup", handler.SignUpHandler)
-	http.HandleFunc("/api/signin", handler.SignInHandler)
-	http.HandleFunc("/api/verify", handler.VerifyHandler)
-	http.HandleFunc("/api/refresh", handler.RefreshHandler)
-	http.HandleFunc("/api/logout", handler.LogoutHandler)
+    r := gin.Default()
+    r.Use(handler.LoggingMiddleware())
 
-	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-		Debug:            true,
-	})
+    r.POST("/auth/signup", handler.SignUp)
+    r.POST("/auth/signin", handler.SignIn)
+    r.POST("/auth/refresh", handler.Refresh)
+    r.POST("/auth/logout", handler.Logout)
 
-	handler := corsHandler.Handler(http.DefaultServeMux)
+    api := r.Group("/api", handler.AuthMiddleware())
+
+    transactions := api.Group("/transactions")
+    {
+        transactions.POST("/add", handler.AddTransaction)
+        transactions.GET("/get/:year", handler.GetTransactionsByYear)
+        transactions.PUT("/update/:id", handler.TransactionOwnershipMiddleware(), handler.UpdateTransaction)
+        transactions.DELETE("/delete/:id", handler.TransactionOwnershipMiddleware(), handler.DeleteTransaction)
+    }
+
+    accounts := api.Group("/accounts")
+    {
+        accounts.POST("/add", handler.AddAccount)
+        accounts.GET("/get", handler.GetAccounts)
+        accounts.PUT("/update/:id", handler.AccountOwnershipMiddleware(), handler.UpdateAccount)
+        accounts.DELETE("/delete/:id", handler.AccountOwnershipMiddleware(), handler.DeleteAccount)
+    }
+
+    categories := api.Group("/categories")
+    {
+        categories.POST("/add", handler.AddCategory)
+        categories.GET("/get", handler.GetCategories)
+        categories.PUT("/update/:id", handler.CategoryOwnershipMiddleware(), handler.UpdateCategory)
+        categories.DELETE("/delete/:id", handler.CategoryOwnershipMiddleware(), handler.DeleteCategory)
+    }
+
+    r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"}, // Allowed origins
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
+		AllowHeaders:     []string{"Content-Type", "Authorization"}, // Allowed headers
+		AllowCredentials: true, // Allow cookies
+		AllowOriginFunc: func(origin string) bool {
+			// Example: Allow all localhost origins (e.g., with different ports)
+			return origin == "http://localhost:3000"
+		},
+		ExposeHeaders: []string{"Content-Length"}, // Optional: Headers exposed to the client
+	}))
 
 	fmt.Println("Server running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	log.Fatal(r.Run(":8080"))
 }
+
