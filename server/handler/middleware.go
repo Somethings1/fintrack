@@ -6,6 +6,7 @@ import (
     "net/http"
     "github.com/gin-gonic/gin"
     "fintrack/server/service"
+    "fintrack/server/model"
 )
 
 func LoggingMiddleware() gin.HandlerFunc {
@@ -56,11 +57,29 @@ func TransactionOwnershipMiddleware() gin.HandlerFunc {
             return
         }
 
-        c.Set("transaction", transaction)
         c.Next()
     }
 }
 
+func TransactionFormatMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var transaction model.Transaction
+
+        if err := c.ShouldBindJSON(&transaction); err != nil {
+            c.AbortWithStatus(http.StatusBadRequest)
+            return
+        }
+
+        if err := transaction.FormatCheck(); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+
+        c.Set("transaction", transaction)
+        c.Next()
+
+    }
+}
 
 func AccountOwnershipMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
@@ -82,6 +101,26 @@ func AccountOwnershipMiddleware() gin.HandlerFunc {
     }
 }
 
+func AccountFormatMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var account model.Account
+
+        if err := c.ShouldBindJSON(&account); err != nil {
+            c.AbortWithStatus(http.StatusBadRequest)
+            return
+        }
+
+        if err := account.FormatCheck(); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+
+        c.Set("account", account)
+        c.Next()
+
+    }
+}
+
 func CategoryOwnershipMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         username := c.GetString("username")
@@ -99,5 +138,25 @@ func CategoryOwnershipMiddleware() gin.HandlerFunc {
 
         c.Set("category", category)
         c.Next()
+    }
+}
+
+func CategoryFormatMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var category model.Category
+
+        if err := c.ShouldBindJSON(&category); err != nil {
+            c.AbortWithStatus(http.StatusBadRequest)
+            return
+        }
+
+        if err := category.FormatCheck(); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+
+        c.Set("category", category)
+        c.Next()
+
     }
 }

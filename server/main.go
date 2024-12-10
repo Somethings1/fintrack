@@ -24,38 +24,71 @@ func main() {
 
     transactions := api.Group("/transactions")
     {
-        transactions.POST("/add", handler.AddTransaction)
-        transactions.GET("/get/:year", handler.GetTransactionsByYear)
-        transactions.PUT("/update/:id", handler.TransactionOwnershipMiddleware(), handler.UpdateTransaction)
-        transactions.DELETE("/delete/:id", handler.TransactionOwnershipMiddleware(), handler.DeleteTransaction)
+        transactions.POST("/add",
+            handler.TransactionFormatMiddleware(),
+            handler.AddTransaction)
+
+        transactions.GET("/get/:year",
+            handler.GetTransactionsByYear)
+
+        transactions.PUT("/update/:id",
+            handler.TransactionOwnershipMiddleware(),
+            handler.TransactionFormatMiddleware(),
+            handler.UpdateTransaction)
+
+        transactions.DELETE("/delete/:id",
+            handler.TransactionOwnershipMiddleware(),
+            handler.DeleteTransaction)
     }
 
     accounts := api.Group("/accounts")
     {
-        accounts.POST("/add", handler.AddAccount)
-        accounts.GET("/get", handler.GetAccounts)
-        accounts.PUT("/update/:id", handler.AccountOwnershipMiddleware(), handler.UpdateAccount)
-        accounts.DELETE("/delete/:id", handler.AccountOwnershipMiddleware(), handler.DeleteAccount)
+        accounts.POST("/add",
+            handler.AccountFormatMiddleware(),
+            handler.AddAccount)
+
+        accounts.GET("/get",
+            handler.GetAccounts)
+
+        accounts.PUT("/update/:id",
+            handler.AccountOwnershipMiddleware(),
+            handler.AccountFormatMiddleware(),
+            handler.UpdateAccount)
+
+        accounts.DELETE("/delete/:id",
+            handler.AccountOwnershipMiddleware(),
+            handler.DeleteAccount)
     }
 
     categories := api.Group("/categories")
     {
-        categories.POST("/add", handler.AddCategory)
-        categories.GET("/get", handler.GetCategories)
-        categories.PUT("/update/:id", handler.CategoryOwnershipMiddleware(), handler.UpdateCategory)
-        categories.DELETE("/delete/:id", handler.CategoryOwnershipMiddleware(), handler.DeleteCategory)
+        categories.POST("/add",
+            handler.CategoryFormatMiddleware(),
+            handler.AddCategory)
+
+        categories.GET("/get",
+            handler.GetCategories)
+
+        categories.PUT("/update/:id",
+            handler.CategoryOwnershipMiddleware(),
+            handler.CategoryFormatMiddleware(),
+            handler.UpdateCategory)
+
+        categories.DELETE("/delete/:id",
+            handler.CategoryOwnershipMiddleware(),
+            handler.DeleteCategory)
     }
 
     r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"}, // Allowed origins
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"}, // Allowed HTTP methods
-		AllowHeaders:     []string{"Content-Type", "Authorization"}, // Allowed headers
-		AllowCredentials: true, // Allow cookies
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
-			// Example: Allow all localhost origins (e.g., with different ports)
+
 			return origin == "http://localhost:3000"
 		},
-		ExposeHeaders: []string{"Content-Length"}, // Optional: Headers exposed to the client
+		ExposeHeaders: []string{"Content-Length"},
 	}))
 
 	fmt.Println("Server running on http://localhost:8080")

@@ -110,10 +110,7 @@ Just do it, it's easy.
 Got the access token and fresh token to work, so authentication is basically done.
 Maybe I have to add some login-related features in the future, but it handles the basics
 well enough.
-Oh and also: it's so fun spending an entire day just to know that I have to use
-a proxy in package.json to make the cookie thingies work in safari. Good job, apple.
 - 2024/12/08: Taking the TOEIC test, so not much work is done. Almost like
 refactoring.
-- 2024/12/09: I couldn't finish the crud operations. Actually, there hasn't
-any crud functionality yet. I switched to gin framework today, got the
-middlewares to work and route. I will finish the crud operations tomorrow.
+- 2024/12/09: I switched to gin framework today, got the middlewares and route.
+- 2024/12/10: Finished the crud operations. Afternoon will be the time for testing.
