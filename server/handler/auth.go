@@ -49,6 +49,7 @@ func validatePassword(storedPassword, enteredPassword string) bool {
 func VerifyUser (user model.User) error {
     ctx, close := context.WithTimeout(context.Background(), 10*time.Second)
     defer close()
+
     filter := bson.M{"username": user.Username}
     result := util.UserCollection.FindOne(ctx, filter)
 
@@ -103,6 +104,7 @@ func validateTokenFromCookie(c *gin.Context, cookieName string) (string, error) 
     if err != nil || !token.Valid {
         return "", err
     }
+
 
     claims, ok := token.Claims.(*Claims)
     if !ok {
@@ -223,7 +225,7 @@ func SignIn(c *gin.Context) {
     // Verify user info
     err := VerifyUser(user)
     if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
         return
     }
 

@@ -113,4 +113,5 @@ well enough.
 - 2024/12/08: Taking the TOEIC test, so not much work is done. Almost like
 refactoring.
 - 2024/12/09: I switched to gin framework today, got the middlewares and route.
-- 2024/12/10: Finished the crud operations. Afternoon will be the time for testing.
+- 2024/12/10: Finished the crud operations. Write basic flow tests. Tomorrow,
+there will be edge case tests and authentication tests.

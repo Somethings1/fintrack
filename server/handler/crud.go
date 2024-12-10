@@ -14,6 +14,7 @@ import (
     "github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 )
 
@@ -52,7 +53,7 @@ func GetTransactionsByYear(c *gin.Context) {
     endOfYear := time.Date(parsedYear.Year()+1, time.January, 1, 0, 0, 0, 0, time.UTC)
 
     filter := bson.M{
-        "date": bson.M{
+        "date_time": bson.M{
             "$gte": startOfYear,
             "$lt":  endOfYear,
         },
@@ -83,6 +84,7 @@ func GetTransactionsByYear(c *gin.Context) {
                 fmt.Println("Error decoding transaction:", err)
                 return false
             }
+            fmt.Println(transaction)
             json.NewEncoder(w).Encode(transaction)
             return true
         }
@@ -94,12 +96,18 @@ func UpdateTransaction(c *gin.Context) {
     tx, _ := c.Get("transaction")
     transaction := tx.(model.Transaction)
 
-    filter := bson.M{"_id": transaction.ID}
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+        return
+    }
+
+    filter := bson.M{"_id": id}
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err := util.TransactionCollection.UpdateOne(ctx, filter, bson.M{"$set": transaction})
+    _, err = util.TransactionCollection.UpdateOne(ctx, filter, bson.M{"$set": transaction})
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating transaction"})
         return
@@ -109,12 +117,16 @@ func UpdateTransaction(c *gin.Context) {
 }
 
 func DeleteTransaction(c *gin.Context) {
-    transactionID := c.Param("id")
+    transactionID, err := primitive.ObjectIDFromHex(c.Param("id"))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+        return
+    }
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err := util.TransactionCollection.DeleteOne(ctx, bson.M{"_id": transactionID})
+    _, err = util.TransactionCollection.DeleteOne(ctx, bson.M{"_id": transactionID})
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting transaction"})
         return
@@ -179,12 +191,18 @@ func GetAccounts(c *gin.Context) {
 func UpdateAccount(c *gin.Context) {
     tmp, _ := c.Get("account")
     account := tmp.(model.Account)
-    filter := bson.M{"_id": c.Param("id")}
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account ID"})
+        return
+    }
+    filter := bson.M{"_id": id}
+    fmt.Println(account.Name)
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err := util.AccountCollection.UpdateOne(ctx, filter, bson.M{"$set": account})
+    _, err = util.AccountCollection.UpdateOne(ctx, filter, bson.M{"$set": account})
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating account"})
         return
@@ -194,12 +212,12 @@ func UpdateAccount(c *gin.Context) {
 }
 
 func DeleteAccount(c *gin.Context) {
-    id := c.Param("id")
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err := util.AccountCollection.DeleteOne(ctx, bson.M{"_id": id})
+    _, err = util.AccountCollection.DeleteOne(ctx, bson.M{"_id": id})
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting account"})
         return
@@ -264,12 +282,19 @@ func GetCategories(c *gin.Context) {
 func UpdateCategory(c *gin.Context) {
     tmp, _ := c.Get("category")
     category := tmp.(model.Category)
-    filter := bson.M{"_id": c.Param("id")}
+
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
+    filter := bson.M{"_id": id}
+
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+        return
+    }
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
+    _, err = util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating category"})
         return
@@ -279,12 +304,16 @@ func UpdateCategory(c *gin.Context) {
 }
 
 func DeleteCategory(c *gin.Context) {
-    id := c.Param("id")
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+        return
+    }
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err := util.CategoryCollection.DeleteOne(ctx, bson.M{"_id": id})
+    _, err = util.CategoryCollection.DeleteOne(ctx, bson.M{"_id": id})
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting category"})
         return

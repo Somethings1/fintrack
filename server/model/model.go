@@ -25,45 +25,10 @@ type Transaction struct {
     Amount          float64            `bson:"amount"`
     DateTime        time.Time          `bson:"date_time"`
     Type            string             `bson:"type"` // income, expense, transfer
-    SourceAccount   *primitive.ObjectID `bson:"source_account,omitempty"`
-    DestinationAccount *primitive.ObjectID `bson:"destination_account,omitempty"`
-    Category        *primitive.ObjectID `bson:"category,omitempty"`
+    SourceAccount   primitive.ObjectID `bson:"source_account,omitempty"`
+    DestinationAccount primitive.ObjectID `bson:"destination_account,omitempty"`
+    Category        primitive.ObjectID `bson:"category,omitempty"`
     Note            string             `bson:"note"`
-}
-
-func (t Transaction) FormatCheck() error {
-    if t.Type != "income" && t.Type != "expense" && t.Type != "transfer" {
-        return errors.New("Invalid transaction type")
-    }
-
-    if t.Amount < 0 {
-        return errors.New("Amount cannot be negative")
-    }
-
-    if t.SourceAccount == nil {
-        return errors.New("Source account is required")
-    }
-
-    if t.Type == "income" || t.Type == "expense" {
-        if (t.Category == nil) {
-            return errors.New("Category is required for income or expense transactions")
-        }
-        if (t.DestinationAccount != nil) {
-            return errors.New("Destination account is not required for income or expense transactions")
-        }
-    } else {
-        if t.Category != nil {
-            return errors.New("Category is not required for transfer transactions")
-        }
-        if (t.DestinationAccount == nil) {
-            return errors.New("Destination account is required for transfer transactions")
-        }
-        if (t.SourceAccount == t.DestinationAccount) {
-            return errors.New("Source and destination accounts cannot be the same")
-        }
-    }
-
-    return nil
 }
 
 type Account struct {
@@ -72,7 +37,7 @@ type Account struct {
     Balance float64            `bson:"balance"`
     Icon    string             `bson:"icon"`
     Name    string             `bson:"name"`
-    Goal    *float64           `bson:"goal,omitempty"`
+    Goal    float64           `bson:"goal,omitempty"`
 }
 
 func (account Account) FormatCheck() error {
@@ -93,7 +58,7 @@ type Category struct {
     Type    string             `bson:"type"` // income or expense
     Icon    string             `bson:"icon"`
     Name    string             `bson:"name"`
-    Budget  *float64           `bson:"budget,omitempty"`
+    Budget  float64           `bson:"budget,omitempty"`
 }
 
 func (category Category) FormatCheck() error {

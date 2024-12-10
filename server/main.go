@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"fintrack/server/handler"
 	"fintrack/server/util"
+	"fmt"
+	"log"
+
 	"github.com/gin-contrib/cors"
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -14,6 +15,7 @@ func main() {
 
     r := gin.Default()
     r.Use(handler.LoggingMiddleware())
+    r.Use(handler.PrintRequestDetails())
 
     r.POST("/auth/signup", handler.SignUp)
     r.POST("/auth/signin", handler.SignIn)
@@ -79,17 +81,18 @@ func main() {
             handler.DeleteCategory)
     }
 
-    r.Use(cors.New(cors.Config{
+    corsConfig := cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
-
 			return origin == "http://localhost:3000"
 		},
 		ExposeHeaders: []string{"Content-Length"},
-	}))
+	}
+
+    r.Use(cors.New(corsConfig))
 
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))
