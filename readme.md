@@ -5,7 +5,7 @@ Your AI finance tracker
 This is my first app in the full-stack dev journey. I've got several projects
 in progress, and all of them have gone to the ultimate trash can of the
 universe of programming. So, in order to make this a difference, I'm going to
-conmmit evrything to github, so I can keep track of my progress. This readme.md
+conmmit everything to github, so I can keep track of my progress. This readme.md
 was created the same time I got this idea, so i can actually measure the time
 it took to finish this project.
 
@@ -23,6 +23,10 @@ No, I don't know what I'm doing. I don't even know anything above. I don't even
 know anything about web development. Everything I did was some stupid JavaFX
 thingies and called it a day. However, this should end. Hopefully, in a month
 or two, I can finish this project.
+
+[Update]: The stack turns out to be so much nicer than I thought, despite the
+pain from mongodb. I got gin the framework on the backend, it makes routing and
+middleware so easier.
 
 # Description
 
@@ -113,5 +117,8 @@ well enough.
 - 2024/12/08: Taking the TOEIC test, so not much work is done. Almost like
 refactoring.
 - 2024/12/09: I switched to gin framework today, got the middlewares and route.
-- 2024/12/10: Finished the crud operations. Write basic flow tests. Tomorrow,
-there will be edge case tests and authentication tests.
+- 2024/12/10: Finished the crud operations. Write basic flow tests. ,
+- 2024/12/11: Don't feel like doing anything today. Learnt about docker and
+nginx, and may apply them later. Tomorrow, I will start building the web
+frontend. Hopefully I can cover the welcome page, login/signup page and the
+navigation bar on the main page.

@@ -10,7 +10,7 @@ function App() {
   // Function to check if the access token is still valid
   const verifyAuthentication = async () => {
     try {
-      const response = await fetch('/api/verify', {
+      const response = await fetch('/auth/verify', {
         method: 'GET',
         credentials: 'include',
       });
@@ -29,7 +29,7 @@ function App() {
   // Function to refresh the access token if expired
   const refreshToken = async () => {
     try {
-      const response = await fetch('/api/refresh', {
+      const response = await fetch('/auth/refresh', {
         method: 'POST',
         credentials: 'include', // Include cookies (such as refresh token)
       });

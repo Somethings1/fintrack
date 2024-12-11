@@ -19,7 +19,7 @@ const SignUpForm = () => {
         const userData = { username, password, name };
 
         try {
-            const response = await fetch("/api/signup", {
+            const response = await fetch("/auth/signup", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -134,7 +134,7 @@ function LogInForm({ onLogin }) {
 
         try {
             // Send the POST request to the server
-            const response = await fetch("/api/signin", {
+            const response = await fetch("/auth/signin", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

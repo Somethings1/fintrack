@@ -178,6 +178,10 @@ func saveTokens (c *gin.Context, credentials model.User) {
 //  methods
 ///////////////////
 
+func Verify(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{"message": "Verified"})
+}
+
 func SignUp(c *gin.Context) {
     var user model.User
     if err := c.ShouldBindJSON(&user); err != nil {
