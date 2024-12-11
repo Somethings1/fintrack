@@ -3,13 +3,17 @@ package handler
 import (
     "fmt"
     "time"
+    "errors"
+    "context"
     "net/http"
     "encoding/json"
-    "fintrack/server/service"
+	"golang.org/x/crypto/bcrypt"
     "fintrack/server/model"
     "fintrack/server/util"
     "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/bson"
     "github.com/golang-jwt/jwt/v4"
+    "github.com/gin-gonic/gin"
 )
 
 ///////////////////
@@ -29,6 +33,45 @@ type Claims struct {
 // Helper methods
 ///////////////////
 
+func hashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+func validatePassword(storedPassword, enteredPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(enteredPassword))
+	return err == nil
+}
+
+func VerifyUser (user model.User) error {
+    ctx, close := context.WithTimeout(context.Background(), 10*time.Second)
+    defer close()
+
+    filter := bson.M{"username": user.Username}
+    result := util.UserCollection.FindOne(ctx, filter)
+
+    // Check if user exists
+    if result.Err() != nil {
+        if result.Err() == mongo.ErrNoDocuments {
+            return errors.New("User not found")
+        }
+        return result.Err()
+    }
+    var dbUser model.User
+    err := result.Decode(&dbUser)
+
+    if err != nil {
+        return err
+    }
+
+    if !validatePassword(dbUser.Password, user.Password) {
+        return errors.New("Invalid password")
+    }
+    return nil
+}
 func parseUser(r *http.Request) (model.User, error) {
     var user model.User
 
@@ -49,19 +92,19 @@ func generateToken(username string, duration time.Duration) (string, error) {
     return token.SignedString(jwtKey)
 }
 
-func validateTokenFromCookie(r *http.Request, cookieName string) (string, error) {
-    cookie, err := r.Cookie(cookieName)
+func validateTokenFromCookie(c *gin.Context, cookieName string) (string, error) {
+    cookie, err := c.Cookie(cookieName)
     if err != nil {
         return "", err
     }
 
-    tokenString := cookie.Value
-    token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+    token, err := jwt.ParseWithClaims(cookie, &Claims{}, func(token *jwt.Token) (interface{}, error) {
         return jwtKey, nil
     })
     if err != nil || !token.Valid {
         return "", err
     }
+
 
     claims, ok := token.Claims.(*Claims)
     if !ok {
@@ -71,27 +114,28 @@ func validateTokenFromCookie(r *http.Request, cookieName string) (string, error)
     return claims.Username, nil
 }
 
-func setTokenCookie(w http.ResponseWriter, name, token string, duration time.Duration) {
-    http.SetCookie(w, &http.Cookie{
-        Name:     name,
-        Value:    token,
-        HttpOnly: true,
-        SameSite: http.SameSiteNoneMode,
-        Expires:  time.Now().Add(duration),
-        Path:     "/",
-        Secure:   false,
-    })
+func setTokenCookie(c *gin.Context, name, token string, duration time.Duration) {
+	c.SetCookie(
+		name,             // Cookie name
+		token,            // Cookie value
+		int(duration.Seconds()), // Max age in seconds
+		"/",              // Cookie path
+		"",               // Cookie domain (empty means default)
+		false,            // Secure (set to true for HTTPS)
+		true,             // HttpOnly
+	)
 }
 
-// Clear a token cookie
-func clearTokenCookie(w http.ResponseWriter, name string) {
-    http.SetCookie(w, &http.Cookie{
-        Name:     name,
-        Value:    "",
-        HttpOnly: true,
-        Expires:  time.Now().Add(-time.Hour),
-        Path:     "/",
-    })
+func clearTokenCookie(c *gin.Context, name string) {
+	c.SetCookie(
+		name,         // Cookie name
+		"",           // Empty value
+		-1,           // Max age in the past to invalidate
+		"/",          // Cookie path
+		"",           // Cookie domain (empty means default)
+		false,        // Secure (set to true for HTTPS)
+		true,         // HttpOnly
+	)
 }
 
 func assertUserInfo(user model.User) string {
@@ -112,173 +156,107 @@ func assertUserInfo(user model.User) string {
     return ""
 }
 
-func saveTokens (w http.ResponseWriter, credentials model.User) {
+func saveTokens (c *gin.Context, credentials model.User) {
     accessToken, err := generateToken(credentials.Username, ACCESS_TOKEN_EXPIRATION_TIME)
     if err != nil {
-        http.Error(w, "Could not create access token", http.StatusInternalServerError)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create access token"})
         return
     }
 
     refreshToken, err := generateToken(credentials.Username, REFRESH_TOKEN_EXPIRATION_TIME)
     if err != nil {
-        http.Error(w, "Could not create refresh token", http.StatusInternalServerError)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create refresh tokens"})
         return
     }
 
     // Set tokens as HTTP-only cookies
-    setTokenCookie(w, "access_token", accessToken, ACCESS_TOKEN_EXPIRATION_TIME)
-    setTokenCookie(w, "refresh_token", refreshToken, REFRESH_TOKEN_EXPIRATION_TIME)
+    setTokenCookie(c, "access_token", accessToken, ACCESS_TOKEN_EXPIRATION_TIME)
+    setTokenCookie(c, "refresh_token", refreshToken, REFRESH_TOKEN_EXPIRATION_TIME)
 }
 
 ///////////////////
-// Handler methods
+//  methods
 ///////////////////
 
-func SignUpHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Received signup request")
-    // Assert HTTP request method
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+func SignUp(c *gin.Context) {
+    var user model.User
+    if err := c.ShouldBindJSON(&user); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-    // Parse the request body
-    user, err := parseUser(r)
-    if err != nil {
-        http.Error(w, "Invalid input", http.StatusBadRequest)
-        return
-    }
-
-    // Assert user info
     message := assertUserInfo(user)
     if message != "" {
-        http.Error(w, message, http.StatusBadRequest)
+        c.JSON(http.StatusBadRequest, gin.H{"error": message})
         return
     }
 
     // Hash password
-    hashedPassword, err := service.HashPassword(user.Password)
+    hashedPassword, err := hashPassword(user.Password)
     if err != nil {
-        http.Error(w, "Internal server error (hashing not available)", http.StatusInternalServerError)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not hash password"})
         return
     }
 
     user.Password = hashedPassword
 
-    _, err = util.UserCollection.InsertOne(r.Context(), user)
+    _, err = util.UserCollection.InsertOne(context.TODO(), user)
     if err != nil {
         if mongo.IsDuplicateKeyError(err) {
-            http.Error(w, "Username already exists", http.StatusConflict)
+            c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
             return
         }
-        http.Error(w, "Internal server error (could not create user)", http.StatusInternalServerError)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
         return
     }
 
-    saveTokens(w, user)
+    saveTokens(c, user)
 
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte(`{"message": "User created successfully"}`))
+    c.JSON(http.StatusOK, gin.H{"message": "User created successfully"})
 }
 
-func SignInHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Received signin request")
-    // Assert HTTP request method
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-
-    // Parse the request body
-    user, err := parseUser(r)
-    if err != nil {
-        http.Error(w, "Invalid input", http.StatusBadRequest)
+func SignIn(c *gin.Context) {
+    var user model.User
+    if err := c.ShouldBindJSON(&user); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
         return
     }
 
     // Verify user info
-    err = service.VerifyUser(user)
+    err := VerifyUser(user)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
         return
     }
 
-    saveTokens(w, user)
+    saveTokens(c, user)
 
-    // Return success message
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte("Signin successful"))
+    c.JSON(http.StatusOK, gin.H{"message": "User signed in successfully"})
 }
 
-func VerifyHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Received verify request")
-    // Assert HTTP request method
-    if r.Method != http.MethodGet {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-cookie, err := r.Cookie("access_token")
+func Refresh(c *gin.Context) {
+    username, err := validateTokenFromCookie(c, "refresh_token")
     if err != nil {
-        fmt.Println("No access token found")
-    } else {
-        fmt.Println("Access token:", cookie.Value)
-    }
-
-    username, err := validateTokenFromCookie(r, "access_token")
-    if err != nil {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
-        return
-    }
-
-    json.NewEncoder(w).Encode(map[string]string{
-        "username": username,
-        "message":  "Authenticated",
-    })
-}
-
-func RefreshHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Received refresh request")
-    // Assert HTTP request method
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-
-    username, err := validateTokenFromCookie(r, "refresh_token")
-    if err != nil {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
         return
     }
 
     // Generate a new access token
     newAccessToken, err := generateToken(username, 15*time.Minute)
     if err != nil {
-        http.Error(w, "Could not create new access token", http.StatusInternalServerError)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create new access token"})
         return
     }
 
     // Set the new access token as an HTTP-only cookie
-    setTokenCookie(w, "access_token", newAccessToken, 15*time.Minute)
+    setTokenCookie(c, "access_token", newAccessToken, 15*time.Minute)
 
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{
-        "message": "Access token refreshed",
-    })
+    c.JSON(http.StatusOK, gin.H{"message": "Access token refreshed"})
 }
 
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Received logout request")
-    // Assert HTTP request method
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
+func Logout(c *gin.Context) {
+    clearTokenCookie(c, "access_token")
+    clearTokenCookie(c, "refresh_token")
 
-    clearTokenCookie(w, "access_token")
-    clearTokenCookie(w, "refresh_token")
-
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{
-        "message": "Logged out successfully",
-    })
+    c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
