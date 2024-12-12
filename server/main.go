@@ -20,7 +20,7 @@ func main() {
     r.POST("/auth/signup", handler.SignUp)
     r.POST("/auth/signin", handler.SignIn)
     r.POST("/auth/refresh", handler.Refresh)
-    r.POST("/auth/verify", handler.Verify)
+    r.POST("/auth/verify", handler.AuthMiddleware(), handler.Verify)
     r.POST("/auth/logout", handler.Logout)
 
     api := r.Group("/api", handler.AuthMiddleware())

@@ -1,17 +1,18 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Box } from '@chakra-ui/react';
+import HeroSection from './components/HeroSection';
+import AboutSection from './components/AboutSection';
+import Footer from './components/Footer';
 
-function WelcomePage() {
-  return (
-    <div>
-      <h1>Hello new user!</h1>
-      <p>Please sign in to continue.</p>
-      <Link to="/auth">
-        <button>Go to Sign In</button>
-      </Link>
-    </div>
-  );
-}
+const WelcomePage = () => {
+    return (
+        <Box>
+            <HeroSection />
+            <AboutSection />
+            <Footer />
+        </Box>
+    );
+};
 
 export default WelcomePage;
 

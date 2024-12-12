@@ -1,0 +1,42 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+}
+
+.welcome-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Full viewport height */
+  background-color: #f0f8ff; /* Light blue background */
+  text-align: center;
+}
+
+.welcome-title {
+  font-size: 3rem;
+  margin: 0.5rem 0;
+}
+
+.welcome-subtitle {
+  font-size: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.signup-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  color: white;
+  background-color: #007bff; /* Bootstrap primary color */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.signup-button:hover {
+  background-color: #0056b3; /* Darker shade on hover */
+}
+

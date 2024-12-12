@@ -122,3 +122,10 @@ refactoring.
 nginx, and may apply them later. Tomorrow, I will start building the web
 frontend. Hopefully I can cover the welcome page, login/signup page and the
 navigation bar on the main page.
+- 2024/12/12: Shoot, I failed. I don't understand js. Even using a library is
+so damn difficult. Why can't it just be like any other programming languages?
+Like if I want to use gin in go, I import it, go mod tidy to retrieve it, then
+start diving in the docs. Wtf is wrong with js? I just install @chakra-ui from
+npm, and am I supposed to just import each component and use them? No, it doesn't
+work. Following the docs leads to error. Finding some sub-package, it works, but
+teribly. This is just a horrible experience. Fuck JS

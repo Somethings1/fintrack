@@ -7,7 +7,7 @@ function HomePage({ onLogout }) {
   const logout = async () => {
     try {
       // Call the backend to log out (invalidate the session or token)
-      const response = await fetch('/api/logout', {
+      const response = await fetch('/auth/logout', {
         method: 'POST',
         credentials: 'include', // Ensure cookies are sent with the request
       });
