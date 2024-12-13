@@ -118,14 +118,8 @@ well enough.
 refactoring.
 - 2024/12/09: I switched to gin framework today, got the middlewares and route.
 - 2024/12/10: Finished the crud operations. Write basic flow tests. ,
-- 2024/12/11: Don't feel like doing anything today. Learnt about docker and
-nginx, and may apply them later. Tomorrow, I will start building the web
-frontend. Hopefully I can cover the welcome page, login/signup page and the
-navigation bar on the main page.
-- 2024/12/12: Shoot, I failed. I don't understand js. Even using a library is
-so damn difficult. Why can't it just be like any other programming languages?
-Like if I want to use gin in go, I import it, go mod tidy to retrieve it, then
-start diving in the docs. Wtf is wrong with js? I just install @chakra-ui from
-npm, and am I supposed to just import each component and use them? No, it doesn't
-work. Following the docs leads to error. Finding some sub-package, it works, but
-teribly. This is just a horrible experience. Fuck JS
+- 2024/12/11: Learnt about docker and nginx, and may apply them later.
+- 2024/12/12: Fuck JS.
+- 2024/12/13: Miracle. I saw God. When I open my mac in the morning, chakra-ui
+works like a charm. I finally done the auth page. I might not be able to update
+tomorrow, since I have an exam the next day.

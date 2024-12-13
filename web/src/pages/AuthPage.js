@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { Box, Button, Input, Heading, Text, VStack } from "@chakra-ui/react";
-import { Tabs, TabList, Tab, TabPanels, TabPanel } from "@chakra-ui/tabs";
-import { FormControl, FormLabel } from "@chakra-ui/form-control";
+import { Box, Button, Input, Heading, Text, VStack, Tabs, Fieldset } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
+import { Field } from "../components/ui/field"
 
 const SignUpForm = () => {
   const [username, setUsername] = useState("");
@@ -19,6 +18,21 @@ const SignUpForm = () => {
       setError("All fields are required.");
       return;
     }
+      if (username.length < 6) {
+          setError("Username must be at least 6 characters long.");
+          return;
+      }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (/^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/.test(password)) {
+      setError("Password must contain at least one lowercase letter, one uppercase letter, one special character(!@#$%^&*), and one number.");
+      return;
+    }
+
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -39,8 +53,8 @@ const SignUpForm = () => {
       if (response.ok) {
         alert("Account created successfully!");
       } else {
-        const errorData = await response.text();
-        setError(errorData || "Something went wrong");
+        const errorData = await response.json();
+        setError(errorData["error"] || "Something went wrong");
       }
     } catch (err) {
       setError("Server error: " + err.message);
@@ -48,62 +62,66 @@ const SignUpForm = () => {
   };
 
   return (
-    <Box maxW="400px" mx="auto" p="4" borderWidth="1px" borderRadius="md" boxShadow="lg">
+    <Box
+      maxW="400px"
+      mx="auto"
+      p="4"
+      borderWidth="1px"
+      borderRadius="md"
+      boxShadow="lg"
+      bgColor="white">
       <Heading size="lg" textAlign="center" mb="4">
         Sign Up
       </Heading>
       <form onSubmit={handleSubmit}>
-        <VStack spacing="4">
-          <FormControl>
-            <FormLabel>Name</FormLabel>
-            <Input
+      <Fieldset.Root size="lg">
+        <Fieldset.Content>
+            <Field label="Name">
+              <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               w="full"
-            />
-          </FormControl>
+              />
+            </Field>
+            <Field label="Username">
+                <Input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  w="full"
+                />
+            </Field>
+            <Field label="Password">
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  w="full"
+                />
+            </Field>
+            <Field label="Confirm Password">
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  w="full"
+                />
+            </Field>
+        </Fieldset.Content>
+      </Fieldset.Root>
+<Box h="20px">
 
-          <FormControl>
-            <FormLabel>Username</FormLabel>
-            <Input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              w="full"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormLabel>Password</FormLabel>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              w="full"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormLabel>Re-enter Password</FormLabel>
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              w="full"
-            />
-          </FormControl>
-
+</Box>
           {error && <Text color="red.500">{error}</Text>}
 
           <Button type="submit" colorScheme="blue" w="full">
             Sign Up
           </Button>
-        </VStack>
       </form>
     </Box>
   );
@@ -112,6 +130,7 @@ const SignUpForm = () => {
 const LogInForm = ({ onLogin }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
@@ -128,29 +147,35 @@ const LogInForm = ({ onLogin }) => {
         body: JSON.stringify(payload),
       });
 
-      const result = await response.text();
+      const result = await response.json();
 
       if (response.ok) {
-        alert(`Success: ${result}`);
         onLogin();
         navigate("/home");
       } else {
-        alert(`User error: ${result}`);
+          setError(result["error"]);
       }
     } catch (error) {
-      alert(`Server error: ${error.message}`);
+        setError("Server error: " + error.message);
     }
   };
 
   return (
-    <Box maxW="400px" mx="auto" p="4" borderWidth="1px" borderRadius="md" boxShadow="lg">
+    <Box
+      maxW="400px"
+      mx="auto"
+      p="4"
+      borderWidth="1px"
+      borderRadius="md"
+      boxShadow="lg"
+      bgColor="white">
       <Heading size="lg" textAlign="center" mb="4">
-        Sign In
+        Log In
       </Heading>
       <form onSubmit={handleSubmit}>
-        <VStack spacing="4">
-          <FormControl>
-            <FormLabel>Username</FormLabel>
+      <Fieldset.Root>
+      <Fieldset.Content>
+          <Field label="Username">
             <Input
               type="text"
               value={username}
@@ -158,10 +183,9 @@ const LogInForm = ({ onLogin }) => {
               required
               w="full"
             />
-          </FormControl>
+          </Field>
 
-          <FormControl>
-            <FormLabel>Password</FormLabel>
+          <Field label="Password">
             <Input
               type="password"
               value={password}
@@ -169,12 +193,13 @@ const LogInForm = ({ onLogin }) => {
               required
               w="full"
             />
-          </FormControl>
-
+          </Field>
+            {error && <Text color="red.500">{error}</Text>}
           <Button type="submit" colorScheme="blue" w="full">
             Sign In
           </Button>
-        </VStack>
+      </Fieldset.Content>
+      </Fieldset.Root>
       </form>
     </Box>
   );
@@ -182,24 +207,34 @@ const LogInForm = ({ onLogin }) => {
 
 const AuthPage = ({ onLogin }) => {
   return (
-    <Box textAlign="center" p="6">
-      <Heading>Welcome to the AuthPage</Heading>
-      <Box my="6">
-        <Tabs mt="40px" h="20px" colorScheme="teal" variant="enclosed">
-          <TabList>
-            <Tab>Sign In</Tab>
-            <Tab>Sign Up</Tab>
-          </TabList>
+    <Box
+        textAlign="center"
+        p="6"
+        bgImage="url('/bg.jpg')"
+        bgSize="cover"
+        bgPosition="center"
+        minHeight="100vh">
 
-          <TabPanels>
-            <TabPanel>
+      <Heading size="5xl">Welcome to the AuthPage</Heading>
+      <Box my="6">
+        <Tabs.Root
+            defaultValue="login"
+            mt="40px"
+            h="20px"
+            colorScheme="teal"
+            variant="enclosed">
+          <Tabs.List>
+            <Tabs.Trigger value="login">Log In</Tabs.Trigger>
+            <Tabs.Trigger value="signup">Sign Up</Tabs.Trigger>
+          </Tabs.List>
+
+            <Tabs.Content value="login">
               <LogInForm onLogin={onLogin} />
-            </TabPanel>
-            <TabPanel>
+            </Tabs.Content>
+            <Tabs.Content value="signup">
               <SignUpForm />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+            </Tabs.Content>
+        </Tabs.Root>
       </Box>
     </Box>
   );
