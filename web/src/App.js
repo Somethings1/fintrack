@@ -11,7 +11,7 @@ function App() {
   const verifyAuthentication = async () => {
     try {
       const response = await fetch('/auth/verify', {
-        method: 'GET',
+        method: 'POST',
         credentials: 'include',
       });
 

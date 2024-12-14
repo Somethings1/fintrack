@@ -215,7 +215,7 @@ const AuthPage = ({ onLogin }) => {
         bgPosition="center"
         minHeight="100vh">
 
-      <Heading size="5xl">Welcome to the AuthPage</Heading>
+      <Heading size="5xl">Join the Finance Revolution</Heading>
       <Box my="6">
         <Tabs.Root
             defaultValue="login"

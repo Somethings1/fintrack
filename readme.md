@@ -120,6 +120,5 @@ refactoring.
 - 2024/12/10: Finished the crud operations. Write basic flow tests. ,
 - 2024/12/11: Learnt about docker and nginx, and may apply them later.
 - 2024/12/12: Fuck JS.
-- 2024/12/13: Miracle. I saw God. When I open my mac in the morning, chakra-ui
-works like a charm. I finally done the auth page. I might not be able to update
-tomorrow, since I have an exam the next day.
+- 2024/12/13: Finally done the auth page.
+- 2024/12/14: Studied for the exam. Basic layout on home page.
