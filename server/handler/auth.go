@@ -235,7 +235,11 @@ func SignIn(c *gin.Context) {
 
     saveTokens(c, user)
 
-    c.JSON(http.StatusOK, gin.H{"message": "User signed in successfully"})
+    c.JSON(http.StatusOK, gin.H{
+        "message": "User signed in successfully",
+        "username": user.Username,
+        "name": user.Name,
+    })
 }
 
 func Refresh(c *gin.Context) {
@@ -247,6 +251,7 @@ func Refresh(c *gin.Context) {
 
     // Generate a new access token
     newAccessToken, err := generateToken(username, 15*time.Minute)
+
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create new access token"})
         return

@@ -1,11 +1,10 @@
-import React, { useState, forwardRef } from "react";
+import React, { useState } from "react";
 import {
     Box,
     Flex,
     Input,
     VStack,
     Text,
-    Icon,
     Center,
 } from "@chakra-ui/react";
 import { InputGroup } from "../components/ui/input-group";
@@ -24,14 +23,12 @@ import {
 import { Button } from "../components/ui/button";
 import { Avatar } from "../components/ui/avatar";
 import {
-    DrawerActionTrigger,
     DrawerBackdrop,
     DrawerBody,
     DrawerContent,
     DrawerFooter,
     DrawerHeader,
     DrawerRoot,
-    DrawerTitle,
     DrawerTrigger,
 } from "../components/ui/drawer"
 import {
@@ -43,20 +40,27 @@ import {
     PopoverArrow,
 } from "../components/ui/popover"
 
+import { dropDatabase } from "../util/db";
+import  Overview  from "./components/Overview";
+import  Analysis  from "./components/Analysis";
+import  Accounts  from "./components/Accounts";
+import  Savings   from "./components/Savings";
+import  Settings  from "./components/Settings";
+
 const HomePage = () => {
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [selectedOption, setSelectedOption] = useState("Overview");
+    const [openingPage, setOpeningPage] = useState(<Overview />);
     const options = [
-        { name: 'Overview', icon: <LuHouse />, action: 'overviewAction' },
-        { name: 'Analysis', icon: <LuChartArea />, action: 'analysisAction' },
-        { name: 'Accounts', icon: <LuWalletMinimal />, action: 'accountsAction' },
-        { name: 'Savings', icon: <LuPiggyBank />, action: 'savingsAction' },
-        { name: 'Settings', icon: <LuSettings />, action: 'settingsAction' },
+        { name: 'Overview', icon: <LuHouse />, action: () => setOpeningPage(<Overview />)},
+        { name: 'Analysis', icon: <LuChartArea />, action: () => setOpeningPage(<Analysis />) },
+        { name: 'Accounts', icon: <LuWalletMinimal />, action: () => setOpeningPage(<Accounts />)},
+        { name: 'Savings', icon: <LuPiggyBank />, action: () => setOpeningPage(<Savings />)},
+        { name: 'Settings', icon: <LuSettings />, action: () => setOpeningPage(<Settings />)},
     ];
 
-    const toggleDrawer = () => setDrawerOpen(!isDrawerOpen);
-    const closeDrawer = () => setDrawerOpen(false);
     const handleLogout = () => {
+        dropDatabase();
         fetch('/auth/logout', {
             method: 'POST',
             credentials: 'include',
@@ -120,7 +124,7 @@ const HomePage = () => {
                                     <Box
                                         key={option.name}
                                         as="button"
-                                        onClick={() => { setSelectedOption(option.name); setDrawerOpen(false); }}
+                                        onClick={() => { setSelectedOption(option.name); setDrawerOpen(false); option.action(); }}
                                         py={3}
                                         px={2}
                                         borderRadius="md"
@@ -227,7 +231,7 @@ const HomePage = () => {
             {/* Main Content */}
             <Box p={10} pt="80px">
                 <Center>
-                    <Text fontSize="xl">Welcome to {selectedOption}</Text>
+                    {openingPage}
                 </Center>
             </Box>
         </Box>

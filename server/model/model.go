@@ -40,18 +40,6 @@ type Account struct {
     Goal    float64           `bson:"goal,omitempty"`
 }
 
-func (account Account) FormatCheck() error {
-    if account.Balance < 0 {
-        return errors.New("Balance cannot be negative")
-    }
-
-    if account.Name == "" {
-        return errors.New("Name cannot be empty")
-    }
-
-    return nil
-}
-
 type Category struct {
     ID      primitive.ObjectID `bson:"_id,omitempty"`
     Owner   string             `bson:"owner"`
