@@ -234,11 +234,11 @@ const Overview = () => {
 
             {/* Row 3: Money Flow and Budget */}
             <Flex direction={layoutConfig} wrap="wrap" gap={5} mb={5}>
-                <Box flex="2" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
+                <Box minW="350px" flex="2" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
                     <Text fontSize="xl" mb={4} fontWeight="bold">Money Flow</Text>
                     <Bar data={moneyFlowData} options={barChartOptions} />
                 </Box>
-                <Box h="380px" flex="1" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
+                <Box h="380px" minW="350px" flex="1" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
                     <Text fontSize="xl" fontWeight="bold">Budget</Text>
                     <Doughnut data={categoryData} options={doughnutChartOptions} />
                 </Box>
