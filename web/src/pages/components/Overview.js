@@ -2,6 +2,29 @@ import React from "react";
 import { Box, Flex, Text, Table, useBreakpointValue } from "@chakra-ui/react";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import ProgressBar from "@ramonak/react-progress-bar";
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+} from "chart.js";
+
+import { Bar, Doughnut } from "react-chartjs-2";
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement
+);
+
 
 const Overview = () => {
     const currentMonth = new Date().toLocaleString("default", { month: "long" });
@@ -24,11 +47,29 @@ const Overview = () => {
                 label: "Income",
                 data: Array.from({ length: 6 }, () => Math.random() * 1000),
                 backgroundColor: "rgba(0, 255, 0, 0.5)",
+                barThickness: 30,
+                borderRadius: {
+                    topRight: 20,
+                    topLeft: 20,
+                    bottomLeft: 0,
+                    bottomRight: 0,
+                },
+                categoryPercentage: 0.9,
+                barPercentage: 0.9,
             },
             {
                 label: "Expense",
                 data: Array.from({ length: 6 }, () => Math.random() * 1000),
                 backgroundColor: "rgba(255, 0, 0, 0.5)",
+                barThickness: 30,
+                borderRadius: {
+                    topRight: 20,
+                    topLeft: 20,
+                    bottomLeft: 0,
+                    bottomRight: 0,
+                },
+                categoryPercentage: 0.9,
+                barPercentage: 0.9,
             },
         ],
     };
@@ -41,6 +82,7 @@ const Overview = () => {
                 data: [30, 50, 10, 10],
                 backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
                 hoverBackgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
+                borderRadius: 9,
             },
         ],
     };
@@ -64,6 +106,49 @@ const Overview = () => {
         base: "column",  // stack for mobile
         md: "row",      // row for larger screens (500px+)
     });
+
+    const barChartOptions = {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: "top",
+                labels: {
+                    usePointStyle: true, // Enable custom point styles
+                    pointStyle: "circle", // Set the legend icon shape to a circle
+                    font: {
+                        weight: "bold",
+                    }
+                },
+            },
+            title: {
+                display: false,
+                text: "Income vs Expense (Last 6 Months)",
+            },
+        },
+        aspectRatio: 3,
+    };
+
+    // Chart.js options for doughnut chart
+    const doughnutChartOptions = {
+        plugins: {
+            legend: {
+                position: "left",
+                labels: {
+                    usePointStyle: true, // Enable custom point styles
+                    pointStyle: "circle", // Set the legend icon shape to a circle
+                    font: {
+                        weight: "bold",
+                    }
+                },
+            },
+        },
+        layout: {
+            padding: 0,
+        },
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "80%",
+    };
 
     return (
         <Box p={0} width="100%">
@@ -149,11 +234,13 @@ const Overview = () => {
 
             {/* Row 3: Money Flow and Budget */}
             <Flex direction={layoutConfig} wrap="wrap" gap={5} mb={5}>
-                <Box flex="2" minW="350px" p={5} borderWidth={1} borderRadius="lg" boxShadow="sm">
-                    <Text fontSize="xl">Money Flow</Text>
+                <Box flex="2" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
+                    <Text fontSize="xl" mb={4} fontWeight="bold">Money Flow</Text>
+                    <Bar data={moneyFlowData} options={barChartOptions} />
                 </Box>
-                <Box flex="1" minW="350px" p={5} borderWidth={1} borderRadius="lg" boxShadow="sm">
-                    <Text fontSize="xl">Budget</Text>
+                <Box h="380px" flex="1" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
+                    <Text fontSize="xl" fontWeight="bold">Budget</Text>
+                    <Doughnut data={categoryData} options={doughnutChartOptions} />
                 </Box>
             </Flex>
 
@@ -161,52 +248,54 @@ const Overview = () => {
             <Flex direction={layoutConfig} wrap="wrap" gap={5}>
                 <Box flex="2" minW="350px" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
                     <Text fontSize="xl" mb={3} fontWeight="bold">Recent Transactions</Text>
-                    <Table.Root interactive size="lg">
-                        <Table.Header>
-                            <Table.Row bgColor="teal.100">
-                                <Table.ColumnHeader
-                                    roundedLeft="4xl"
-                                    borderBottomWidth={0}
-                                    color="teal.700" >
-                                    DATE
-                                </Table.ColumnHeader>
-                                <Table.ColumnHeader
-                                    color="teal.700"
-                                    borderBottomWidth={0} >
-                                    CATEGORY
-                                </Table.ColumnHeader>
-                                <Table.ColumnHeader
-                                    color="teal.700"
-                                    borderBottomWidth={0} >
-                                    AMOUNT
-                                </Table.ColumnHeader>
-                                <Table.ColumnHeader
-                                    color="teal.700"
-                                    borderBottomWidth={0} >
-                                    ACCOUNT
-                                </Table.ColumnHeader>
-                                <Table.ColumnHeader
-                                    roundedRight="4xl"
-                                    borderBottomWidth={0}
-                                    color="teal.700" >
-                                    NOTE
-                                </Table.ColumnHeader>
-                            </Table.Row>
-                        </Table.Header>
-                        <Table.Body>
-                            {transactions.map((transaction, index) => (
-                                <Table.Row key={index}>
-                                    <Table.Cell fontWeight="bold">{transaction.date}</Table.Cell>
-                                    <Table.Cell fontWeight="bold">{transaction.category}</Table.Cell>
-                                    <Table.Cell fontWeight="bold">{transaction.amount}</Table.Cell>
-                                    <Table.Cell fontWeight="bold">{transaction.account}</Table.Cell>
-                                    <Table.Cell fontWeight="bold">{transaction.note}</Table.Cell>
+                    <Table.ScrollArea h="280px">
+                        <Table.Root interactive size="lg">
+                            <Table.Header>
+                                <Table.Row bgColor="teal.100">
+                                    <Table.ColumnHeader
+                                        roundedLeft="4xl"
+                                        borderBottomWidth={0}
+                                        color="teal.700" >
+                                        DATE
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader
+                                        color="teal.700"
+                                        borderBottomWidth={0} >
+                                        CATEGORY
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader
+                                        color="teal.700"
+                                        borderBottomWidth={0} >
+                                        AMOUNT
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader
+                                        color="teal.700"
+                                        borderBottomWidth={0} >
+                                        ACCOUNT
+                                    </Table.ColumnHeader>
+                                    <Table.ColumnHeader
+                                        roundedRight="4xl"
+                                        borderBottomWidth={0}
+                                        color="teal.700" >
+                                        NOTE
+                                    </Table.ColumnHeader>
                                 </Table.Row>
-                            ))}
-                        </Table.Body>
-                    </Table.Root>
+                            </Table.Header>
+                            <Table.Body>
+                                {transactions.map((transaction, index) => (
+                                    <Table.Row key={index}>
+                                        <Table.Cell fontWeight="bold">{transaction.date}</Table.Cell>
+                                        <Table.Cell fontWeight="bold">{transaction.category}</Table.Cell>
+                                        <Table.Cell fontWeight="bold">{transaction.amount}</Table.Cell>
+                                        <Table.Cell fontWeight="bold">{transaction.account}</Table.Cell>
+                                        <Table.Cell fontWeight="bold">{transaction.note}</Table.Cell>
+                                    </Table.Row>
+                                ))}
+                            </Table.Body>
+                        </Table.Root>
+                    </Table.ScrollArea>
                 </Box>
-                <Box flex="1" minW="350px" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
+                <Box flex="1" minW="350px" height="auto" p={5} borderWidth={1} borderRadius="4xl" boxShadow="sm">
                     <Text fontSize="xl" fontWeight="bold" mb={9}>Saving Goals</Text>
                     {savingGoals.map((goal, index) => (
                         <Box key={index} mb={5}>

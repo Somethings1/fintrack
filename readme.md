@@ -122,3 +122,8 @@ refactoring.
 - 2024/12/12: Fuck JS.
 - 2024/12/13: Finally done the auth page.
 - 2024/12/14: Studied for the exam. Basic layout on home page.
+- 2024/12/15: Took the exam, so no work is done
+- 2024/12/16: Got excited about the TOEIC test result (935), so no work is done
+- 2024/12/17: Basic layout on overview page, getting familiar with reactjs and
+chakra-ui. Put some charts on. From now on, I will have to prepare for final
+exams, so I probably will not have much update on this
