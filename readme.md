@@ -127,3 +127,4 @@ refactoring.
 - 2024/12/17: Basic layout on overview page, getting familiar with reactjs and
 chakra-ui. Put some charts on. From now on, I will have to prepare for final
 exams, so I probably will not have much update on this
+- 2024/12/25: Basic layout on analysis page.
