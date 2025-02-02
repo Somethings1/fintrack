@@ -128,3 +128,5 @@ refactoring.
 chakra-ui. Put some charts on. From now on, I will have to prepare for final
 exams, so I probably will not have much update on this
 - 2024/12/25: Basic layout on analysis page.
+- 2025/02/02: Finally back after final term exam & Tet holiday. Restarting this
+project.

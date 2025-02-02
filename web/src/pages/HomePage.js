@@ -43,7 +43,7 @@ import {
 import { dropDatabase } from "../util/db";
 import  Overview  from "./components/Overview";
 import  Analysis  from "./components/Analysis";
-import  Accounts  from "./components/Accounts";
+import  Wallet  from "./components/Wallet";
 import  Savings   from "./components/Savings";
 import  Settings  from "./components/Settings";
 
@@ -54,7 +54,7 @@ const HomePage = () => {
     const options = [
         { name: 'Overview', icon: <LuHouse />, action: () => setOpeningPage(<Overview />)},
         { name: 'Analysis', icon: <LuChartArea />, action: () => setOpeningPage(<Analysis />) },
-        { name: 'Accounts', icon: <LuWalletMinimal />, action: () => setOpeningPage(<Accounts />)},
+        { name: 'Wallet', icon: <LuWalletMinimal />, action: () => setOpeningPage(<Wallet />)},
         { name: 'Savings', icon: <LuPiggyBank />, action: () => setOpeningPage(<Savings />)},
         { name: 'Settings', icon: <LuSettings />, action: () => setOpeningPage(<Settings />)},
     ];
