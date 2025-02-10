@@ -40,6 +40,17 @@ type Account struct {
     Goal    float64           `bson:"goal,omitempty"`
 }
 
+type Saving struct {
+    ID          primitive.ObjectID `bson:"_id,omitempty"`
+    Owner       string             `bson:"owner"`
+    Balance     float64            `bson:"balance"`
+    Icon        string             `bson:"icon"`
+    Name        string             `bson:"name"`
+    Goal        float64            `bson:"goal,omitempty"`
+    CreatedDate time.Time          `bson:"created_date"`
+    GoalDate    time.Time          `bson:"goal_date"`
+}
+
 type Category struct {
     ID      primitive.ObjectID `bson:"_id,omitempty"`
     Owner   string             `bson:"owner"`

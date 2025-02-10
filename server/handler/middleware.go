@@ -248,6 +248,69 @@ func AccountFormatMiddleware() gin.HandlerFunc {
     }
 }
 
+func SavingOwnershipMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        username := c.GetString("username")
+        saving, err := service.GetSavingByID(c.Param("id"))
+
+        if err != nil {
+            c.AbortWithStatus(http.StatusNotFound)
+            return
+        }
+
+        if saving.Owner != username {
+            c.AbortWithStatus(http.StatusForbidden)
+            return
+        }
+
+        c.Set("saving", saving)
+        c.Next()
+    }
+}
+
+func SavingFormatMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        type Saving struct {
+            Owner       string  `json:"owner"`
+            Balance     float64 `json:"balance"`
+            Icon        string  `json:"icon"`
+            Name        string  `json:"name"`
+            Goal        float64 `json:"goal"`
+            CreatedDate time.Time `json:"created_date"`
+            GoalDate    time.Time `json:"goal_date"`
+        }
+        var _saving Saving
+
+        if err := c.ShouldBindJSON(&_saving); err != nil {
+            c.AbortWithStatus(http.StatusBadRequest)
+            return
+        }
+
+        if _saving.Balance < 0 {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Balance cannot be negative"})
+            return
+        }
+
+        if _saving.Name == "" {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Name cannot be empty"})
+            return
+        }
+
+        saving := model.Saving{
+            Owner:       _saving.Owner,
+            Balance:     _saving.Balance,
+            Icon:        _saving.Icon,
+            Name:        _saving.Name,
+            Goal:        _saving.Goal,
+            CreatedDate: _saving.CreatedDate,
+            GoalDate:    _saving.GoalDate,
+        }
+
+        c.Set("saving", saving)
+        c.Next()
+    }
+}
+
 func CategoryOwnershipMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         username := c.GetString("username")

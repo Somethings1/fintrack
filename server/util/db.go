@@ -13,6 +13,7 @@ var UserCollection *mongo.Collection
 var AccountCollection *mongo.Collection
 var TransactionCollection *mongo.Collection
 var CategoryCollection *mongo.Collection
+var SavingCollection *mongo.Collection
 
 func InitDB() {
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
@@ -25,6 +26,7 @@ func InitDB() {
     AccountCollection = client.Database("finance_db").Collection("accounts")
     TransactionCollection = client.Database("finance_db").Collection("transactions")
 	CategoryCollection = client.Database("finance_db").Collection("categories")
+    SavingCollection = client.Database("finance_db").Collection("savings")
 
     createUserIndex()
 }
