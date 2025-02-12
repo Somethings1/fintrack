@@ -89,7 +89,7 @@ const HomePage = () => {
 
                 px={4}
             >
-                <DrawerRoot placement="start" open={isDrawerOpen} onOpenChange={e => setDrawerOpen(e.open)}>
+                <DrawerRoot placement="start" open={isDrawerOpen} onOpenChange={e => setDrawerOpen(e.open)} >
                     <DrawerBackdrop />
                     <DrawerTrigger asChild>
                         <Button
@@ -100,7 +100,7 @@ const HomePage = () => {
                         </Button>
                     </DrawerTrigger>
                     <DrawerContent>
-                        <DrawerHeader>
+                        <DrawerHeader bgColor="primary.100">
                             <Flex justifyContent="space-between" width="100%" alignItems="center">
                                 <Text fontSize="lg" fontWeight="bold" ml={4}>
                                     Fintrack
@@ -118,7 +118,7 @@ const HomePage = () => {
                                 </Box>
                             </Flex>
                         </DrawerHeader>
-                        <DrawerBody>
+                        <DrawerBody bgColor="primary.100">
                             <VStack align="stretch" spacing={4}>
                                 {options.map((option) => (
                                     <Box
@@ -126,16 +126,16 @@ const HomePage = () => {
                                         as="button"
                                         onClick={() => { setSelectedOption(option.name); setDrawerOpen(false); option.action(); }}
                                         py={3}
-                                        px={2}
-                                        borderRadius="md"
-                                        _hover={{ bg: "gray.100" }}
+                                        px={5}
+                                        borderRadius="4xl"
+                                        _hover={{ bg: "primary.300" }}
                                         fontSize="md"
                                         fontWeight={selectedOption === option.name ? "bold" : "normal"}
-                                        color={selectedOption === option.name ? "teal.500" : "inherit"}
+                                        color={selectedOption === option.name ? "neutral.100" : "inherit"}
                                         textAlign="left"
                                         cursor="pointer"
                                         transition="background-color 0.2s ease-in-out"
-                                        bg={selectedOption === option.name ? "teal.50" : "transparent"}
+                                        bg={selectedOption === option.name ? "primary.600" : "transparent"}
                                         display="flex"
                                         alignItems="center" // Ensures the icon and text are aligned properly
                                     >

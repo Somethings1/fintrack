@@ -131,3 +131,4 @@ exams, so I probably will not have much update on this
 - 2025/02/02: Finally back after final term exam & Tet holiday. Restarting this
 project.
 - 2025/02/10: Separate account and saving on server side
+- 2025/02/12: Savings Page & basic Settings Page. A little of theme defining.

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Flex, Text, Table, useBreakpointValue } from "@chakra-ui/react";
+import { Box, Flex, Text, Table, useBreakpointValue, useToken } from "@chakra-ui/react";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import ProgressBar from "@ramonak/react-progress-bar";
 import {
@@ -34,6 +34,9 @@ const Overview = () => {
     const monthlyExpense = 3500;
     const balance = monthlyIncome - monthlyExpense;
     const totalSavings = 2000;
+    const progressBackground = useToken("colors", "primary.200");
+    const progressForeground = useToken("colors", "primary.800");
+
 
     // Random percentage changes
     const incomeChange = Math.random() * 20 - 10; // between -10% to +10%
@@ -46,7 +49,7 @@ const Overview = () => {
             {
                 label: "Income",
                 data: Array.from({ length: 6 }, () => Math.random() * 1000),
-                backgroundColor: "rgba(0, 255, 0, 0.5)",
+                backgroundColor: useToken("colors", "primary.300"),
                 barThickness: 30,
                 borderRadius: {
                     topRight: 20,
@@ -60,7 +63,7 @@ const Overview = () => {
             {
                 label: "Expense",
                 data: Array.from({ length: 6 }, () => Math.random() * 1000),
-                backgroundColor: "rgba(255, 0, 0, 0.5)",
+                backgroundColor: useToken("colors", "primary.600"),
                 barThickness: 30,
                 borderRadius: {
                     topRight: 20,
@@ -80,9 +83,18 @@ const Overview = () => {
         datasets: [
             {
                 data: [30, 50, 10, 10],
-                backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
-                hoverBackgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
+                backgroundColor: [
+                    useToken("colors", "primary.200"),
+                    useToken("colors", "primary.400"),
+                    useToken("colors", "primary.600"),
+                    useToken("colors", "primary.800"),
+                    useToken("colors", "neutral.200"),
+                    useToken("colors", "neutral.400"),
+                    useToken("colors", "neutral.600"),
+                    useToken("colors", "neutral.800"),
+                ],
                 borderRadius: 9,
+                hoverOffset: 4,
             },
         ],
     };
@@ -154,7 +166,7 @@ const Overview = () => {
         <Box p={0} width="100%">
             {/* Row 1: Title */}
             <Flex mb={5}>
-                <Text fontSize="4xl" fontWeight="bold">{`Overview for ${currentMonth} ${currentYear}`}</Text>
+                <Text fontSize="4xl" fontWeight="bold" color="neutral.900">{`Overview for ${currentMonth} ${currentYear}`}</Text>
             </Flex>
 
             {/* Row 2: Stats Boxes */}
@@ -182,11 +194,11 @@ const Overview = () => {
                     const isPositive = change >= 0;
                     const arrowColor = isExpense
                         ? isPositive
-                            ? "red"
-                            : "green"
+                            ? "danger"
+                            : "success"
                         : isPositive
-                            ? "green"
-                            : "red";
+                            ? "success"
+                            : "danger";
 
                     const ArrowIcon = isPositive ? FaArrowUp : FaArrowDown;
 
@@ -210,14 +222,14 @@ const Overview = () => {
                             <Flex
                                 align="center"
                                 mt={3}
-                                color={arrowColor + ".500"}>
+                                color={arrowColor + ".800"}>
                                 <Flex
                                     px={2}
                                     py={.5}
                                     align="center"
                                     width="fit-content"
                                     borderRadius="4xl"
-                                    bgColor={arrowColor + ".100"}>
+                                    bgColor={arrowColor + ".200"}>
                                     <ArrowIcon size="10px" />
                                     <Text ml={2} fontSize="sm" fontWeight="medium">
                                         {`${Math.abs(change).toFixed(1)}%`}
@@ -251,32 +263,32 @@ const Overview = () => {
                     <Table.ScrollArea h="280px">
                         <Table.Root interactive size="lg">
                             <Table.Header>
-                                <Table.Row bgColor="teal.100">
+                                <Table.Row bgColor="primary.100">
                                     <Table.ColumnHeader
                                         roundedLeft="4xl"
                                         borderBottomWidth={0}
-                                        color="teal.700" >
+                                        color="primary.700" >
                                         DATE
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader
-                                        color="teal.700"
+                                        color="primary.700"
                                         borderBottomWidth={0} >
                                         CATEGORY
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader
-                                        color="teal.700"
+                                        color="primary.700"
                                         borderBottomWidth={0} >
                                         AMOUNT
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader
-                                        color="teal.700"
+                                        color="primary.700"
                                         borderBottomWidth={0} >
                                         ACCOUNT
                                     </Table.ColumnHeader>
                                     <Table.ColumnHeader
                                         roundedRight="4xl"
                                         borderBottomWidth={0}
-                                        color="teal.700" >
+                                        color="primary.700" >
                                         NOTE
                                     </Table.ColumnHeader>
                                 </Table.Row>
@@ -305,7 +317,8 @@ const Overview = () => {
                             </Box>
                             <ProgressBar
                                 completed={Math.round(goal.progress, 2)}
-                                bgColor="teal"
+                                bgColor={progressForeground}
+                                baseBgColor={progressBackground}
                                 height="30px"
                                 labelAlignment="center" />
                         </Box>

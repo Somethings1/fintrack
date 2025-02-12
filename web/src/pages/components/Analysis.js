@@ -2,12 +2,10 @@ import React, { useState } from "react";
 import {
     Box,
     Flex,
-    Heading,
     Text,
     Button,
     VStack,
     HStack,
-    Icon,
 } from "@chakra-ui/react";
 import { FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import { Doughnut } from "react-chartjs-2";
@@ -86,9 +84,15 @@ const Analysis = () => {
                             py={4}
                             flex="1 1 calc(50% - 1rem)"
                             boxShadow="xs"
+                            position="relative"
                         >
 
                             <Text fontSize="xl" mb={4} fontWeight="bold">{category.name}</Text>
+                            <Box position="absolute"
+                                 top={2}
+                                 right={2}>
+                                Hehe
+                            </Box>
                             <HStack align="left">
                                 <Box width="180px" height="180px">
                                     <Doughnut
