@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, BrowserRouter as Router, Navigate } from 'react-router-dom';
-import WelcomePage from './pages/WelcomePage';
-import HomePage from './pages/HomePage';
-import AuthPage from './pages/AuthPage';
+import WelcomePage from 'pages/WelcomePage';
+import HomePage from 'pages/HomePage';
+import AuthPage from 'pages/AuthPage';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

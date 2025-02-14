@@ -8,8 +8,9 @@ import {
     HStack,
 } from "@chakra-ui/react";
 import { FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
-import { Doughnut } from "react-chartjs-2";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "chart.js/auto";
+import "react-circular-progressbar/dist/styles.css";
 
 const categoriesExpense = [
     { name: "Food", spent: 400, budget: 600 },
@@ -32,8 +33,6 @@ const categoriesIncome = [
 const Analysis = () => {
     const [type, setType] = useState("expense");
     const categories = type === "expense" ? categoriesExpense : categoriesIncome;
-    const currentMonth = new Date().toLocaleString("default", { month: "long" });
-    const currentYear = new Date().getFullYear();
 
     const totalSpent = categories.reduce(
         (acc, category) => acc + (type === "expense" ? category.spent : category.earned),
@@ -59,8 +58,7 @@ const Analysis = () => {
     return (
         <VStack spacing={6} align="stretch">
             {/* Title */}
-            <Text fontSize="4xl" fontWeight="bold">{`Analysis for ${currentMonth} ${currentYear}`}</Text>
-
+            <Text fontSize="4xl" fontWeight="bold">{`Budget`}</Text>
             {/* Controls Row */}
             <HStack mb="4">
                 <Button borderRadius="full" variant="outline">Change Month</Button>
@@ -89,35 +87,20 @@ const Analysis = () => {
 
                             <Text fontSize="xl" mb={4} fontWeight="bold">{category.name}</Text>
                             <Box position="absolute"
-                                 top={2}
-                                 right={2}>
+                                top={2}
+                                right={2}>
                                 Hehe
                             </Box>
                             <HStack align="left">
                                 <Box width="180px" height="180px">
-                                    <Doughnut
-                                        data={{
-                                            labels: ["Spent", "Remaining"],
-                                            datasets: [
-                                                {
-                                                    data: [
-                                                        type === "expense" ? category.spent : category.earned,
-                                                        type === "expense"
-                                                            ? category.budget - category.spent
-                                                            : category.target - category.earned,
-                                                    ],
-                                                    backgroundColor: ["#4299E1", "#E2E8F0"],
-                                                    borderRadius: 100,
-                                                },
-                                            ],
-                                        }}
-                                        options={{
-                                            maintainAspectRatio: false,
-                                            plugins: {
-                                                legend: { display: false },
-                                            },
-                                            cutout: "80%",
-                                        }}
+                                    <CircularProgressbar
+                                        value={category.spent / category.budget * 100}
+                                        text={`${Math.round(category.spent / category.budget * 100)}%`}
+                                        styles={buildStyles({
+                                            pathColor: category.spent / category.budget > 0.75 ? "#E53E3E" : "#4299E1",
+                                            textColor: "#2D3748",
+                                            trailColor: "#E2E8F0",
+                                        })}
                                     />
                                 </Box>
                                 <VStack align="start" ml={4}>

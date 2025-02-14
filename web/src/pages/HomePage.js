@@ -16,6 +16,7 @@ import {
     LuHouse,
     LuChartArea,
     LuPiggyBank,
+    LuArrowLeftRight,
     LuWalletMinimal,
     LuSettings,
     LuLogOut
@@ -40,12 +41,13 @@ import {
     PopoverArrow,
 } from "../components/ui/popover"
 
-import { dropDatabase } from "../util/db";
-import  Overview  from "./components/Overview";
-import  Analysis  from "./components/Analysis";
-import  Wallet  from "./components/Wallet";
-import  Savings   from "./components/Savings";
-import  Settings  from "./components/Settings";
+import { dropDatabase } from "util/db";
+import  Overview  from "./subpages/Overview";
+import  Analysis  from "./subpages/Analysis";
+import  Wallet  from "./subpages/Wallet";
+import  Savings   from "./subpages/Savings";
+import  Settings  from "./subpages/Settings";
+import  Transactions  from "./subpages/Transactions"
 
 const HomePage = () => {
     const [isDrawerOpen, setDrawerOpen] = useState(false);
@@ -53,6 +55,7 @@ const HomePage = () => {
     const [openingPage, setOpeningPage] = useState(<Overview />);
     const options = [
         { name: 'Overview', icon: <LuHouse />, action: () => setOpeningPage(<Overview />)},
+        { name: 'Transactions', icon: <LuArrowLeftRight />, action: () => setOpeningPage(<Transactions />)},
         { name: 'Analysis', icon: <LuChartArea />, action: () => setOpeningPage(<Analysis />) },
         { name: 'Wallet', icon: <LuWalletMinimal />, action: () => setOpeningPage(<Wallet />)},
         { name: 'Savings', icon: <LuPiggyBank />, action: () => setOpeningPage(<Savings />)},
