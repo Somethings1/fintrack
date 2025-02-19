@@ -29,8 +29,9 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "electron": "electron .",
+    "electron-start": "concurrently -k \"npm start\" \"wait-on http://localhost:3000 && npm run electron\"",
+    "electron-build": "npm run build && electron-builder"
   },
   "eslintConfig": {
     "extends": [
@@ -52,6 +53,10 @@
     ]
   },
   "devDependencies": {
-    "@chakra-ui/cli": "^3.2.3"
+    "@chakra-ui/cli": "^3.2.3",
+    "concurrently": "^9.1.2",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.2"
   }
 }

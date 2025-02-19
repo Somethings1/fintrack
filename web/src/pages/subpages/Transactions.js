@@ -1,7 +1,30 @@
 import { Flex, Text, Box, Button, Table } from "@chakra-ui/react";
 import { LuFilter, LuCalendar, LuPlus } from "react-icons/lu";
+import {
+    DialogBody,
+    DialogCloseTrigger,
+    DialogActionTrigger,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogRoot,
+    DialogTitle,
+    DialogTrigger,
+} from "../../components/ui/dialog"
+import {
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectRoot,
+  SelectTrigger,
+  SelectValueText,
+} from "../../components/ui/select"
+import { createListCollection } from "@chakra-ui/react"
+import { useRef } from "react"
+
 
 const Transactions = () => {
+    const contentRef = useRef(null)
     return (
         <Box w="full">
             <Flex mb={5}>
@@ -9,22 +32,60 @@ const Transactions = () => {
             </Flex>
             <Flex mb={5}>
                 <Button p={4} variant="outline" borderRadius="full">
-                    <LuCalendar/>
+                    <LuCalendar />
                     This month
                 </Button>
                 <Button p={4} ml={3} variant="outline" borderRadius="full">
-                    <LuFilter/>
+                    <LuFilter />
                 </Button>
-                <Button
-                    p={4}
-                    ml="auto"
-                    variant="solid"
-                    borderRadius="full"
-                    _hover={{bg: "primary.600"}}
-                    bgColor="primary.700" >
-                    <LuPlus/>
-                    Add new
-                </Button>
+                <DialogRoot key="test" size="md">
+                    <DialogTrigger asChild>
+                        <Button
+                            p={4}
+                            ml="auto"
+                            variant="solid"
+                            borderRadius="full"
+                            _hover={{ bg: "primary.600" }}
+                            bgColor="primary.700" >
+                            <LuPlus />
+                            Add new
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent borderRadius="4xl" ref={contentRef}>
+                        <DialogHeader>
+                            <DialogTitle textAlign="center">
+                                <Text fontSize="2xl" fontWeight="bold">
+                                    Adding a new transaction
+                                </Text>
+                                <Text color="neutral.500" fontSize="sm">
+                                    Please fill in the form below
+                                </Text>
+                            </DialogTitle>
+                        </DialogHeader>
+                        <DialogBody>
+                            <SelectRoot collection={transactionTypes} size="sm" width="320px" borderRadius="xl">
+                                <SelectLabel>Type</SelectLabel>
+                                <SelectTrigger>
+                                    <SelectValueText placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent portalRef={contentRef}>
+                                    {transactionTypes.items.map((movie) => (
+                                        <SelectItem item={movie} key={movie.value}>
+                                            {movie.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </SelectRoot>
+                        </DialogBody>
+                        <DialogFooter>
+                            <DialogActionTrigger asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogActionTrigger>
+                            <Button>Save</Button>
+                        </DialogFooter>
+                        <DialogCloseTrigger />
+                    </DialogContent>
+                </DialogRoot>
             </Flex>
             <Table.Root size="md">
                 <Table.Header>
@@ -101,6 +162,39 @@ const mockTransactions = [
     { id: 3, type: "Expense", dateTime: new Date(), amount: 30.0, sourceAccount: 1, destinationAccount: 1, category: "Transport", note: "Bus fare" },
     { id: 4, type: "Transfer", dateTime: new Date(), amount: 100.0, sourceAccount: 1, destinationAccount: 2, category: "Savings", note: "Transfer to savings" },
 ];
+
+const transactionTypes = createListCollection({
+  items: [
+    { label: "Income", value: "income" },
+    { label: "Expense", value: "expense" },
+    { label: "Transfer", value: "transfer" },
+  ],
+})
+
+const mockAccounts = createListCollection({
+  items: [
+    { label: "Cash", value: "income" },
+    { label: "VPBank", value: "expense" },
+    { label: "Techcombank", value: "transfer" },
+    { label: "Momo", value: "transfer" },
+  ],
+})
+
+const mockIncomeCategories = createListCollection({
+  items: [
+    { label: "Allowance", value: "income" },
+    { label: "Salary", value: "expense" },
+    { label: "Petty Cash", value: "transfer" },
+  ],
+})
+
+const mockExpenseCategories = createListCollection({
+  items: [
+    { label: "Food", value: "income" },
+    { label: "Education", value: "expense" },
+    { label: "Housing", value: "transfer" },
+  ],
+})
 
 export default Transactions;
 

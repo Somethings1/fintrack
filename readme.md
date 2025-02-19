@@ -104,31 +104,3 @@ if it's the first time
 
 Just do it, it's easy.
 
-# Changelog
-
-- 2024/11/30: readme.md
-- 2024/12/01: Installed MongoDB, React and Golang. Make them work together.
-- 2024/12/02: Basic signup feature. Tested for validity on server side.
-- 2024/12/03: Basic login feature.
-- 2024/12/07: Been sick for 3 days straight. Finally added proper login feature.
-Got the access token and fresh token to work, so authentication is basically done.
-Maybe I have to add some login-related features in the future, but it handles the basics
-well enough.
-- 2024/12/08: Taking the TOEIC test, so not much work is done. Almost like
-refactoring.
-- 2024/12/09: I switched to gin framework today, got the middlewares and route.
-- 2024/12/10: Finished the crud operations. Write basic flow tests. ,
-- 2024/12/11: Learnt about docker and nginx, and may apply them later.
-- 2024/12/12: Fuck JS.
-- 2024/12/13: Finally done the auth page.
-- 2024/12/14: Studied for the exam. Basic layout on home page.
-- 2024/12/15: Took the exam, so no work is done
-- 2024/12/16: Got excited about the TOEIC test result (935), so no work is done
-- 2024/12/17: Basic layout on overview page, getting familiar with reactjs and
-chakra-ui. Put some charts on. From now on, I will have to prepare for final
-exams, so I probably will not have much update on this
-- 2024/12/25: Basic layout on analysis page.
-- 2025/02/02: Finally back after final term exam & Tet holiday. Restarting this
-project.
-- 2025/02/10: Separate account and saving on server side
-- 2025/02/12: Savings Page & basic Settings Page. A little of theme defining.
