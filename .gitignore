@@ -1,0 +1,13 @@
+# Ignore Electron build outputs
+/electron/dist/
+/electron/out/
+/electron/node_modules/
+/electron/*.log
+/electron/temp/
+/electron/build/
+/web/build/
+/node_modules/
+/web/node_modules/
+/electron/node_modules/
+
+
