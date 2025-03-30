@@ -96,11 +96,12 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             Creator         string             `json:"creator"`
             Amount          float64            `json:"amount"`
             DateTime        string             `json:"date_time"`
-            Type            string             `json:"type"` // income, expense, transfer
+            Type            string             `json:"type"`
             SourceAccount   string             `json:"source_account"`
             DestinationAccount string          `json:"destination_account"`
             Category        string             `json:"category"`
             Note            string             `json:"note"`
+            LastUpdate      string             `json:"lastUpdate"`
         }
         var _transaction Transaction
 
@@ -113,32 +114,51 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
         // Date time
         DateTime, err := time.Parse(time.RFC3339, _transaction.DateTime)
         if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `dateTime`",
+            })
             return
+        }
+
+        LastUpdate, err := time.Parse(time.RFC3339, _transaction.LastUpdate)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `lastUpdate`",
+            })
         }
 
         // Type
         if _transaction.Type != "income" &&
            _transaction.Type != "expense" &&
            _transaction.Type != "transfer" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction type"})
+               c.JSON(http.StatusBadRequest, gin.H{
+                   "error": "Invalid transaction type: expected " +
+                   "{income|expense|transfer}, but got `" +
+                   _transaction.Type + "`",
+               })
             return
         }
 
         // Amount
         if _transaction.Amount < 0 {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Amount cannot be negative"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Amount cannot be negative",
+            })
             return
         }
 
         // Source account
         sourceAccount, err := service.GetAccountByID(_transaction.SourceAccount)
         if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Source account not found"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Source account not found",
+            })
             return
         }
         if sourceAccount.Owner != _transaction.Creator {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "You are not the owner of the source account"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "You are not the owner of the source account",
+            })
             return
         }
 
@@ -147,26 +167,36 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
         if _transaction.Type == "income" || _transaction.Type == "expense" {
             category, err = service.GetCategoryByID(_transaction.Category)
             if err != nil {
-                c.JSON(http.StatusBadRequest, gin.H{"error": "Category not found"})
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "Category not found",
+                })
                 return
             }
             if category.Owner != _transaction.Creator {
-                c.JSON(http.StatusBadRequest, gin.H{"error": "You are not the owner of the category"})
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "You are not the owner of the category",
+                })
                 return
             }
 
         } else {
             destinationAccount, err = service.GetAccountByID(_transaction.DestinationAccount)
             if err != nil {
-                c.JSON(http.StatusBadRequest, gin.H{"error": "Destination account not found"})
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "Destination account not found",
+                })
                 return
             }
             if destinationAccount.Owner != _transaction.Creator {
-                c.JSON(http.StatusBadRequest, gin.H{"error": "You are not the owner of the destination account"})
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "You are not the owner of the destination account",
+                })
                 return
             }
             if sourceAccount == destinationAccount {
-                c.JSON(http.StatusBadRequest, gin.H{"error": "Source and destination accounts cannot be the same"})
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "Source and destination accounts cannot be the same",
+                })
                 return
             }
         }
@@ -180,6 +210,7 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             DestinationAccount: destinationAccount.ID,
             Category:        category.ID,
             Note:            _transaction.Note,
+            LastUpdate:      LastUpdate,
         }
 
         c.Set("transaction", transaction)
@@ -215,7 +246,7 @@ func AccountFormatMiddleware() gin.HandlerFunc {
             Balance float64 `json:"balance"`
             Icon    string  `json:"icon"`
             Name    string  `json:"name"`
-            Goal    float64 `json:"goal"`
+            LastUpdate string `json:"lastUpdate"`
         }
         var _account Account
 
@@ -225,13 +256,24 @@ func AccountFormatMiddleware() gin.HandlerFunc {
         }
 
         if _account.Balance < 0 {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Balance cannot be negative"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Balance cannot be negative",
+            })
             return
         }
 
         if _account.Name == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Name cannot be empty"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Name cannot be empty",
+            })
             return
+        }
+
+        LastUpdate, err := time.Parse(time.RFC3339, _account.LastUpdate)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `lastUpdate`",
+            })
         }
 
         account := model.Account{
@@ -239,7 +281,7 @@ func AccountFormatMiddleware() gin.HandlerFunc {
             Balance: _account.Balance,
             Icon:    _account.Icon,
             Name:    _account.Name,
-            Goal:    _account.Goal,
+            LastUpdate: LastUpdate,
         }
 
         c.Set("account", account)
@@ -276,8 +318,9 @@ func SavingFormatMiddleware() gin.HandlerFunc {
             Icon        string  `json:"icon"`
             Name        string  `json:"name"`
             Goal        float64 `json:"goal"`
-            CreatedDate time.Time `json:"created_date"`
-            GoalDate    time.Time `json:"goal_date"`
+            CreatedDate string  `json:"createdDate"`
+            GoalDate    string  `json:"goalDate"`
+            LastUpdate  string  `json:"lastUpdate"`
         }
         var _saving Saving
 
@@ -287,13 +330,38 @@ func SavingFormatMiddleware() gin.HandlerFunc {
         }
 
         if _saving.Balance < 0 {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Balance cannot be negative"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Balance cannot be negative",
+            })
             return
         }
 
         if _saving.Name == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Name cannot be empty"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Name cannot be empty",
+            })
             return
+        }
+
+        CreatedDate, err := time.Parse(time.RFC3339, _saving.CreatedDate)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `lastUpdate`",
+            })
+        }
+
+        GoalDate, err := time.Parse(time.RFC3339, _saving.GoalDate)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `lastUpdate`",
+            })
+        }
+
+        LastUpdate, err := time.Parse(time.RFC3339, _saving.LastUpdate)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `lastUpdate`",
+            })
         }
 
         saving := model.Saving{
@@ -302,8 +370,9 @@ func SavingFormatMiddleware() gin.HandlerFunc {
             Icon:        _saving.Icon,
             Name:        _saving.Name,
             Goal:        _saving.Goal,
-            CreatedDate: _saving.CreatedDate,
-            GoalDate:    _saving.GoalDate,
+            CreatedDate: CreatedDate,
+            GoalDate:    GoalDate,
+            LastUpdate:  LastUpdate,
         }
 
         c.Set("saving", saving)
@@ -339,8 +408,9 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
             Name    string  `json:"name"`
             Type    string  `json:"type"`
             Budget  float64 `json:"budget"`
+            LastUpdate string `json:"lastUpdate"`
         }
-        var _category model.Category
+        var _category Category
 
         if err := c.ShouldBindJSON(&_category); err != nil {
             c.AbortWithStatus(http.StatusBadRequest)
@@ -348,17 +418,30 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
         }
 
         if _category.Type != "income" && _category.Type != "expense" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category type"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid category type",
+            })
         }
 
         if _category.Name == "" {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Name cannot be empty"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Name cannot be empty",
+            })
             return
         }
 
         if _category.Budget < 0 {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Budget cannot be negative"})
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Budget cannot be negative",
+            })
             return
+        }
+
+        LastUpdate, err := time.Parse(time.RFC3339, _category.LastUpdate)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid date format on `lastUpdate`",
+            })
         }
 
         category := model.Category{
@@ -367,11 +450,10 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
             Name:    _category.Name,
             Type:    _category.Type,
             Budget:  _category.Budget,
+            LastUpdate: LastUpdate,
         }
 
         c.Set("category", category)
         c.Next()
-
-
     }
 }

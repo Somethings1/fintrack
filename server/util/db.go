@@ -1,45 +1,119 @@
 package util
 
 import (
-	"context"
+    "context"
+    "log"
     "time"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
+
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var UserCollection *mongo.Collection
-var AccountCollection *mongo.Collection
-var TransactionCollection *mongo.Collection
-var CategoryCollection *mongo.Collection
-var SavingCollection *mongo.Collection
+var (
+    UserCollection        *mongo.Collection
+    AccountCollection     *mongo.Collection
+    TransactionCollection *mongo.Collection
+    CategoryCollection    *mongo.Collection
+    SavingCollection      *mongo.Collection
+)
 
 func InitDB() {
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-	client, err := mongo.Connect(context.Background(), clientOptions)
-	if err != nil {
-		log.Fatal(err)
-	}
+    clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+    client, err := mongo.Connect(context.Background(), clientOptions)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	UserCollection = client.Database("finance_db").Collection("users")
-    AccountCollection = client.Database("finance_db").Collection("accounts")
-    TransactionCollection = client.Database("finance_db").Collection("transactions")
-	CategoryCollection = client.Database("finance_db").Collection("categories")
-    SavingCollection = client.Database("finance_db").Collection("savings")
+    db := client.Database("finance_db")
 
-    createUserIndex()
+    UserCollection = db.Collection("users")
+    AccountCollection = db.Collection("accounts")
+    TransactionCollection = db.Collection("transactions")
+    CategoryCollection = db.Collection("categories")
+    SavingCollection = db.Collection("savings")
+
+    // Create indexes
+    if err := createUserIndex(); err != nil {
+        log.Fatal("Failed to create user index:", err)
+    }
+    if err := createTransactionIndex(); err != nil {
+        log.Fatal("Failed to create transaction index:", err)
+    }
+    if err := createAccountIndex(); err != nil {
+        log.Fatal("Failed to create account index:", err)
+    }
+    if err := createSavingIndex(); err != nil {
+        log.Fatal("Failed to create saving index:", err)
+    }
+    if err := createCategoryIndex(); err != nil {
+        log.Fatal("Failed to create category index:", err)
+    }
 }
 
+// ✅ Unique Index for Usernames
 func createUserIndex() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	indexModel := mongo.IndexModel{
-		Keys:    bson.M{"username": 1}, // Ascending index on "username"
-		Options: options.Index().SetUnique(true),
-	}
+    indexModel := mongo.IndexModel{
+        Keys:    bson.M{"username": 1}, // Ascending index on "username"
+        Options: options.Index().SetUnique(true),
+    }
 
-	_, err := UserCollection.Indexes().CreateOne(ctx, indexModel)
-	return err
+    _, err := UserCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
 }
+
+// ✅ Index for Transactions (Optimized Syncing)
+func createTransactionIndex() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    indexModel := mongo.IndexModel{
+        Keys: bson.M{"last_update": 1}, // Index on last_update for efficient syncing
+    }
+
+    _, err := TransactionCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
+}
+
+// ✅ Index for Accounts
+func createAccountIndex() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    indexModel := mongo.IndexModel{
+        Keys: bson.M{"last_update": 1}, // Index on last_update for fast updates
+    }
+
+    _, err := AccountCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
+}
+
+// ✅ Index for Savings
+func createSavingIndex() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    indexModel := mongo.IndexModel{
+        Keys: bson.M{"last_update": 1}, // Index on last_update for better performance
+    }
+
+    _, err := SavingCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
+}
+
+// ✅ Index for Categories
+func createCategoryIndex() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    indexModel := mongo.IndexModel{
+        Keys: bson.M{"last_update": 1}, // Index on last_update for quick lookups
+    }
+
+    _, err := CategoryCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
+}
+

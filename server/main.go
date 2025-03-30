@@ -14,6 +14,19 @@ func main() {
 	util.InitDB()
 
 	r := gin.Default()
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+		AllowOriginFunc: func(origin string) bool {
+			return origin == "http://localhost:3000"
+		},
+		ExposeHeaders: []string{"Content-Length", "Set-Cookie"},
+	}
+
+	r.Use(cors.New(corsConfig))
+
 	r.Use(handler.LoggingMiddleware())
 	r.Use(handler.PrintRequestDetails())
 
@@ -100,19 +113,6 @@ func main() {
 			handler.CategoryOwnershipMiddleware(),
 			handler.DeleteCategory)
 	}
-
-	corsConfig := cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-		AllowOriginFunc: func(origin string) bool {
-			return origin == "http://localhost:3000"
-		},
-		ExposeHeaders: []string{"Content-Length"},
-	}
-
-	r.Use(cors.New(corsConfig))
 
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))

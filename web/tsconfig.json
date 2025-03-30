@@ -1,0 +1,21 @@
+{
+    "ts-node": {
+        "require": ["tsconfig-paths/register"]
+    },
+    "references": [
+        { "path": "./tsconfig.app.json" },
+        { "path": "./tsconfig.node.json" }
+    ],
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "baseUrl": "./",
+        "moduleResolution": "bundler"
+    },
+    "paths": {
+        "@/*": ["./src/*"]
+    },
+    "include": [
+        "./src",
+        "./env.d.ts"
+    ]
+}
