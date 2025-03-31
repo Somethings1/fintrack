@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../services/authService";
-
-import { fetchTransactions, getStoredTransactions } from "@/services/transactionService";
-import { fetchAccounts, getStoredAccounts } from "@/services/accountService";
-import { fetchSavings, getStoredSavings } from "@/services/savingService";
-import { fetchCategories, getStoredCategories } from "@/services/categoryService";
+import { usePolling } from "../hooks/usePolling";
+import { getFromDB } from "@/utils/db";
 
 import { Transaction } from "@/models/Transaction";
 import { Account } from "@/models/Account";
@@ -13,49 +10,43 @@ import { Saving } from "@/models/Saving";
 import { Category } from "@/models/Category";
 
 const HomePage = () => {
+    const navigate = useNavigate();
+
+    // Polling intervals (e.g., 60s)
+    const lastSyncTransactions = usePolling(60000, "transactions", "transactions");
+    const lastSyncAccounts = usePolling(60000, "accounts", "accounts");
+    const lastSyncSavings = usePolling(60000, "savings", "savings");
+    const lastSyncCategories = usePolling(60000, "categories", "categories");
+
+    // Local state
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [savings, setSavings] = useState<Saving[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const navigate = useNavigate();
+
+    // Load data from IndexedDB when lastSync updates
+    useEffect(() => {
+        getFromDB("transactions").then(setTransactions);
+    }, [lastSyncTransactions]);
+
+    useEffect(() => {
+        getFromDB("accounts").then(setAccounts);
+    }, [lastSyncAccounts]);
+
+    useEffect(() => {
+        getFromDB("savings").then(setSavings);
+    }, [lastSyncSavings]);
+
+    useEffect(() => {
+        getFromDB("categories").then(setCategories);
+    }, [lastSyncCategories]);
 
     const handleLogout = async () => {
         await logout();
         navigate("/");
     };
 
-    useEffect(() => {
-        const loadData = async () => {
-            // Load and store all data
-            const [storedTx, fetchedTx] = await Promise.all([
-                getStoredTransactions(),
-                fetchTransactions(2024)
-            ]);
-            setTransactions(fetchedTx.length > 0 ? fetchedTx : storedTx);
-
-            const [storedAcc, fetchedAcc] = await Promise.all([
-                getStoredAccounts(),
-                fetchAccounts()
-            ]);
-            setAccounts(fetchedAcc.length > 0 ? fetchedAcc : storedAcc);
-
-            const [storedSav, fetchedSav] = await Promise.all([
-                getStoredSavings(),
-                fetchSavings()
-            ]);
-            setSavings(fetchedSav.length > 0 ? fetchedSav : storedSav);
-
-            const [storedCat, fetchedCat] = await Promise.all([
-                getStoredCategories(),
-                fetchCategories()
-            ]);
-            setCategories(fetchedCat.length > 0 ? fetchedCat : storedCat);
-        };
-
-        loadData();
-    }, []);
-
-    // Helper function to find name by ID
+    // Helper functions
     const getAccountName = (_id: string | null) => {
         if (!_id) return "-";
         return accounts.find(acc => acc._id === _id)?.name || "-";
@@ -70,8 +61,7 @@ const HomePage = () => {
         <div>
             <h1>Finance Dashboard</h1>
 
-            {/* Transactions Table */}
-            <h2>Transactions</h2>
+            <h2>Transactions (Last Sync: {new Date(lastSyncTransactions).toLocaleTimeString()})</h2>
             <table>
                 <thead>
                     <tr>
@@ -100,11 +90,10 @@ const HomePage = () => {
                 </tbody>
             </table>
 
-            {/* Accounts Table */}
-            <h2>Accounts</h2>
+            <h2>Accounts (Last Sync: {new Date(lastSyncAccounts).toLocaleTimeString()})</h2>
             <table>
                 <thead>
-                    <tr><th>ID</th><th>Owner</th><th>Balance</th><th>Icon</th><th>Name</th><th>Goal</th></tr>
+                    <tr><th>ID</th><th>Owner</th><th>Balance</th><th>Icon</th><th>Name</th></tr>
                 </thead>
                 <tbody>
                     {accounts.length > 0 ? (
@@ -115,17 +104,15 @@ const HomePage = () => {
                                 <td>{acc.balance}</td>
                                 <td>{acc.icon}</td>
                                 <td>{acc.name}</td>
-                                <td>{acc.goal}</td>
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={6}>No accounts available</td></tr>
+                        <tr><td colSpan={5}>No accounts available</td></tr>
                     )}
                 </tbody>
             </table>
 
-            {/* Savings Table */}
-            <h2>Savings</h2>
+            <h2>Savings (Last Sync: {new Date(lastSyncSavings).toLocaleTimeString()})</h2>
             <table>
                 <thead>
                     <tr><th>ID</th><th>Owner</th><th>Balance</th><th>Icon</th><th>Name</th><th>Goal</th><th>Created Date</th><th>Goal Date</th></tr>
@@ -150,8 +137,7 @@ const HomePage = () => {
                 </tbody>
             </table>
 
-            {/* Categories Table */}
-            <h2>Categories</h2>
+            <h2>Categories (Last Sync: {new Date(lastSyncCategories).toLocaleTimeString()})</h2>
             <table>
                 <thead>
                     <tr><th>ID</th><th>Owner</th><th>Type</th><th>Icon</th><th>Name</th><th>Budget</th></tr>
@@ -174,7 +160,6 @@ const HomePage = () => {
                 </tbody>
             </table>
 
-            {/* Logout Button */}
             <button onClick={handleLogout}>Logout</button>
         </div>
     );

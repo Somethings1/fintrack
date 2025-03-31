@@ -1,4 +1,4 @@
-import { getDB } from "@/utils/db";
+import { getDB, saveToDB } from "@/utils/db";
 
 const SAVING_URL = "http://localhost:8080/api/savings/get";
 const SAVING_STORE = "savings";
@@ -52,19 +52,7 @@ export async function fetchSavings() {
         return [];
     }
 
-    try {
-        const db = await getDB();
-        const tx = db.transaction(SAVING_STORE, "readwrite");
-        const store = tx.objectStore(SAVING_STORE);
-
-        savings.forEach(save => {
-            store.put(save);
-        });
-
-        await tx.done;
-    } catch (error) {
-        console.error("Error storing savings in IndexedDB:", error);
-    }
+    saveToDB(SAVING_STORE, savings);
 
     return savings;
 }

@@ -47,6 +47,9 @@ func main() {
 		transactions.GET("/get/:year",
 			handler.GetTransactionsByYear)
 
+		transactions.GET("/get-since/:time",
+			handler.GetTransactionsSince)
+
 		transactions.PUT("/update/:id",
 			handler.TransactionOwnershipMiddleware(),
 			handler.TransactionFormatMiddleware(),
@@ -65,6 +68,9 @@ func main() {
 
 		accounts.GET("/get",
 			handler.GetAccounts)
+
+		accounts.GET("/get-since/:time",
+			handler.GetAccountsSince)
 
 		accounts.PUT("/update/:id",
 			handler.AccountOwnershipMiddleware(),
@@ -85,6 +91,9 @@ func main() {
 		savings.GET("/get",
 			handler.GetSavings)
 
+		savings.GET("/get-since/:time",
+			handler.GetSavingsSince)
+
 		savings.PUT("/update/:id",
 			handler.SavingOwnershipMiddleware(),
 			handler.SavingFormatMiddleware(),
@@ -104,6 +113,9 @@ func main() {
 		categories.GET("/get",
 			handler.GetCategories)
 
+		categories.GET("/get-since/:time",
+			handler.GetCategoriesSince)
+
 		categories.PUT("/update/:id",
 			handler.CategoryOwnershipMiddleware(),
 			handler.CategoryFormatMiddleware(),
@@ -117,3 +129,4 @@ func main() {
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))
 }
+

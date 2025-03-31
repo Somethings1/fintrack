@@ -1,4 +1,4 @@
-import { getDB } from "@/utils/db";
+import { getDB, saveToDB } from "@/utils/db";
 
 const CATEGORY_URL = "http://localhost:8080/api/categories/get";
 const CATEGORY_STORE = "categories";
@@ -52,19 +52,7 @@ export async function fetchCategories() {
         return [];
     }
 
-    try {
-        const db = await getDB();
-        const tx = db.transaction(CATEGORY_STORE, "readwrite");
-        const store = tx.objectStore(CATEGORY_STORE);
-
-        categories.forEach(cat => {
-            store.put(cat);
-        });
-
-        await tx.done;
-    } catch (error) {
-        console.error("Error storing categories in IndexedDB:", error);
-    }
+    saveToDB(CATEGORY_STORE, categories);
 
     return categories;
 }

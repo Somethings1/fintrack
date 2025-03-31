@@ -1,4 +1,4 @@
-import { getDB } from "@/utils/db";
+import { getDB, saveToDB } from "@/utils/db";
 
 const TRANSACTION_URL = "http://localhost:8080/api/transactions/get/";
 const TRANSACTION_STORE = "transactions";
@@ -43,25 +43,13 @@ export async function fetchTransactions(year: number) {
         })
         .filter(txn => txn !== null);
 
+    saveToDB(TRANSACTION_STORE, transactions);
 
     if (transactions.length === 0) {
         console.warn("No transactions received from backend.");
         return [];
     }
 
-    try {
-        const db = await getDB();
-        const tx = db.transaction("transactions", "readwrite");
-        const store = tx.objectStore("transactions");
-
-        transactions.forEach(txn => {
-            store.put(txn);
-        });
-
-        await tx.done; // ✅ Ensure transaction completes
-    } catch (error) {
-        console.error("Error storing transactions in IndexedDB:", error);
-    }
 
     return transactions;
 }

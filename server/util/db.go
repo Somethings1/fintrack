@@ -33,7 +33,6 @@ func InitDB() {
     CategoryCollection = db.Collection("categories")
     SavingCollection = db.Collection("savings")
 
-    // Create indexes
     if err := createUserIndex(); err != nil {
         log.Fatal("Failed to create user index:", err)
     }
@@ -51,7 +50,6 @@ func InitDB() {
     }
 }
 
-// ✅ Unique Index for Usernames
 func createUserIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -65,7 +63,6 @@ func createUserIndex() error {
     return err
 }
 
-// ✅ Index for Transactions (Optimized Syncing)
 func createTransactionIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -78,7 +75,6 @@ func createTransactionIndex() error {
     return err
 }
 
-// ✅ Index for Accounts
 func createAccountIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -91,7 +87,6 @@ func createAccountIndex() error {
     return err
 }
 
-// ✅ Index for Savings
 func createSavingIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -104,7 +99,6 @@ func createSavingIndex() error {
     return err
 }
 
-// ✅ Index for Categories
 func createCategoryIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()

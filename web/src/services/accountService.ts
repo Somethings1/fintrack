@@ -1,4 +1,4 @@
-import { getDB } from "@/utils/db";
+import { getDB, saveToDB } from "@/utils/db";
 
 const ACCOUNT_URL = "http://localhost:8080/api/accounts/get";
 const ACCOUNT_STORE = "accounts";
@@ -53,19 +53,7 @@ export async function fetchAccounts() {
         return [];
     }
 
-    try {
-        const db = await getDB();
-        const tx = db.transaction(ACCOUNT_STORE, "readwrite");
-        const store = tx.objectStore(ACCOUNT_STORE);
-
-        accounts.forEach(acc => {
-            store.put(acc);
-        });
-
-        await tx.done;
-    } catch (error) {
-        console.error("Error storing accounts in IndexedDB:", error);
-    }
+    saveToDB(ACCOUNT_STORE, accounts);
 
     return accounts;
 }

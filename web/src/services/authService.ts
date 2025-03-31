@@ -4,34 +4,47 @@ const API_URL = "http://localhost:8080/auth";
 
 const api = axios.create({
     baseURL: API_URL,
-    withCredentials: true,
+    withCredentials: true, // Send cookies with every request
 });
 
+// Queued refresh handling to prevent multiple simultaneous requests
+let isRefreshing = false;
+let refreshSubscribers: (() => void)[] = [];
+
+const subscribeTokenRefresh = (callback: () => void) => {
+    refreshSubscribers.push(callback);
+};
+
+const onTokenRefreshed = () => {
+    refreshSubscribers.forEach((callback) => callback());
+    refreshSubscribers = [];
+};
+
+// Function to refresh access token
+const refreshAccessToken = async () => {
+    try {
+        await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
+        onTokenRefreshed();
+    } catch (error) {
+        console.error("Session expired, logging out user");
+        window.location.href = "/login";
+        throw error;
+    }
+};
+
+// Sign in function (cookies store tokens automatically)
 export const signIn = async (email: string, password: string) => {
     console.log("Sending login request:", { username: email, password }); // Debug
 
-    const response = await axios.post(
-        "http://localhost:8080/auth/signin",
-        { username: email, password },
-        {
-            headers: {
-                "Content-Type": "application/json",
-            },
-            withCredentials: true,
-        }
-    );
-
-    return response.data;
+    const response = await api.post("/signin", { username: email, password });
+    return response.data; // No need to handle tokens manually
 };
 
+// Logout function
 export const logout = async () => {
     try {
-        const response = await fetch("http://localhost:8080/auth/logout", {
-            method: "POST",
-            credentials: "include", // Ensure cookies are included
-        });
-
-        if (!response.ok) {
+        const response = await api.post("/logout");
+        if (!response.status.toString().startsWith("2")) {
             throw new Error("Failed to logout");
         }
     } catch (error) {
@@ -39,33 +52,41 @@ export const logout = async () => {
     }
 };
 
-
-export const refreshAccessToken = async () => {
-    const response = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
-    return response.data;
-};
-
+// Auto-refresh expired tokens
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        if (error.response?.status === 401) {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            if (isRefreshing) {
+                return new Promise((resolve) => {
+                    subscribeTokenRefresh(() => {
+                        resolve(axios(originalRequest));
+                    });
+                });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
             try {
-                const refreshResponse = await refreshAccessToken();
-                localStorage.setItem("accessToken", refreshResponse.accessToken);
-                error.config.headers["Authorization"] = `Bearer ${refreshResponse.accessToken}`;
-                return axios(error.config);
-            } catch (refreshError) {
-                localStorage.removeItem("accessToken");
-                window.location.href = "/login";
+                await refreshAccessToken();
+                return axios(originalRequest);
+            } catch (err) {
+                return Promise.reject(err);
+            } finally {
+                isRefreshing = false;
             }
         }
+
         return Promise.reject(error);
     }
 );
 
+// Fetch user data (no need to manually include tokens)
 export const fetchUserData = async () => {
-    const token = localStorage.getItem("accessToken");
-    return api.get("/verify", { headers: { Authorization: `Bearer ${token}` } });
+    return api.post("/verify");
 };
 
 export default api;
