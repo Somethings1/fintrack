@@ -58,3 +58,23 @@ export async function getFromDB(storeName: string): Promise<any[]> {
     }
 }
 
+export async function updateDB(storeName: string, data: any) {
+    try {
+        const db = await getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        console.log(`[updateDB] Putting into ${storeName}`, data);
+        store.put(data);
+        await tx.done;
+    } catch (error) {
+        console.error(`[updateDB] Failed to update ${storeName}:`, error, data);
+    }
+}
+
+export async function deleteFromDB(storeName: string, id: string) {
+    const db = await getDB();
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    store.delete(id); // Removes the transaction from IndexedDB by its ID
+    await tx.done;
+}

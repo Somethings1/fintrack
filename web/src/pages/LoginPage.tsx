@@ -12,7 +12,7 @@ const LoginPage = () => {
         e.preventDefault();
         try {
             const data = await signIn(username, password);
-            localStorage.setItem("accessToken", data.accessToken); // Store access token
+            localStorage.setItem("username", data.username); // Store access token
             navigate("/home"); // Redirect to homepage after login
         } catch (err) {
             setError("Invalid credentials");

@@ -1,5 +1,5 @@
 export interface Transaction {
-  id: string; // MongoDB ObjectId as string
+  _id: string; // MongoDB ObjectId as string
   creator: string;
   amount: number;
   dateTime: Date; // ISO string
@@ -8,5 +8,7 @@ export interface Transaction {
   destinationAccount?: string;
   category?: string;
   note: string;
+  lastUpdate: Date;
+  isDeleted: boolean;
 }
 

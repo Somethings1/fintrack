@@ -13,4 +13,4 @@ tmux send-keys "mongosh" C-m
 
 tmux split-window -v
 
-tmux send-keys "cd web && npm start" C-m
+tmux send-keys "cd web && npm run dev" C-m

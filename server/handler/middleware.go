@@ -95,13 +95,13 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
         type Transaction struct {
             Creator         string             `json:"creator"`
             Amount          float64            `json:"amount"`
-            DateTime        string             `json:"date_time"`
+            DateTime        string             `json:"dateTime"`
             Type            string             `json:"type"`
-            SourceAccount   string             `json:"source_account"`
-            DestinationAccount string          `json:"destination_account"`
+            SourceAccount   string             `json:"sourceAccount"`
+            DestinationAccount string          `json:"destinationAccount"`
             Category        string             `json:"category"`
             Note            string             `json:"note"`
-            LastUpdate      string             `json:"lastUpdate"`
+            IsDeleted       bool            `json:"isDeleted"`
         }
         var _transaction Transaction
 
@@ -113,18 +113,12 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
 
         // Date time
         DateTime, err := time.Parse(time.RFC3339, _transaction.DateTime)
+        fmt.Println(_transaction.DateTime);
         if err != nil {
             c.JSON(http.StatusBadRequest, gin.H{
                 "error": "Invalid date format on `dateTime`",
             })
             return
-        }
-
-        LastUpdate, err := time.Parse(time.RFC3339, _transaction.LastUpdate)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "Invalid date format on `lastUpdate`",
-            })
         }
 
         // Type
@@ -149,21 +143,39 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
 
         // Source account
         sourceAccount, err := service.GetAccountByID(_transaction.SourceAccount)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "Source account not found",
-            })
-            return
+        if _transaction.Type == "expense" || _transaction.Type == "transfer" {
+            if err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "Source account not found",
+                })
+                return
+            }
+            if sourceAccount.Owner != _transaction.Creator {
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "You are not the owner of the source account",
+                })
+                return
+            }
         }
-        if sourceAccount.Owner != _transaction.Creator {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "You are not the owner of the source account",
-            })
-            return
+
+        // Destination account
+        destinationAccount, err := service.GetAccountByID(_transaction.DestinationAccount)
+        if _transaction.Type == "income" || _transaction.Type == "transfer" {
+            if err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "Destination account not found",
+                })
+                return
+            }
+            if destinationAccount.Owner != _transaction.Creator {
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "You are not the owner of the destination account",
+                })
+                return
+            }
         }
 
         var category model.Category
-        var destinationAccount model.Account
         if _transaction.Type == "income" || _transaction.Type == "expense" {
             category, err = service.GetCategoryByID(_transaction.Category)
             if err != nil {
@@ -180,19 +192,6 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             }
 
         } else {
-            destinationAccount, err = service.GetAccountByID(_transaction.DestinationAccount)
-            if err != nil {
-                c.JSON(http.StatusBadRequest, gin.H{
-                    "error": "Destination account not found",
-                })
-                return
-            }
-            if destinationAccount.Owner != _transaction.Creator {
-                c.JSON(http.StatusBadRequest, gin.H{
-                    "error": "You are not the owner of the destination account",
-                })
-                return
-            }
             if sourceAccount == destinationAccount {
                 c.JSON(http.StatusBadRequest, gin.H{
                     "error": "Source and destination accounts cannot be the same",
@@ -210,7 +209,6 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             DestinationAccount: destinationAccount.ID,
             Category:        category.ID,
             Note:            _transaction.Note,
-            LastUpdate:      LastUpdate,
         }
 
         c.Set("transaction", transaction)
@@ -246,7 +244,6 @@ func AccountFormatMiddleware() gin.HandlerFunc {
             Balance float64 `json:"balance"`
             Icon    string  `json:"icon"`
             Name    string  `json:"name"`
-            LastUpdate string `json:"lastUpdate"`
         }
         var _account Account
 
@@ -269,19 +266,12 @@ func AccountFormatMiddleware() gin.HandlerFunc {
             return
         }
 
-        LastUpdate, err := time.Parse(time.RFC3339, _account.LastUpdate)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "Invalid date format on `lastUpdate`",
-            })
-        }
 
         account := model.Account{
             Owner:   _account.Owner,
             Balance: _account.Balance,
             Icon:    _account.Icon,
             Name:    _account.Name,
-            LastUpdate: LastUpdate,
         }
 
         c.Set("account", account)
@@ -320,7 +310,6 @@ func SavingFormatMiddleware() gin.HandlerFunc {
             Goal        float64 `json:"goal"`
             CreatedDate string  `json:"createdDate"`
             GoalDate    string  `json:"goalDate"`
-            LastUpdate  string  `json:"lastUpdate"`
         }
         var _saving Saving
 
@@ -357,13 +346,6 @@ func SavingFormatMiddleware() gin.HandlerFunc {
             })
         }
 
-        LastUpdate, err := time.Parse(time.RFC3339, _saving.LastUpdate)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "Invalid date format on `lastUpdate`",
-            })
-        }
-
         saving := model.Saving{
             Owner:       _saving.Owner,
             Balance:     _saving.Balance,
@@ -372,7 +354,6 @@ func SavingFormatMiddleware() gin.HandlerFunc {
             Goal:        _saving.Goal,
             CreatedDate: CreatedDate,
             GoalDate:    GoalDate,
-            LastUpdate:  LastUpdate,
         }
 
         c.Set("saving", saving)
@@ -408,7 +389,6 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
             Name    string  `json:"name"`
             Type    string  `json:"type"`
             Budget  float64 `json:"budget"`
-            LastUpdate string `json:"lastUpdate"`
         }
         var _category Category
 
@@ -437,20 +417,12 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
             return
         }
 
-        LastUpdate, err := time.Parse(time.RFC3339, _category.LastUpdate)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "Invalid date format on `lastUpdate`",
-            })
-        }
-
         category := model.Category{
             Owner:   _category.Owner,
             Icon:    _category.Icon,
             Name:    _category.Name,
             Type:    _category.Type,
             Budget:  _category.Budget,
-            LastUpdate: LastUpdate,
         }
 
         c.Set("category", category)

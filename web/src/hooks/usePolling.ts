@@ -24,7 +24,6 @@ export function usePolling(interval: number, storeName: string, endpoint: string
                 const decoder = new TextDecoder();
                 let jsonData = "";
                 let latestTimestamp = lastSync; // Keep track of last sync
-                console.log("Hehe");
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -45,7 +44,6 @@ export function usePolling(interval: number, storeName: string, endpoint: string
                         })
                         .filter(entry => entry !== null);
 
-                    console.log(newEntries.length);
                     if (newEntries.length > 0) {
                         await saveToDB(storeName, newEntries);
 

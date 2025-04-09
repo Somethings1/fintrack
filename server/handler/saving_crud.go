@@ -12,10 +12,9 @@ import (
     "fintrack/server/model"
 
     "github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 //////////////////
@@ -25,6 +24,9 @@ import (
 func AddSaving(c *gin.Context) {
     tmp, _ := c.Get("saving")
     saving := tmp.(model.Saving)
+
+    // Set the last_update field to the current time
+    saving.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -117,7 +119,6 @@ func GetSavingsSince(c *gin.Context) {
     })
 }
 
-
 func UpdateSaving(c *gin.Context) {
     tmp, _ := c.Get("saving")
     saving := tmp.(model.Saving)
@@ -126,8 +127,11 @@ func UpdateSaving(c *gin.Context) {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid saving ID"})
         return
     }
+
+    // Set the last_update field to the current time
+    saving.LastUpdate = time.Now()
+
     filter := bson.M{"_id": id}
-    fmt.Println(saving.Name)
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -151,6 +155,7 @@ func DeleteSaving(c *gin.Context) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
+    // Set the last_update field to the current time on soft delete
     update := bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now()}}
 
     _, err = util.SavingCollection.UpdateOne(ctx, bson.M{"_id": id}, update)

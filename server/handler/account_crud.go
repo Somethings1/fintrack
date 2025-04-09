@@ -12,19 +12,22 @@ import (
     "fintrack/server/model"
 
     "github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 //////////////////
-// Account
+// Account Handlers
 //////////////////
 
+// AddAccount adds a new account and sets the LastUpdate timestamp
 func AddAccount(c *gin.Context) {
     tmp, _ := c.Get("account")
     account := tmp.(model.Account)
+
+    // Set the LastUpdate field to the current time
+    account.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -41,6 +44,7 @@ func AddAccount(c *gin.Context) {
     })
 }
 
+// GetAccounts fetches all accounts for the current user
 func GetAccounts(c *gin.Context) {
     filter := bson.M{"owner": c.GetString("username")}
 
@@ -71,6 +75,7 @@ func GetAccounts(c *gin.Context) {
     })
 }
 
+// GetAccountsSince fetches accounts updated after a specific timestamp
 func GetAccountsSince(c *gin.Context) {
     sinceStr := c.Param("time")
     sinceTime, err := time.Parse(time.RFC3339, sinceStr)
@@ -117,7 +122,7 @@ func GetAccountsSince(c *gin.Context) {
     })
 }
 
-
+// UpdateAccount updates an existing account and sets the LastUpdate timestamp
 func UpdateAccount(c *gin.Context) {
     tmp, _ := c.Get("account")
     account := tmp.(model.Account)
@@ -127,7 +132,9 @@ func UpdateAccount(c *gin.Context) {
         return
     }
     filter := bson.M{"_id": id}
-    fmt.Println(account.Name)
+
+    // Set the LastUpdate field to the current time
+    account.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -141,6 +148,7 @@ func UpdateAccount(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"message": "Account updated successfully"})
 }
 
+// DeleteAccount performs a soft delete by marking the account as deleted and updating the LastUpdate field
 func DeleteAccount(c *gin.Context) {
     id, err := primitive.ObjectIDFromHex(c.Param("id"))
     if err != nil {

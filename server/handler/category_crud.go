@@ -12,10 +12,9 @@ import (
     "fintrack/server/model"
 
     "github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 //////////////////
@@ -25,6 +24,9 @@ import (
 func AddCategory(c *gin.Context) {
     tmp, _ := c.Get("category")
     category := tmp.(model.Category)
+
+    // Set the last_update field to the current time
+    category.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -117,18 +119,19 @@ func GetCategoriesSince(c *gin.Context) {
     })
 }
 
-
 func UpdateCategory(c *gin.Context) {
     tmp, _ := c.Get("category")
     category := tmp.(model.Category)
-
     id, err := primitive.ObjectIDFromHex(c.Param("id"))
-    filter := bson.M{"_id": id}
-
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
         return
     }
+
+    // Set the last_update field to the current time
+    category.LastUpdate = time.Now()
+
+    filter := bson.M{"_id": id}
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
@@ -152,6 +155,7 @@ func DeleteCategory(c *gin.Context) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
+    // Set the last_update field to the current time on soft delete
     update := bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now()}}
 
     _, err = util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, update)
