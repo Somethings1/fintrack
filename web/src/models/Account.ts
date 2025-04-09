@@ -4,7 +4,6 @@ export interface Account {
   balance: number;
   icon: string;
   name: string;
-  goal?: number;
   lastUpdate: Date;
   isDeleted: boolean;
 }

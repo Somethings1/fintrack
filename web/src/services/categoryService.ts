@@ -1,70 +1,30 @@
-import { getDB, saveToDB } from "@/utils/db";
+import {
+    fetchStreamedEntities,
+    getStoredEntities,
+    getEntity,
+    addEntity,
+    updateEntity,
+    deleteEntities,
+} from "./entityService";
 
-const CATEGORY_URL = "http://localhost:8080/api/categories/get";
+const CATEGORY_URL = "http://localhost:8080/api/categories";
 const CATEGORY_STORE = "categories";
 
-export async function fetchCategories() {
-    const response = await fetch(CATEGORY_URL, {
-        method: "GET",
-        credentials: "include",
-    });
+export const fetchCategories = () =>
+    fetchStreamedEntities(`${CATEGORY_URL}/get`, CATEGORY_STORE);
 
-    if (!response.ok) {
-        console.error("Failed to fetch categories:", response.statusText);
-        return [];
-    }
+export const getStoredCategories = () =>
+    getStoredEntities(CATEGORY_STORE);
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-        console.error("Failed to get reader from response.");
-        return [];
-    }
+export const getCategoryById = (id: string) =>
+    getEntity(CATEGORY_STORE, id);
 
-    const decoder = new TextDecoder();
-    let jsonData = "";
+export const addCategory = (category: any) =>
+    addEntity(CATEGORY_URL, CATEGORY_STORE, category);
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        jsonData += decoder.decode(value, { stream: true });
-    }
+export const updateCategory = (id: string, updatedCategory: any) =>
+    updateEntity(CATEGORY_URL, CATEGORY_STORE, id, updatedCategory);
 
-    let categories = jsonData
-        .split("\n")
-        .filter(line => line.trim() !== "")
-        .map(line => {
-            try {
-                const cat = JSON.parse(line);
-                if (cat.ID && !cat._id) {
-                    cat._id = cat.ID;
-                    delete cat.ID;
-                }
-                return cat;
-            } catch (e) {
-                console.error("Error parsing category JSON:", line, e);
-                return null;
-            }
-        })
-        .filter(cat => cat !== null);
-
-    if (categories.length === 0) {
-        console.warn("No categories received from backend.");
-        return [];
-    }
-
-    saveToDB(CATEGORY_STORE, categories);
-
-    return categories;
-}
-
-export async function getStoredCategories() {
-    try {
-        const db = await getDB();
-        const categories = await db.getAll(CATEGORY_STORE);
-        return categories;
-    } catch (error) {
-        console.error("Error retrieving categories from IndexedDB:", error);
-        return [];
-    }
-}
+export const deleteCategories = (ids: string[]) =>
+    deleteEntities(CATEGORY_URL, CATEGORY_STORE, ids);
 
