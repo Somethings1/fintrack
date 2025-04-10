@@ -145,25 +145,43 @@ func UpdateCategory(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"message": "Category updated successfully"})
 }
 
+// DeleteCategory performs a soft delete by marking the category and its related transactions as deleted
 func DeleteCategory(c *gin.Context) {
-    id, err := primitive.ObjectIDFromHex(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
-        return
-    }
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    // Set the last_update field to the current time on soft delete
-    update := bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now()}}
+	// Step 1: Soft delete the category
+	categoryUpdate := bson.M{
+		"$set": bson.M{
+			"is_deleted":  true,
+			"last_update": time.Now(),
+		},
+	}
+	_, err = util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, categoryUpdate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting category"})
+		return
+	}
 
-    _, err = util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, update)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error performing soft delete"})
-        return
-    }
+	// Step 2: Soft delete related transactions (with this category)
+	transactionUpdate := bson.M{
+		"$set": bson.M{
+			"is_deleted":  true,
+			"last_update": time.Now(),
+		},
+	}
+	_, err = util.TransactionCollection.UpdateMany(ctx, bson.M{"category": id}, transactionUpdate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting related transactions"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Category soft deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Category and related transactions soft deleted successfully"})
 }
 

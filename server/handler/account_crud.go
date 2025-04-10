@@ -148,25 +148,49 @@ func UpdateAccount(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"message": "Account updated successfully"})
 }
 
-// DeleteAccount performs a soft delete by marking the account as deleted and updating the LastUpdate field
+// DeleteAccount performs a soft delete by marking the account and its related transactions as deleted
 func DeleteAccount(c *gin.Context) {
-    id, err := primitive.ObjectIDFromHex(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account ID"})
-        return
-    }
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    update := bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now()}}
+	// Step 1: Soft delete the account
+	accountUpdate := bson.M{
+		"$set": bson.M{
+			"is_deleted":  true,
+			"last_update": time.Now(),
+		},
+	}
+	_, err = util.AccountCollection.UpdateOne(ctx, bson.M{"_id": id}, accountUpdate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting account"})
+		return
+	}
 
-    _, err = util.AccountCollection.UpdateOne(ctx, bson.M{"_id": id}, update)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error performing soft delete"})
-        return
-    }
+	// Step 2: Soft delete related transactions (where account is source or destination)
+	transactionUpdate := bson.M{
+		"$set": bson.M{
+			"is_deleted":  true,
+			"last_update": time.Now(),
+		},
+	}
+	filter := bson.M{
+		"$or": []bson.M{
+			{"source_account": id},
+			{"destination_account": id},
+		},
+	}
+	_, err = util.TransactionCollection.UpdateMany(ctx, filter, transactionUpdate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting related transactions"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Account soft deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Account and related transactions soft deleted successfully"})
 }
 
