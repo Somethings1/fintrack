@@ -18,7 +18,7 @@ interface SidebarProps {
   collapsed: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed }) => {
+const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed }) => {
   return (
     <Sider
       collapsible
@@ -74,5 +74,5 @@ const Sidebar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed }) => {
   );
 };
 
-export default Sidebar;
+export default SideBar;
 

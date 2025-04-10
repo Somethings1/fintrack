@@ -2,12 +2,11 @@ import { Table, Button, Modal } from "antd";
 import { useEffect, useState } from "react";
 import { Transaction } from "@/models/Transaction";
 import { getStoredTransactions, deleteTransactions, addTransaction, updateTransaction } from "@/services/transactionService";
-import { resolveAccountName, resolveCategoryName } from "../../utils/idResolver";
+import { resolveAccountName, resolveCategoryName } from "@/utils/idResolver";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import { useRefresh } from "../../context/RefreshProvider";
-import { usePollingContext } from "../../context/PollingProvider";
-import TransactionForm from "../subpages/Transactions/TransactionForm"; // Import TransactionForm component
-import { dayjs } from "dayjs";
+import { useRefresh } from "@/context/RefreshProvider";
+import { usePollingContext } from "@/context/PollingProvider";
+import TransactionForm from "./forms/TransactionForm"; // Import TransactionForm component
 
 interface TransactionTableProps {
     simpleForm?: boolean;

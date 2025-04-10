@@ -1,7 +1,7 @@
 import { Layout } from "antd";
 import { useState } from "react";
-import Sidebar from "./components/Sidebar";
-import AppHeader from "./components/Header";
+import SideBar from "./SideBar";
+import AppHeader from "./Header";
 import Overview from "./subpages/Overview/Overview";
 import Transactions from "./subpages/Transactions/Transactions";
 import Budget from "./subpages/Budget/Budget";
@@ -37,7 +37,7 @@ const HomePage = () => {
 
   return (
     <Layout style={{ minHeight: "100vh", minWidth: "100vw" }}>
-      <Sidebar
+      <SideBar
         collapsed={sidebarCollapsed}
         setCurrentPage={setCurrentPage}
       />

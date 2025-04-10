@@ -1,4 +1,4 @@
-import  TransactionTable  from '@/pages/components/TransactionTable';
+import  TransactionTable  from '@/components/TransactionTable';
 
 const Transactions = () => {
     return (
