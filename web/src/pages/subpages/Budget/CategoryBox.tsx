@@ -169,6 +169,7 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
                 footer={null}
                 title="Edit Category"
                 destroyOnClose
+                getContainer={false}
             >
                 <CategoryForm
                     category={category}

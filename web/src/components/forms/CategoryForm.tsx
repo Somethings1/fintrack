@@ -7,13 +7,17 @@ import {
     Radio,
     Space,
     Popover,
-    Modal,
+    Popconfirm,
     message,
 } from "antd";
-import Picker from '@emoji-mart/react';
+import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import { Category } from "@/models/Category";
-import { deleteCategories, addCategory, updateCategory } from "@/services/categoryService";
+import {
+    deleteCategories,
+    addCategory,
+    updateCategory,
+} from "@/services/categoryService";
 
 interface CategoryFormProps {
     category?: Partial<Category>;
@@ -52,39 +56,29 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
 
         try {
             if (category?._id) {
-                await updateCategory(category._id, updated); // existing category → update
+                await updateCategory(category._id, updated);
             } else {
-                await addCategory(updated);    // new category → add
+                await addCategory(updated);
             }
-
-            onSubmit?.(); // notify parent (refresh + close modal, etc.)
+            onSubmit?.();
         } catch (err) {
             console.error("Failed to submit category:", err);
+            message.error("Failed to save category");
         }
     };
 
-    const confirmDelete = () => {
-        Modal.confirm({
-            title: "Are you sure you want to delete this category?",
-            content:
-                "All transactions linked to this category will also be deleted or invalidated. This action cannot be undone.",
-            okText: "Yes, Delete",
-            okType: "danger",
-            cancelText: "Cancel",
-            onOk: async () => {
-                try {
-                    setIsDeleting(true);
-                    await deleteCategories([category!._id]);
-                    message.success("Category deleted successfully");
-                    onCancel?.();
-                } catch (err) {
-                    console.error(err);
-                    message.error("Failed to delete category");
-                } finally {
-                    setIsDeleting(false);
-                }
-            },
-        });
+    const handleDelete = async () => {
+        try {
+            setIsDeleting(true);
+            await deleteCategories([category!._id]);
+            message.success("Category deleted successfully");
+            onCancel?.();
+        } catch (err) {
+            console.error(err);
+            message.error("Failed to delete category");
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
@@ -130,9 +124,9 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                         />
                     }
                 >
-                    <Button
-                        onClick={ () => setIconPickerOpen(true) }
-                    >{selectedIcon || "Pick an emoji"}</Button>
+                    <Button onClick={() => setIconPickerOpen(true)}>
+                        {selectedIcon || "Pick an emoji"}
+                    </Button>
                 </Popover>
             </Form.Item>
 
@@ -148,9 +142,16 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                 <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <div>
                         {category && (
-                            <Button danger loading={isDeleting} onClick={confirmDelete}>
-                                Delete
-                            </Button>
+                            <Popconfirm
+                                title="Are you sure you want to delete this category?"
+                                description="All transactions linked to this category will also be deleted or invalidated. This action cannot be undone."
+                                okText="Yes, Delete"
+                                cancelText="Cancel"
+                                okButtonProps={{ danger: true }}
+                                onConfirm={handleDelete}
+                            >
+                                <Button danger loading={isDeleting}>Delete</Button>
+                            </Popconfirm>
                         )}
                     </div>
                     <div>
