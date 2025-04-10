@@ -6,6 +6,8 @@ import {
     updateEntity,
     deleteEntities,
 } from "./entityService";
+import { getStoredTransactions, updateTransaction } from "./transactionService";
+import { Transaction } from "@/models/Transaction";
 
 const CATEGORY_URL = "http://localhost:8080/api/categories";
 const CATEGORY_STORE = "categories";
@@ -25,6 +27,19 @@ export const addCategory = (category: any) =>
 export const updateCategory = (id: string, updatedCategory: any) =>
     updateEntity(CATEGORY_URL, CATEGORY_STORE, id, updatedCategory);
 
-export const deleteCategories = (ids: string[]) =>
-    deleteEntities(CATEGORY_URL, CATEGORY_STORE, ids);
+export const deleteCategories = async (ids: string[]) => {
+    await deleteEntities(CATEGORY_URL, CATEGORY_STORE, ids);
+
+    const transactions = await getStoredTransactions() as Transaction[];
+
+    for (const tx of transactions) {
+        if (ids.includes(tx.category)) {
+            await updateTransaction(tx._id, {
+                ...tx,
+                isDeleted: true,
+                lastUpdate: new Date(),
+            });
+        }
+    }
+};
 
