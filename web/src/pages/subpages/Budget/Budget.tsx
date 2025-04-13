@@ -11,56 +11,57 @@ import CategoryForm from "@/components/forms/CategoryForm";
 const { Title } = Typography;
 
 const Budget = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const { triggerRefresh } = useRefresh();
-  const refreshToken = useRefresh();
-  const { categories: lastCategorySync } = usePollingContext();
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { triggerRefresh } = useRefresh();
+    const refreshToken = useRefresh();
+    const lastSync = usePollingContext();
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const data = await getStoredCategories();
-      setCategories(data);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            const data = await getStoredCategories();
+            setCategories(data);
+        };
+
+        fetchCategories();
+    }, [refreshToken, lastSync]);
+
+    const handleNewCategory = async (category: Category) => {
+        await addCategory(category);
+        setIsModalOpen(false);
+        triggerRefresh(); // Trigger global refresh
     };
 
-    fetchCategories();
-  }, [refreshToken, lastCategorySync]);
+    return (
+        <>
+            <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 16 }}>
+                <Title level={4} style={{ margin: 0 }}>Categories</Title>
+                <Button
+                    icon={<PlusOutlined />}
+                    type="primary"
+                    shape="round"
+                    onClick={() => setIsModalOpen(true)}
+                >
+                    New Category
+                </Button>
+            </Space>
 
-  const handleNewCategory = async (category: Category) => {
-    await addCategory(category);
-    setIsModalOpen(false);
-    triggerRefresh(); // Trigger global refresh
-  };
+            {categories.map((cat) => (
+                <CategoryBox key={cat._id} categoryId={cat._id} />
+            ))}
 
-  return (
-    <>
-      <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Categories</Title>
-        <Button
-          icon={<PlusOutlined />}
-          type="primary"
-          shape="round"
-          onClick={() => setIsModalOpen(true)}
-        >
-          New Category
-        </Button>
-      </Space>
-
-      {categories.map((cat) => (
-        <CategoryBox key={cat._id} categoryId={cat._id} />
-      ))}
-
-      <Modal
-        title="New Category"
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        footer={null}
-        destroyOnClose
-      >
-        <CategoryForm onSubmit={handleNewCategory} />
-      </Modal>
-    </>
-  );
+            <Modal
+                title="New Category"
+                open={isModalOpen}
+                onCancel={() => setIsModalOpen(false)}
+                footer={null}
+                destroyOnClose
+            >
+                <CategoryForm onSubmit={handleNewCategory} onCancel={() => setIsModalOpen(false)} />
+            </Modal>
+        </>
+    );
 };
 
 export default Budget;

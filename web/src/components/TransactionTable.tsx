@@ -22,7 +22,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
     const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
-    const { transactions: lastSync } = usePollingContext();
+    const lastSync = usePollingContext();
     const refreshToken = useRefresh();
     const { triggerRefresh } = useRefresh();
 
@@ -39,17 +39,15 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
     };
 
     useEffect(() => {
-        console.log("Refreshing");
-    }, [refreshToken]);
-
-    useEffect(() => {
         const fetchData = async () => {
             const all = await getStoredTransactions();
-            const sorted = all.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+            const sorted = all.sort((a: Transaction, b: Transaction) =>
+                                    new Date(b.dateTime).getTime()
+                                    - new Date(a.dateTime).getTime());
             const limitedTxs = limited > 0 ? sorted.slice(0, limited) : sorted;
 
             const resolved = await Promise.all(
-                limitedTxs.map(async (tx) => ({
+                limitedTxs.map(async (tx: Transaction) => ({
                     ...tx,
                     sourceAccountName: await resolveAccountName(tx.sourceAccount),
                     destinationAccountName: await resolveAccountName(tx.destinationAccount),

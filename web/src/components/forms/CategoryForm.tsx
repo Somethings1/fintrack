@@ -18,6 +18,8 @@ import {
     addCategory,
     updateCategory,
 } from "@/services/categoryService";
+import { useRefresh } from "@/context/refreshProvider";
+import IconPickerField from "@/components/IconPickerField";
 
 interface CategoryFormProps {
     category?: Partial<Category>;
@@ -31,14 +33,12 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     onCancel,
 }) => {
     const [form] = Form.useForm();
-    const [selectedIcon, setSelectedIcon] = useState<string>("");
     const [isDeleting, setIsDeleting] = useState(false);
-    const [iconPickerOpen, setIconPickerOpen] = useState(false);
+    const { triggerRefresh } = useRefresh();
 
     useEffect(() => {
         if (category) {
             form.setFieldsValue({ ...category });
-            setSelectedIcon(category.icon || "");
         }
     }, [category]);
 
@@ -48,7 +48,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             owner: localStorage.getItem("username") ?? "",
             name: values.name,
             type: values.type,
-            icon: selectedIcon || "💰",
+            icon: values.icon || "💰",
             budget: values.budget,
             lastUpdate: new Date(),
             isDeleted: false,
@@ -73,6 +73,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             await deleteCategories([category!._id]);
             message.success("Category deleted successfully");
             onCancel?.();
+            triggerRefresh();
         } catch (err) {
             console.error(err);
             message.error("Failed to delete category");
@@ -102,34 +103,14 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                 <Input />
             </Form.Item>
 
-            <Form.Item
+            <IconPickerField
                 name="icon"
                 label="Icon"
-                rules={[{ required: true, message: "Please select an icon" }]}
-            >
-                <Popover
-                    trigger="click"
-                    open={iconPickerOpen}
-                    content={
-                        <Picker
-                            data={data}
-                            onEmojiSelect={(emoji: any) => {
-                                setSelectedIcon(emoji.native);
-                                form.setFieldsValue({ icon: emoji.native });
-                                setIconPickerOpen(false);
-                            }}
-                            theme="light"
-                            previewPosition="none"
-                            maxFrequentRows={1}
-                        />
-                    }
-                >
-                    <Button onClick={() => setIconPickerOpen(true)}>
-                        {selectedIcon || "Pick an emoji"}
-                    </Button>
-                </Popover>
-            </Form.Item>
-
+                initialValue={category?.icon}
+                onIconChange={(emoji: string) => {
+                    form.setFieldValue("icon", emoji); // <- Sync with Antd Form
+                }}
+            />
             <Form.Item
                 name="budget"
                 label="Budget"

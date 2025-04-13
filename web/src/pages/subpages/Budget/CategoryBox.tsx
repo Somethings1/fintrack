@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Category } from "@/types/Category";
+import { Category } from "@/models/Category";
 import { getStoredCategories } from "@/services/categoryService";
 import { getStoredTransactions } from "@/services/transactionService";
 import { useRefresh } from "@/context/RefreshProvider";
@@ -21,6 +21,7 @@ import {
 } from "@ant-design/icons";
 import RoundedBox from "@/components/RoundedBox";
 import CategoryForm from "@/components/forms/CategoryForm";
+import { Transaction } from "@/models/Transaction";
 
 const { Text, Title } = Typography;
 
@@ -32,17 +33,18 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
     const [category, setCategory] = useState<Category | null>(null);
     const [total, setTotal] = useState<number>(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { refreshCount, triggerRefresh } = useRefresh();
+    const { triggerRefresh } = useRefresh();
+    const refreshToken = useRefresh();
     const { transactions: lastSync } = usePollingContext();
 
     useEffect(() => {
         const fetchData = async () => {
             const cats = await getStoredCategories();
-            const target = cats.find((c) => c._id === categoryId);
+            const target = cats.find((c: Category) => c._id === categoryId);
             setCategory(target || null);
 
             const txs = await getStoredTransactions();
-            const filtered = txs.filter((tx) => {
+            const filtered = txs.filter((tx: Transaction) => {
                 const d = new Date(tx.dateTime);
                 return (
                     tx.category === categoryId &&
@@ -56,7 +58,7 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
         };
 
         fetchData();
-    }, [categoryId, refreshCount, lastSync]);
+    }, [categoryId, refreshToken, lastSync]);
 
     if (!category) return null;
 

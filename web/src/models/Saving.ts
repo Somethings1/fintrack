@@ -4,7 +4,7 @@ export interface Saving {
   balance: number;
   icon: string;
   name: string;
-  goal?: number;
+  goal: number;
   createdDate: Date; // ISO date
   goalDate: Date; // ISO date
   lastUpdate: Date;
