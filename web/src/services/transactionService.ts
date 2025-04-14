@@ -9,13 +9,18 @@ import {
 
 import {
     getAccountById,
-    updateAccount,
+    updateAccountLocally,
 } from "./accountService";
 
 import {
     getSavingById,
-    updateSaving,
+    updateSavingLocally,
 } from "./savingService";
+
+import {
+    deleteFromDB
+} from '@/utils/db';
+
 
 const TRANSACTION_URL = "http://localhost:8080/api/transactions";
 const TRANSACTION_STORE = "transactions";
@@ -27,17 +32,18 @@ function getAmount(transaction: any): number {
 }
 
 async function adjustBalance(id: string, amount: number) {
+    console.log(`Trying to adjust balance ${id}`);
     const account = await getAccountById(id);
     if (account) {
         account.balance = (account.balance || 0) + amount;
         console.log(`Updated balance on account ${id} with amount ${amount}`)
-        return updateAccount(id, account);
+        return updateAccountLocally(id, account);
     }
 
     const saving = await getSavingById(id);
     if (saving) {
         saving.balance = (saving.balance || 0) + amount;
-        return updateSaving(id, saving);
+        return updateSavingLocally(id, saving);
     }
 }
 
@@ -51,10 +57,7 @@ export const getTransactionById = (id: string) =>
     getEntity(TRANSACTION_STORE, id);
 
 export async function addTransaction(transaction: any) {
-    const id = await addEntity(TRANSACTION_URL, TRANSACTION_STORE, transaction);
-    if (!id) return;
-
-    transaction._id = id;
+    await addEntity(TRANSACTION_URL, TRANSACTION_STORE, transaction);
 
     const amount = getAmount(transaction);
     await adjustBalance(transaction.sourceAccount, -amount);
@@ -82,7 +85,7 @@ export async function updateTransaction(id: string, updated: any) {
     await adjustBalance(updated.destinationAccount, newAmount);
 }
 
-export async function deleteTransactions(ids: string[]) {
+export async function deleteTransactions(ids: string[], local = false) {
     for (const id of ids) {
         const txn = await getTransactionById(id);
         if (!txn) continue;
@@ -93,6 +96,14 @@ export async function deleteTransactions(ids: string[]) {
         await adjustBalance(txn.destinationAccount, -amount);
     }
 
-    await deleteEntities(TRANSACTION_URL, TRANSACTION_STORE, ids);
+    if (local) {
+        await Promise.all(ids.map(id => deleteFromDB(TRANSACTION_STORE, id)));
+    }
+    else {
+        await deleteEntities(TRANSACTION_URL, TRANSACTION_STORE, ids);
+    }
 }
 
+export async function deleteTransactionsLocally(ids: string[]) {
+    deleteTransactions(ids, true);
+}

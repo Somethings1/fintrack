@@ -115,15 +115,31 @@ func createCategoryIndex() error {
 }
 
 func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount float64) (int64, error) {
+    now := time.Now()
+
     // Try to update in account collection
-    res, err := AccountCollection.UpdateOne(sc, bson.M{"_id": id}, bson.M{"$inc": bson.M{"balance": amount}})
+    res, err := AccountCollection.UpdateOne(
+        sc,
+        bson.M{"_id": id},
+        bson.M{
+            "$inc": bson.M{"balance": amount},
+            "$set": bson.M{"last_update": now},
+        },
+    )
     if err != nil {
         return 0, err
     }
 
     if res.MatchedCount == 0 {
         // If not an account, try saving
-        res, err = SavingCollection.UpdateOne(sc, bson.M{"_id": id}, bson.M{"$inc": bson.M{"balance": amount}})
+        res, err = SavingCollection.UpdateOne(
+            sc,
+            bson.M{"_id": id},
+            bson.M{
+                "$inc": bson.M{"balance": amount},
+                "$set": bson.M{"last_update": now},
+            },
+        )
         if err != nil {
             return 0, err
         }

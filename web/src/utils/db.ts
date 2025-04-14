@@ -72,9 +72,22 @@ export async function updateDB(storeName: string, data: any) {
 }
 
 export async function deleteFromDB(storeName: string, id: string) {
-    const db = await getDB();
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    store.delete(id); // Removes the transaction from IndexedDB by its ID
-    await tx.done;
+    try {
+        const db = await getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+
+        const existing = await store.get(id);
+        if (!existing) {
+            console.warn(`[deleteFromDB] No record found in ${storeName} with id ${id}`);
+            return;
+        }
+
+        existing.isDeleted = true;
+        existing.lastUpdate = new Date().toISOString(); // Optional for syncing
+
+        await updateDB(storeName, existing); // Reuse your updateDB here
+    } catch (error) {
+        console.error(`[deleteFromDB] Failed to soft delete from ${storeName}:`, error);
+    }
 }

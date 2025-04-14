@@ -287,7 +287,7 @@ func DeleteTransaction(c *gin.Context) {
     })
 
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting transaction}", "details": err.Error()})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting transaction", "details": err.Error()})
         return
     }
 
