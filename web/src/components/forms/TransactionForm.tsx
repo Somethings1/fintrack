@@ -126,14 +126,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                     <Form.Item name="destinationAccount" label="Destination Account" rules={[{ required: true }]}>
                         <Select>{renderAccountOptions()}</Select>
                     </Form.Item>
-
                     <Form.Item name="category" label="Category" rules={[{ required: true }]}>
                         <Select>
-                            {categories.map(category => (
-                                <Select.Option key={category._id} value={category._id}>
-                                    {category.name}
-                                </Select.Option>
-                            ))}
+                            {categories
+                                .filter(category => category.type === 'income')
+                                .map(category => (
+                                    <Select.Option key={category._id} value={category._id}>
+                                        {category.name}
+                                    </Select.Option>
+                                ))}
                         </Select>
                     </Form.Item>
                 </>
@@ -144,14 +145,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                     <Form.Item name="sourceAccount" label="Source Account" rules={[{ required: true }]}>
                         <Select>{renderAccountOptions()}</Select>
                     </Form.Item>
-
                     <Form.Item name="category" label="Category" rules={[{ required: true }]}>
                         <Select>
-                            {categories.map(category => (
-                                <Select.Option key={category._id} value={category._id}>
-                                    {category.name}
-                                </Select.Option>
-                            ))}
+                            {categories
+                                .filter(category => category.type === 'expense')
+                                .map(category => (
+                                    <Select.Option key={category._id} value={category._id}>
+                                        {category.name}
+                                    </Select.Option>
+                                ))}
                         </Select>
                     </Form.Item>
                 </>
