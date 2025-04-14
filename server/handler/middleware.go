@@ -9,6 +9,7 @@ import (
     "github.com/gin-gonic/gin"
     "fintrack/server/service"
     "fintrack/server/model"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func LoggingMiddleware() gin.HandlerFunc {
@@ -141,16 +142,29 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             return
         }
 
+        getOwner := func(id string) (string, error) {
+            account, accErr := service.GetAccountByID(id)
+            if accErr == nil {
+                return account.Owner, nil
+            }
+            saving, savErr := service.GetSavingByID(id)
+            if savErr == nil {
+                return saving.Owner, nil
+            }
+            return "", fmt.Errorf("Not found")
+        }
+
+
         // Source account
-        sourceAccount, err := service.GetAccountByID(_transaction.SourceAccount)
         if _transaction.Type == "expense" || _transaction.Type == "transfer" {
+            owner, err := getOwner(_transaction.SourceAccount)
             if err != nil {
                 c.JSON(http.StatusBadRequest, gin.H{
                     "error": "Source account not found",
                 })
                 return
             }
-            if sourceAccount.Owner != _transaction.Creator {
+            if owner != _transaction.Creator {
                 c.JSON(http.StatusBadRequest, gin.H{
                     "error": "You are not the owner of the source account",
                 })
@@ -159,15 +173,15 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
         }
 
         // Destination account
-        destinationAccount, err := service.GetAccountByID(_transaction.DestinationAccount)
         if _transaction.Type == "income" || _transaction.Type == "transfer" {
+            owner, err := getOwner(_transaction.DestinationAccount)
             if err != nil {
                 c.JSON(http.StatusBadRequest, gin.H{
                     "error": "Destination account not found",
                 })
                 return
             }
-            if destinationAccount.Owner != _transaction.Creator {
+            if owner != _transaction.Creator {
                 c.JSON(http.StatusBadRequest, gin.H{
                     "error": "You are not the owner of the destination account",
                 })
@@ -192,7 +206,7 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             }
 
         } else {
-            if sourceAccount == destinationAccount {
+            if _transaction.SourceAccount == _transaction.DestinationAccount {
                 c.JSON(http.StatusBadRequest, gin.H{
                     "error": "Source and destination accounts cannot be the same",
                 })
@@ -200,16 +214,33 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
             }
         }
 
-        transaction := model.Transaction{
-            Creator:         _transaction.Creator,
-            Amount:          _transaction.Amount,
-            DateTime:        DateTime,
-            Type:            _transaction.Type,
-            SourceAccount:   sourceAccount.ID,
-            DestinationAccount: destinationAccount.ID,
-            Category:        category.ID,
-            Note:            _transaction.Note,
+        srcID, err := primitive.ObjectIDFromHex(_transaction.SourceAccount)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid source account ID",
+            })
+            return
         }
+
+        dstID, err := primitive.ObjectIDFromHex(_transaction.DestinationAccount)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid destination account ID",
+            })
+            return
+        }
+
+        transaction := model.Transaction{
+            Creator:            _transaction.Creator,
+            Amount:             _transaction.Amount,
+            DateTime:           DateTime,
+            Type:               _transaction.Type,
+            SourceAccount:      srcID,
+            DestinationAccount: dstID,
+            Category:           category.ID,
+            Note:               _transaction.Note,
+        }
+
 
         c.Set("transaction", transaction)
         c.Next()

@@ -10,24 +10,10 @@ import { PollingProvider } from "./context/PollingProvider";
 
 (() => {
     if (import.meta.env.DEV) {
-        // 1. Clear localStorage
-        localStorage.clear();
-
-        // 2. Clear sessionStorage
-        sessionStorage.clear();
-
-        // 3. Clear IndexedDB
         indexedDB.databases().then((dbs) => {
             for (const db of dbs) {
                 if (db.name) indexedDB.deleteDatabase(db.name);
             }
-        });
-
-        // 4. Optional: Clear cookies (only works for non-HttpOnly cookies)
-        document.cookie.split(";").forEach((cookie) => {
-            const eqPos = cookie.indexOf("=");
-            const name = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
-            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
         });
     }
 })();

@@ -13,6 +13,7 @@ import (
 
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
     "go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -21,26 +22,51 @@ import (
 // Transaction Handlers
 //////////////////
 
-// AddTransaction adds a new transaction and sets the LastUpdate timestamp
 func AddTransaction(c *gin.Context) {
     tx, _ := c.Get("transaction")
     transaction := tx.(model.Transaction)
-
-    // Set the LastUpdate field to the current time
     transaction.LastUpdate = time.Now()
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    result, err := util.TransactionCollection.InsertOne(ctx, transaction)
+    ctx := context.Background()
+    session, err := util.MongoClient.StartSession()
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding transaction"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start session"})
+        return
+    }
+    defer session.EndSession(ctx)
+
+    result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+        // Insert transaction
+        res, err := util.TransactionCollection.InsertOne(sc, transaction)
+        if err != nil {
+            return nil, err
+        }
+
+        // Adjust source balance
+        if transaction.SourceAccount != primitive.NilObjectID {
+            if _, err := util.AdjustBalance(sc, transaction.SourceAccount, -transaction.Amount); err != nil {
+                return nil, err
+            }
+        }
+
+        // Adjust destination balance
+        if transaction.DestinationAccount != primitive.NilObjectID {
+            if _, err := util.AdjustBalance(sc, transaction.DestinationAccount, transaction.Amount); err != nil {
+                return nil, err
+            }
+        }
+
+        return res.InsertedID, nil
+    })
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction failed", "details": err.Error()})
         return
     }
 
     c.JSON(http.StatusOK, gin.H{
         "message": "Transaction added successfully",
-        "id": result.InsertedID,
+        "id": result,
     })
 }
 
@@ -142,54 +168,129 @@ func GetTransactionsSince(c *gin.Context) {
     })
 }
 
-// UpdateTransaction updates an existing transaction and sets the LastUpdate timestamp
 func UpdateTransaction(c *gin.Context) {
-    tx, _ := c.Get("transaction")
-    transaction := tx.(model.Transaction)
-
     id, err := primitive.ObjectIDFromHex(c.Param("id"))
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
         return
     }
 
-    // Set the LastUpdate field to the current time
-    transaction.LastUpdate = time.Now()
+    tx, _ := c.Get("transaction")
+    newTx := tx.(model.Transaction)
+    newTx.LastUpdate = time.Now()
 
-    filter := bson.M{"_id": id}
+    ctx := context.Background()
+    err = util.MongoClient.UseSession(ctx, func(sc mongo.SessionContext) error {
+        if err := sc.StartTransaction(); err != nil {
+            return err
+        }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+        var oldTx model.Transaction
+        err := util.TransactionCollection.FindOne(sc, bson.M{"_id": id}).Decode(&oldTx)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
 
-    _, err = util.TransactionCollection.UpdateOne(ctx, filter, bson.M{"$set": transaction})
+        // Reverse old transaction
+        _, err = util.AdjustBalance(sc, oldTx.SourceAccount, oldTx.Amount)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+        _, err = util.AdjustBalance(sc, oldTx.DestinationAccount, -oldTx.Amount)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+
+        // Apply new transaction
+        _, err = util.AdjustBalance(sc, newTx.SourceAccount, -newTx.Amount)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+        _, err = util.AdjustBalance(sc, newTx.DestinationAccount, newTx.Amount)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+
+        // Update transaction record
+        _, err = util.TransactionCollection.UpdateOne(
+            sc,
+            bson.M{"_id": id},
+            bson.M{"$set": newTx},
+        )
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+
+        return sc.CommitTransaction(sc)
+    })
+
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating transaction"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating transaction with balance adjustment"})
         return
     }
 
     c.JSON(http.StatusOK, gin.H{"message": "Transaction updated successfully"})
 }
 
-// DeleteTransaction performs a soft delete by marking the transaction as deleted and updating the LastUpdate field
 func DeleteTransaction(c *gin.Context) {
-    transactionID, err := primitive.ObjectIDFromHex(c.Param("id"))
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+    ctx := context.Background()
+    err = util.MongoClient.UseSession(ctx, func(sc mongo.SessionContext) error {
+        if err := sc.StartTransaction(); err != nil {
+            return err
+        }
 
-    // Perform a soft delete by updating the "is_deleted" field and the "last_update" timestamp
-    update := bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now()}}
+        var tx model.Transaction
+        err := util.TransactionCollection.FindOne(sc, bson.M{"_id": id}).Decode(&tx)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
 
-    _, err = util.TransactionCollection.UpdateOne(ctx, bson.M{"_id": transactionID}, update)
+        // Reverse balance effect
+        _, err = util.AdjustBalance(sc, tx.SourceAccount, tx.Amount)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+        _, err = util.AdjustBalance(sc, tx.DestinationAccount, -tx.Amount)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+
+        // Soft delete the transaction
+        update := bson.M{
+            "$set": bson.M{
+                "is_deleted":  true,
+                "last_update": time.Now(),
+            },
+        }
+        _, err = util.TransactionCollection.UpdateOne(sc, bson.M{"_id": id}, update)
+        if err != nil {
+            _ = sc.AbortTransaction(sc)
+            return err
+        }
+
+        return sc.CommitTransaction(sc)
+    })
+
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error performing soft delete"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting transaction}", "details": err.Error()})
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "Transaction soft deleted successfully"})
+    c.JSON(http.StatusOK, gin.H{"message": "Transaction deleted successfully"})
 }
 

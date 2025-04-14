@@ -8,9 +8,11 @@ import (
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var (
+    MongoClient           *mongo.Client
     UserCollection        *mongo.Collection
     AccountCollection     *mongo.Collection
     TransactionCollection *mongo.Collection
@@ -24,6 +26,7 @@ func InitDB() {
     if err != nil {
         log.Fatal(err)
     }
+    MongoClient = client
 
     db := client.Database("finance_db")
 
@@ -109,5 +112,23 @@ func createCategoryIndex() error {
 
     _, err := CategoryCollection.Indexes().CreateOne(ctx, indexModel)
     return err
+}
+
+func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount float64) (int64, error) {
+    // Try to update in account collection
+    res, err := AccountCollection.UpdateOne(sc, bson.M{"_id": id}, bson.M{"$inc": bson.M{"balance": amount}})
+    if err != nil {
+        return 0, err
+    }
+
+    if res.MatchedCount == 0 {
+        // If not an account, try saving
+        res, err = SavingCollection.UpdateOne(sc, bson.M{"_id": id}, bson.M{"$inc": bson.M{"balance": amount}})
+        if err != nil {
+            return 0, err
+        }
+    }
+
+    return res.ModifiedCount, nil
 }
 
