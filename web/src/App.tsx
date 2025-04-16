@@ -8,16 +8,6 @@ import api from "@/services/authService"; // Import the API client
 import { useAuthRefresh } from "./hooks/useAuthRefresh";
 import { PollingProvider } from "./context/PollingProvider";
 
-(() => {
-    if (import.meta.env.DEV) {
-        indexedDB.databases().then((dbs) => {
-            for (const db of dbs) {
-                if (db.name) indexedDB.deleteDatabase(db.name);
-            }
-        });
-    }
-})();
-
 
 // PrivateRoute component for checking authentication and storing username in localStorage
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {

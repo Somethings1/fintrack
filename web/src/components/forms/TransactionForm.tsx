@@ -43,7 +43,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
             destinationAccount: destinationAccount === "000000000000000000000000" ? undefined : destinationAccount,
             category: category === "000000000000000000000000" ? undefined : category,
         });
-    }, [transaction]);
+    }, [transaction._id]);
 
     useEffect(() => {
         const fetchAll = async () => {

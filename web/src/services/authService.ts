@@ -34,9 +34,14 @@ const refreshAccessToken = async () => {
 
 // Sign in function (cookies store tokens automatically)
 export const signIn = async (email: string, password: string) => {
-    console.log("Sending login request:", { username: email, password }); // Debug
-
     const response = await api.post("/signin", { username: email, password });
+    return response.data; // No need to handle tokens manually
+};
+
+export const signUp = async (name: string, email: string, password: string) => {
+    console.log("Sending signup request:", { name, username: email, password }); // Debug
+
+    const response = await api.post("/signup", { name, username: email, password });
     return response.data; // No need to handle tokens manually
 };
 
@@ -47,6 +52,30 @@ export const logout = async () => {
         if (!response.status.toString().startsWith("2")) {
             throw new Error("Failed to logout");
         }
+
+        // Clear cookies
+        document.cookie.split(";").forEach((cookie) => {
+            const cookieName = cookie.split("=")[0].trim();
+            document.cookie = `${cookieName}=;expires=${new Date(0).toUTCString()};path=/`;
+        });
+
+        // Clear localStorage
+        localStorage.clear();
+
+        // Clear sessionStorage
+        sessionStorage.clear();
+
+        // Clear IndexedDB (specifically the FinanceTracker database)
+        const request = indexedDB.deleteDatabase("FinanceTracker");
+
+        request.onsuccess = () => {
+            console.log("Successfully deleted FinanceTracker database from IndexedDB");
+        };
+
+        request.onerror = (event) => {
+            console.error("Error deleting FinanceTracker database:", event);
+        };
+
     } catch (error) {
         console.error("Logout error:", error);
     }
