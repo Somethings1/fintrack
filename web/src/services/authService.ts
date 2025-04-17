@@ -1,122 +1,75 @@
-import axios from "axios";
+import { createClient } from "@supabase/supabase-js";
 
-const API_URL = "http://localhost:8080/auth";
 
-const api = axios.create({
-    baseURL: API_URL,
-    withCredentials: true, // Send cookies with every request
-});
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-// Queued refresh handling to prevent multiple simultaneous requests
-let isRefreshing = false;
-let refreshSubscribers: (() => void)[] = [];
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const subscribeTokenRefresh = (callback: () => void) => {
-    refreshSubscribers.push(callback);
-};
-
-const onTokenRefreshed = () => {
-    refreshSubscribers.forEach((callback) => callback());
-    refreshSubscribers = [];
-};
-
-// Function to refresh access token
-const refreshAccessToken = async () => {
-    try {
-        await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
-        onTokenRefreshed();
-    } catch (error) {
-        console.error("Session expired, logging out user");
-        window.location.href = "/login";
-        throw error;
-    }
-};
-
-// Sign in function (cookies store tokens automatically)
+// 🔑 Sign in with email/password
 export const signIn = async (email: string, password: string) => {
-    const response = await api.post("/signin", { username: email, password });
-    return response.data; // No need to handle tokens manually
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
 };
 
+// 🧑‍💻 Sign up
 export const signUp = async (name: string, email: string, password: string) => {
-    console.log("Sending signup request:", { name, username: email, password }); // Debug
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { name }, // This goes into the user's `user_metadata`
+    },
+  });
+  if (error) throw error;
 
-    const response = await api.post("/signup", { name, username: email, password });
-    return response.data; // No need to handle tokens manually
+  if (data.user?.identities?.length === 0) {
+      throw new Error("Email already in use");
+  }
+
+  return data;
 };
 
-// Logout function
+// 🚪 Logout
 export const logout = async () => {
-    try {
-        const response = await api.post("/logout");
-        if (!response.status.toString().startsWith("2")) {
-            throw new Error("Failed to logout");
-        }
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 
-        // Clear cookies
-        document.cookie.split(";").forEach((cookie) => {
-            const cookieName = cookie.split("=")[0].trim();
-            document.cookie = `${cookieName}=;expires=${new Date(0).toUTCString()};path=/`;
-        });
+  // Wipe everything
+  localStorage.clear();
+  sessionStorage.clear();
 
-        // Clear localStorage
-        localStorage.clear();
-
-        // Clear sessionStorage
-        sessionStorage.clear();
-
-        // Clear IndexedDB (specifically the FinanceTracker database)
-        const request = indexedDB.deleteDatabase("FinanceTracker");
-
-        request.onsuccess = () => {
-            console.log("Successfully deleted FinanceTracker database from IndexedDB");
-        };
-
-        request.onerror = (event) => {
-            console.error("Error deleting FinanceTracker database:", event);
-        };
-
-    } catch (error) {
-        console.error("Logout error:", error);
-    }
+  indexedDB.deleteDatabase("FinanceTracker");
 };
 
-// Auto-refresh expired tokens
-api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            if (isRefreshing) {
-                return new Promise((resolve) => {
-                    subscribeTokenRefresh(() => {
-                        resolve(axios(originalRequest));
-                    });
-                });
-            }
-
-            originalRequest._retry = true;
-            isRefreshing = true;
-
-            try {
-                await refreshAccessToken();
-                return axios(originalRequest);
-            } catch (err) {
-                return Promise.reject(err);
-            } finally {
-                isRefreshing = false;
-            }
-        }
-
-        return Promise.reject(error);
-    }
-);
-
-// Fetch user data (no need to manually include tokens)
-export const fetchUserData = async () => {
-    return api.post("/verify");
+// 🧠 Get current user
+export const getCurrentUser = async () => {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return data.user;
 };
 
-export default api;
+// 🧙 Sign in with Google
+export const signInWithGoogle = async () => {
+  const redirectUrl = window.location.origin + "/home"; // Or wherever you want to redirect
 
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: redirectUrl, // This will redirect after successful login
+      queryParams: {
+          prompt: "select_account",
+      },
+    },
+  });
+
+  if (error) throw error;
+};
+
+export const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "http://localhost:5173/update-password",
+    });
+    if (error) throw error;
+};

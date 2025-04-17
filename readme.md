@@ -92,15 +92,41 @@ Add Golang to your PATH by
 export PATH=$PATH:/usr/local/go/bin
 ```
 
-Remember to run
+Now from the backend path, run
 
 ```zsh
 go mod tidy
+go run main.go
 ```
-
-if it's the first time
 
 ### React
 
-Just do it, it's easy.
+Install react, then in frontend path,
+
+```zsh
+npm start
+```
+
+### Authentication setup
+This project uses supabase authentication. Here are detailed steps:
+
+1. Create new project on Supabase, enable authentication with email and google
+    - Authentication > Configuration > URL configuration
+    - Site URL: http://localhost:5173
+    - Redirect URLs: http://localhost:5173/update-password
+    - Project settings > Data API
+    - Set .env file:
+        - VITE_SUPABASE_URL: Project URL
+        - VITE_SUPABASE_ANON_KEY: Project API keys
+        - On backend, SUPABASE_JWT_SECRET: Jwt secret
+        - SUPABASE_URL: project url
+        - SUPABASE_ANON_KEY: above
+2. Create new project on Google Cloud
+    - API and Services
+    - Credentials
+    - Create credentials
+    - Oauth clientID
+    - Authorized JS origins: http://localhost:5173 (frontend URL)
+    - Authorized callback URI: copy from supabase (in the google oauth section)
+    - Copy back cliendID and client secret to supabase
 

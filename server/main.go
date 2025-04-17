@@ -8,10 +8,12 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+    "github.com/joho/godotenv"
 )
 
 func main() {
 	util.InitDB()
+    godotenv.Load()
 
 	r := gin.Default()
 	corsConfig := cors.Config{
@@ -29,12 +31,6 @@ func main() {
 
 	r.Use(handler.LoggingMiddleware())
 	r.Use(handler.PrintRequestDetails())
-
-	r.POST("/auth/signup", handler.SignUp)
-	r.POST("/auth/signin", handler.SignIn)
-	r.POST("/auth/refresh", handler.Refresh)
-	r.POST("/auth/verify", handler.AuthMiddleware(), handler.Verify)
-	r.POST("/auth/logout", handler.Logout)
 
 	api := r.Group("/api", handler.AuthMiddleware())
 
