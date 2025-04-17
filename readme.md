@@ -92,34 +92,41 @@ Add Golang to your PATH by
 export PATH=$PATH:/usr/local/go/bin
 ```
 
-Remember to run
+Now from the backend path, run
 
 ```zsh
 go mod tidy
+go run main.go
 ```
-
-if it's the first time
 
 ### React
 
-Just do it, it's easy.
+Install react, then in frontend path,
 
-# Changelog
+```zsh
+npm start
+```
 
-- 2024/11/30: readme.md
-- 2024/12/01: Installed MongoDB, React and Golang. Make them work together.
-- 2024/12/02: Basic signup feature. Tested for validity on server side.
-- 2024/12/03: Basic login feature.
-- 2024/12/07: Been sick for 3 days straight. Finally added proper login feature.
-Got the access token and fresh token to work, so authentication is basically done.
-Maybe I have to add some login-related features in the future, but it handles the basics
-well enough.
-- 2024/12/08: Taking the TOEIC test, so not much work is done. Almost like
-refactoring.
-- 2024/12/09: I switched to gin framework today, got the middlewares and route.
-- 2024/12/10: Finished the crud operations. Write basic flow tests. ,
-- 2024/12/11: Learnt about docker and nginx, and may apply them later.
-- 2024/12/12: Fuck JS.
-- 2024/12/13: Miracle. I saw God. When I open my mac in the morning, chakra-ui
-works like a charm. I finally done the auth page. I might not be able to update
-tomorrow, since I have an exam the next day.
+### Authentication setup
+This project uses supabase authentication. Here are detailed steps:
+
+1. Create new project on Supabase, enable authentication with email and google
+    - Authentication > Configuration > URL configuration
+    - Site URL: http://localhost:5173
+    - Redirect URLs: http://localhost:5173/update-password
+    - Project settings > Data API
+    - Set .env file:
+        - VITE_SUPABASE_URL: Project URL
+        - VITE_SUPABASE_ANON_KEY: Project API keys
+        - On backend, SUPABASE_JWT_SECRET: Jwt secret
+        - SUPABASE_URL: project url
+        - SUPABASE_ANON_KEY: above
+2. Create new project on Google Cloud
+    - API and Services
+    - Credentials
+    - Create credentials
+    - Oauth clientID
+    - Authorized JS origins: http://localhost:5173 (frontend URL)
+    - Authorized callback URI: copy from supabase (in the google oauth section)
+    - Copy back cliendID and client secret to supabase
+

@@ -1,0 +1,13 @@
+{
+  "name": "my-electron-app",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "cd ../web && npm run build && electron ."
+  },
+  "dependencies": {
+    "electron": "^latest"
+  }
+}
+

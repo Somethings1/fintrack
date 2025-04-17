@@ -20,22 +20,6 @@ type Category struct {
 	Budget  float64            `bson:"budget,omitempty" json:"budget,omitempty"`
 }
 
-func login() (string, error) {
-	loginPayload := `{"username": "testaccount1", "password": "testaccount"}`
-	resp, err := http.Post("http://localhost:8080/auth/signin", "application/json", bytes.NewReader([]byte(loginPayload)))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "access_token" { // Replace "token" with the actual name of your token cookie
-			return cookie.Value, nil
-		}
-	}
-
-	return "", fmt.Errorf("token cookie not found")
-}
 
 // Create Category
 func createCategory(token string, category Category) (primitive.ObjectID, error) {

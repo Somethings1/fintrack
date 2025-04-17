@@ -20,8 +20,6 @@ type Account struct {
 	Goal    float64            `bson:"goal,omitempty" json:"goal,omitempty"`
 }
 
-
-
 func createAccount(token string, account Account) (primitive.ObjectID, error) {
 	payload, _ := json.Marshal(account)
 	req, err := http.NewRequest("POST", "http://localhost:8080/api/accounts/add", bytes.NewReader(payload))
