@@ -16,14 +16,17 @@ const { Title } = Typography;
 interface SidebarProps {
   setCurrentPage: (page: string) => void;
   collapsed: boolean;
+onBreakpoint: (broken: boolean) => void;
 }
 
-const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed }) => {
+const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoint }) => {
   return (
     <Sider
       collapsible
       collapsed={collapsed}
       width={250}
+      breakpoint="lg"
+      onBreakpoint={onBreakpoint}
       collapsedWidth={50}
       theme="dark"
       trigger={null} // Control from header

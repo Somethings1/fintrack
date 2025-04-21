@@ -40,6 +40,7 @@ const HomePage = () => {
       <SideBar
         collapsed={sidebarCollapsed}
         setCurrentPage={setCurrentPage}
+        onBreakpoint={(broken) => setSidebarCollapsed(broken)}
       />
       <Layout>
         <AppHeader
