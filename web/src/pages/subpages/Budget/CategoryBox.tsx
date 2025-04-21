@@ -96,7 +96,7 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
                         </Title>
                     </Space>
                     <Row gutter={16}>
-                        <Col span={8}>
+                        <Col span={12}>
                             <div style={{ textAlign: "center" }}>
                                 <Progress
                                     type="circle"
@@ -120,7 +120,7 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
                                 />
                             </div>
                         </Col>
-                        <Col span={16}>
+                        <Col span={11}>
                             <div
                                 style={{
                                     display: "flex",

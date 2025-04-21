@@ -4,7 +4,7 @@ import CategoryBox from "./CategoryBox";
 import { Category } from "@/types/Category";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
-import { Button, Modal, Space, Typography } from "antd";
+import { Button, Modal, Space, Typography, Row, Col } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import CategoryForm from "@/components/forms/CategoryForm";
 
@@ -47,10 +47,13 @@ const Budget = () => {
                 </Button>
             </Space>
 
-            {categories.map((cat) => (
-                <CategoryBox key={cat._id} categoryId={cat._id} />
-            ))}
-
+            <Row gutter={[16, 16]}>
+                {categories.map((cat) => (
+                    <Col key={cat._id} xs={24} sm={22} md={12} lg={12} xl={8}>
+                        <CategoryBox categoryId={cat._id} />
+                    </Col>
+                ))}
+            </Row>
             <Modal
                 title="New Category"
                 open={isModalOpen}
