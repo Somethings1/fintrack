@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Tabs, Typography, Spin, Empty } from "antd";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Label, PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import RoundedBox from "@/components/RoundedBox";
 import { getStoredCategories } from "@/services/categoryService";
 import { getStoredTransactions } from "@/services/transactionService";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
+import { colors } from "../../theme/color";
 
 const { Title } = Typography;
 const COLORS = ["#FF6384", "#36A2EB", "#FFCE56", "#8E44AD", "#1ABC9C", "#E67E22", "#2ECC71"];
@@ -17,6 +18,7 @@ const BudgetOverview: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const refreshToken = useRefresh();
     const lastSync = usePollingContext();
+    const primaryColors = [...Object.values(colors.primary), ...(Object.values(colors.neutral))];
 
     useEffect(() => {
         const fetchData = async () => {
@@ -70,7 +72,7 @@ const BudgetOverview: React.FC = () => {
             {chartData.length === 0 ? (
                 <Empty description="No data available" />
             ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                         <Pie
                             data={chartData}
@@ -89,40 +91,70 @@ const BudgetOverview: React.FC = () => {
                             labelLine={false}
                         >
                             {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                <Cell key={`cell-${index}`} fill={
+                                    primaryColors[index * 4 % primaryColors.length]
+                                } />
                             ))}
+                            <Label
+                                position="center"
+                                content={({ viewBox }) => {
+                                    const { cx, cy } = viewBox;
+                                    return (
+                                        <g>
+                                            <text
+                                                x={cx}
+                                                y={cy - 10}
+                                                textAnchor="middle"
+                                                style={{ fontSize: 12, fill: "#888" }}
+                                            >
+                                                Total
+                                            </text>
+                                            <text
+                                                x={cx}
+                                                y={cy + 10}
+                                                textAnchor="middle"
+                                                dominantBaseline="middle"
+                                                style={{ fontSize: 20, fontWeight: "bold", fill: "#333" }}
+                                            >
+                                                ${chartData.reduce((acc, cur) => acc + cur.value, 0).toLocaleString()}
+                                            </text>
+                                        </g>
+                                    );
+                                }}
+                            />
                         </Pie>
-                        <g>
-                            <text
-                                x="50%"
-                                y="46%"
-                                style={{
-                                    fontSize: "12px",
-                                    fill: "#888",
-                                }}
-                            >
-                                Total
-                            </text>
-                            <text
-                                x="50%"
-                                y="53%"
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                style={{
-                                    fontSize: "20px",
-                                    fontWeight: "bold",
-                                    fill: "#333",
-                                }}
-                            >
-                                ${chartData.reduce((acc, cur) => acc + cur.value, 0).toLocaleString()}
-                            </text>
-                        </g>
                         <Tooltip formatter={(value: number) => formatMoney(value)} />
                         <Legend
                             layout="vertical"
                             align="left"
                             verticalAlign="middle"
+                            content={({ payload }) => (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    {payload?.map((entry, index) => (
+                                        <li
+                                            key={`item-${index}`}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                marginBottom: 8,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: 10,
+                                                    height: 10,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: entry.color,
+                                                    marginRight: 8,
+                                                }}
+                                            />
+                                            <span style={{ color: '#000' }}>{entry.value}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         />
+
                     </PieChart>
                 </ResponsiveContainer>
             )}
