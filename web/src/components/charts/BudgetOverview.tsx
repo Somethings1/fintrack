@@ -72,7 +72,7 @@ const BudgetOverview: React.FC = () => {
             {chartData.length === 0 ? (
                 <Empty description="No data available" />
             ) : (
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={210}>
                     <PieChart>
                         <Pie
                             data={chartData}
@@ -83,7 +83,7 @@ const BudgetOverview: React.FC = () => {
                             outerRadius={100}
                             innerRadius={80}
                             paddingAngle={3}
-                            cornerRadius={5}
+                            cornerRadius={15}
                             startAngle={90}
                             endAngle={-270}
                             isAnimationActive={false}
@@ -162,8 +162,8 @@ const BudgetOverview: React.FC = () => {
     );
 
     return (
-        <RoundedBox>
-            <Title level={5} style={{ margin: 0 }}>Money flow</Title>
+        <RoundedBox style={{ height: 330 }}>
+            <Title level={5} style={{ margin: 0 }}>Budget</Title>
             {loading ? (
                 <Spin tip="Loading... Just like your finances.">
                     <div style={{ height: 300 }} />

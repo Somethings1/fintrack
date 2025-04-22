@@ -31,7 +31,7 @@ const SavingOverview: React.FC = () => {
     }, [refreshToken, lastSync]);
 
     return (
-        <RoundedBox style={{ padding: 16 }}>
+        <RoundedBox style={{ padding: 16, height: 290 }}>
             <Title level={5} style={{ marginBottom: 16, marginTop: 0 }}>Savings Goals</Title>
             {loading ? (
                 <Spin tip="Crunching numbers... slowly.">

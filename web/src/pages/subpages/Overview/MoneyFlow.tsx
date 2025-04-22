@@ -133,8 +133,8 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" interval={1} />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="income" fill={colors.primary[600]} />
-                        <Bar dataKey="expense" fill={colors.primary[400]} />
+                        <Bar radius={[8, 8, 0, 0]} dataKey="income" fill={colors.primary[600]} />
+                        <Bar radius={[8, 8, 0, 0]} dataKey="expense" fill={colors.primary[400]} />
                     </BarChart>
                 );
             case "line":
@@ -165,7 +165,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
     };
 
     return (
-        <RoundedBox>
+        <RoundedBox style={{ height: 330 }}>
             <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                 <Col>
                     <Title level={5} style={{ margin: 0 }}>Money flow</Title>
@@ -191,7 +191,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                     </Space>
                 </Col>
             </Row>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height="90%">
                 {renderChart()}
             </ResponsiveContainer>
         </RoundedBox>
