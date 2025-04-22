@@ -6,6 +6,7 @@ import TotalExpense from "./TotalExpense";
 import TotalIncome from "./TotalIncome";
 import TotalSavings from "./TotalSavings";
 import BudgetOverview from "@/components/charts/BudgetOverview";
+import SavingOverview from "./SavingOverview";
 
 const Overview = () => {
     return (
@@ -36,6 +37,9 @@ const Overview = () => {
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={24} lg={16}>
                     <RecentTransactions />
+                </Col>
+                <Col xs={24} lg={8}>
+                    <SavingOverview />
                 </Col>
             </Row>
         </>

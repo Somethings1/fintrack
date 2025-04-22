@@ -3,6 +3,7 @@ import RoundedBox from "@/components/RoundedBox";
 import { Typography } from "antd";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
+import { colors } from "../../../theme/color";
 
 const { Title, Text } = Typography;
 
@@ -50,8 +51,8 @@ const TotalBox: React.FC<Props> = ({
       <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
         <span
           style={{
-            color: isHighlight ? "#3f8600" : "#cf1322",
-            backgroundColor: isHighlight ? "#f6ffed" : "#fff1f0",
+            color: isHighlight ? colors.success[800]: colors.danger[500],
+            backgroundColor: isHighlight ? colors.success[200]: colors.danger[200],
             padding: "2px 8px",
             borderRadius: "16px",
             fontWeight: 500,

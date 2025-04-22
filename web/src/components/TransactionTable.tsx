@@ -13,7 +13,7 @@ interface TransactionTableProps {
 }
 
 const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false }) => {
-    const limited = simpleForm ? 5 : 0;
+    const limited = simpleForm ? 3 : 0;
     const allowSelecting = simpleForm ? false : true;
     const paging = simpleForm ? false : 10;
 
@@ -42,8 +42,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
         const fetchData = async () => {
             const all = await getStoredTransactions();
             const sorted = all.sort((a: Transaction, b: Transaction) =>
-                                    new Date(b.dateTime).getTime()
-                                    - new Date(a.dateTime).getTime());
+                new Date(b.dateTime).getTime()
+                - new Date(a.dateTime).getTime());
             const limitedTxs = limited > 0 ? sorted.slice(0, limited) : sorted;
 
             const resolved = await Promise.all(

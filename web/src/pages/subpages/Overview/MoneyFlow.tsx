@@ -18,6 +18,7 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import dayjs from "dayjs";
+import { colors } from "../../../theme/color";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -55,7 +56,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div style={{ background: "#fff", padding: 10, border: "1px solid #ccc" }}>
                 <strong>{fullDate}</strong>
                 <br />
-                <span style={{ color: "#52c41a" }}>Income:</span>{" "}
+                <span style={{ color: colors.success[800] }}>Income:</span>{" "}
                 ${payload[0]?.payload.income.toLocaleString()}
                 <br />
                 <span style={{ color: "#ff4d4f" }}>Expense:</span>{" "}
@@ -132,7 +133,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="income" stackId="a" fill="#52c41a" />
+                        <Bar dataKey="income" stackId="a" fill={colors.success[800]} />
                         <Bar dataKey="expense" stackId="a" fill="#ff4d4f" />
                     </BarChart>
                 );
@@ -143,7 +144,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Line type="monotone" dataKey="income" stroke="#52c41a" />
+                        <Line type="monotone" dataKey="income" stroke={colors.success[800]} />
                         <Line type="monotone" dataKey="expense" stroke="#ff4d4f" />
                     </LineChart>
                 );
@@ -154,7 +155,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Area type="monotone" dataKey="income" stroke="#52c41a" fill="#b7eb8f" />
+                        <Area type="monotone" dataKey="income" stroke={colors.success[800]} fill="#b7eb8f" />
                         <Area type="monotone" dataKey="expense" stroke="#ff4d4f" fill="#ffa39e" />
                     </AreaChart>
                 );
@@ -172,7 +173,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                 <Col>
                     <Space>
                         <span>
-                            <span style={{ color: "#52c41a" }}>● Income</span>
+                            <span style={{ color: colors.success[800] }}>● Income</span>
                             <span style={{ margin: "0 8px" }} />
                             <span style={{ color: "#ff4d4f" }}>● Expense</span>
                         </span>
