@@ -1,3 +1,4 @@
+// TransactionTable.tsx
 import { Table, Button, Modal } from "antd";
 import { useEffect, useState } from "react";
 import { Transaction } from "@/models/Transaction";
@@ -6,24 +7,16 @@ import { resolveAccountName, resolveCategoryName } from "@/utils/idResolver";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
-import TransactionForm from "./forms/TransactionForm"; // Import TransactionForm component
+import TransactionForm from "./forms/TransactionForm";
+import SimpleTransactionTable from "./SimpleTransactionTable";
 
-interface TransactionTableProps {
-    simpleForm?: boolean;
-}
-
-const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false }) => {
-    const limited = simpleForm ? 3 : 0;
-    const allowSelecting = simpleForm ? false : true;
-    const paging = simpleForm ? false : 10;
-
+const TransactionTable: React.FC = () => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
     const lastSync = usePollingContext();
-    const refreshToken = useRefresh();
     const { triggerRefresh } = useRefresh();
 
     const defaultTransaction: Partial<Transaction> = {
@@ -41,13 +34,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
     useEffect(() => {
         const fetchData = async () => {
             const all = await getStoredTransactions();
-            const sorted = all.sort((a: Transaction, b: Transaction) =>
-                new Date(b.dateTime).getTime()
-                - new Date(a.dateTime).getTime());
-            const limitedTxs = limited > 0 ? sorted.slice(0, limited) : sorted;
+            const sorted = all.sort((a, b) =>
+                new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
+            );
 
             const resolved = await Promise.all(
-                limitedTxs.map(async (tx: Transaction) => ({
+                sorted.map(async (tx) => ({
                     ...tx,
                     sourceAccountName: await resolveAccountName(tx.sourceAccount),
                     destinationAccountName: await resolveAccountName(tx.destinationAccount),
@@ -59,7 +51,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
         };
 
         fetchData();
-    }, [lastSync, limited, refreshToken]);
+    }, [lastSync]);
 
     const handleDelete = (transaction: Transaction) => {
         setTransactionToDelete(transaction);
@@ -81,21 +73,19 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
     };
 
     const handleEdit = (transaction: Transaction) => {
-        setTransactionToEdit(transaction); // Set the transaction to edit
-        setShowEditModal(true); // Show the edit modal
+        setTransactionToEdit(transaction);
+        setShowEditModal(true);
     };
 
     const handleAdd = () => {
-        setTransactionToEdit(null); // Ensure we're in "Add" mode, so no existing transaction data is passed
+        setTransactionToEdit(null);
         setShowEditModal(true);
     };
 
     const handleSubmit = async (values: any) => {
         if (transactionToEdit) {
-            // Editing an existing transaction
             await updateTransaction(transactionToEdit._id, values);
         } else {
-            // Adding a new transaction
             await addTransaction(values);
         }
         setShowEditModal(false);
@@ -134,44 +124,26 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
             dataIndex: "destinationAccountName",
             key: "destinationAccountName",
         },
-        ...(simpleForm
-            ? []
-            : [
-                {
-                    title: "Category",
-                    dataIndex: "categoryName",
-                    key: "categoryName",
-                }
-            ]),
+        {
+            title: "Category",
+            dataIndex: "categoryName",
+            key: "categoryName",
+        },
         {
             title: "Note",
             dataIndex: "note",
             key: "note",
         },
-        ...(simpleForm
-            ? []
-            : [
-                {
-                    title: "Actions",
-                    key: "actions",
-                    render: (_, transaction: Transaction) => (
-                        <>
-                            <Button
-                                icon={<EditOutlined />}
-                                onClick={() => handleEdit(transaction)} // Call handleEdit on click
-                                size="small"
-                                style={{ marginRight: 8 }}
-                            />
-                            <Button
-                                icon={<DeleteOutlined />}
-                                onClick={() => handleDelete(transaction)}
-                                size="small"
-                                danger
-                            />
-                        </>
-                    ),
-                },
-            ]),
+        {
+            title: "Actions",
+            key: "actions",
+            render: (_, transaction: Transaction) => (
+                <>
+                    <Button icon={<EditOutlined />} onClick={() => handleEdit(transaction)} size="small" style={{ marginRight: 8 }} />
+                    <Button icon={<DeleteOutlined />} onClick={() => handleDelete(transaction)} size="small" danger />
+                </>
+            ),
+        },
     ];
 
     return (
@@ -180,19 +152,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
                 rowKey="_id"
                 dataSource={transactions}
                 columns={columns}
-                pagination={paging ? { pageSize: paging } : false}
-                rowSelection={allowSelecting ? {
-                    type: "checkbox",
-                    onChange: (selectedRowKeys: React.Key[], selectedRows: Transaction[]) => {
-                        console.log(`selectedRowKeys: ${selectedRowKeys}`, 'selectedRows: ', selectedRows);
-                    },
-                } : undefined}
+                pagination={{ pageSize: 10 }}
             />
 
-            {/* Delete Confirmation Modal */}
             <Modal
                 title="Confirm Deletion"
-                visible={showDeleteModal}
+                open={showDeleteModal}
                 onOk={handleConfirmDelete}
                 onCancel={handleCancelDelete}
                 okText="Yes"
@@ -202,7 +167,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
                 <p>Are you sure you want to delete this transaction?</p>
             </Modal>
 
-            {/* Edit/Add Modal */}
             <Modal
                 title={transactionToEdit ? "Edit Transaction" : "Add New Transaction"}
                 open={showEditModal}
@@ -216,12 +180,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ simpleForm = false 
                 />
             </Modal>
 
-            {/* Add New Button (optional, if you want to provide a button to add a new transaction) */}
-            {!simpleForm && (
-                <Button type="primary" onClick={handleAdd}>
-                    Add New Transaction
-                </Button>
-            )}
+            <Button type="primary" onClick={handleAdd}>
+                Add New Transaction
+            </Button>
         </>
     );
 };
