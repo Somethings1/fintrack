@@ -1,4 +1,4 @@
-import { Row, Col } from "antd";
+import { Row, Col, DatePicker } from "antd";
 import MoneyFlow from "./MoneyFlow";
 import RecentTransactions from "./RecentTransactions";
 import TotalBalance from "./TotalBalance";
@@ -7,10 +7,28 @@ import TotalIncome from "./TotalIncome";
 import TotalSavings from "./TotalSavings";
 import BudgetOverview from "@/components/charts/BudgetOverview";
 import SavingOverview from "./SavingOverview";
+import dayjs, { Dayjs } from 'dayjs';
+import { useState } from 'react';
 
 const Overview = () => {
+    const [ selectedMonth, setSelectedMonth ] = useState<Dayjs>(dayjs());
+
+    const handleMonthChange = (date: Dayjs) => {
+        setSelectedMonth(date);
+    }
+
     return (
         <>
+            <Row gutter={[16, 16]}>
+                <Col>
+                    <DatePicker
+                        picker="month"
+                        value={selectedMonth}
+                        onChange={handleMonthChange}
+                        allowClear={false}
+                    />
+                </Col>
+            </Row>
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} md={12} lg={6}>
                     <TotalBalance />
