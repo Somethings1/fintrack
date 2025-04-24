@@ -1,5 +1,5 @@
 // TransactionTable.tsx
-import { Table, Button, Modal, Form, Input, Slider, DatePicker, Select } from "antd";
+import { message, Table, Checkbox, Button, Modal, Form, Input, Slider, DatePicker, Select } from "antd";
 import { useEffect, useState } from "react";
 import { Transaction } from "@/models/Transaction";
 import { getStoredTransactions, deleteTransactions, addTransaction, updateTransaction } from "@/services/transactionService";
@@ -7,7 +7,14 @@ import { resolveAccountName, resolveCategoryName } from "@/utils/idResolver";
 import { DeleteOutlined, EditOutlined, FilterOutlined, SelectOutlined } from "@ant-design/icons";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
-import TransactionForm from "./forms/TransactionForm";
+import Fuse from 'fuse.js';
+import TransactionForm from "@/components/forms/TransactionForm";
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import * as Papa from 'papaparse';
+import { jsPDF } from 'jspdf';
+
+const { Option } = Select;
 
 const TransactionTable: React.FC = () => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -21,6 +28,95 @@ const TransactionTable: React.FC = () => {
     const [editMode, setEditMode] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
+    const [isExportModalVisible, setIsExportModalVisible] = useState(false);
+    const [selectedColumns, setSelectedColumns] = useState([]);
+    const [selectedFileType, setSelectedFileType] = useState('xlsx');
+
+    const handleExportClick = () => {
+        setIsExportModalVisible(true);
+    };
+
+    const handleExportModalOk = () => {
+        exportData(selectedColumns, selectedFileType);
+        setIsExportModalVisible(false);
+    };
+
+    const handleExportModalCancel = () => {
+        setIsExportModalVisible(false);
+    };
+
+    const handleColumnChange = (value) => {
+        setSelectedColumns(value);
+    };
+
+    const handleFileTypeChange = (value) => {
+        setSelectedFileType(value);
+    };
+
+    const exportData = (columnsToExport, fileType) => {
+        const filteredData = applyFilters(transactions).map((item) => {
+            const newItem = {};
+            columnsToExport.forEach(col => {
+                newItem[col] = item[col];
+            });
+            return newItem;
+        });
+
+        switch (fileType) {
+            case 'xlsx':
+                exportToXLSX(filteredData);
+                break;
+            case 'csv':
+                exportToCSV(filteredData);
+                break;
+            case 'pdf':
+                exportToPDF(filteredData);
+                break;
+            default:
+                message.error('Invalid file type selected.');
+                break;
+        }
+    };
+
+    const exportToXLSX = (data) => {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+        const fileName = 'exported_data.xlsx';
+        XLSX.writeFile(wb, fileName);
+    };
+
+    const exportToCSV = (data) => {
+        const csv = Papa.unparse(data);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, 'exported_data.csv');
+    };
+
+    const exportToPDF = (data) => {
+        const doc = new jsPDF();
+        let yPosition = 10;
+
+        // Add headers
+        doc.text("Exported Data", 10, yPosition);
+        yPosition += 10;
+
+        columns.forEach((col, index) => {
+            doc.text(col.title, 10 + index * 40, yPosition);
+        });
+
+        yPosition += 10;
+
+        // Add rows
+        data.forEach(row => {
+            columns.forEach((col, index) => {
+                doc.text(String(row[col.key]), 10 + index * 40, yPosition);
+            });
+            yPosition += 10;
+        });
+
+        doc.save('exported_data.pdf');
+    };
 
     const rowSelection = selectMode
         ? {
@@ -63,9 +159,36 @@ const TransactionTable: React.FC = () => {
         isDeleted: false,
     };
 
+    const normalizeText = (str: string) =>
+        str.normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+
     const applyFilters = (data: Transaction[]) => {
+        const { type, dateRange, amountRange, sourceAccount, destinationAccount, category, note } = filters;
+        // Fuzzy search on note first if note is provided
+        if (note && note.trim() !== "") {
+            const fuse = new Fuse(data.map((tx: Transaction) => ({
+                ...tx,
+                _normalized_note: normalizeText(tx.note),
+            })), {
+                keys: ["_normalized_note"],
+                threshold: 0.4,
+                ignoreLocation: true,
+                minMatchCharLength: 3,
+                distance: 100,
+                includeMatches: true,
+            });
+            const normalizedQuery = normalizeText(note);
+            data = fuse
+                .search(normalizedQuery)
+                .map(result => ({
+                    ...result.item,
+                    _matches: result.matches,
+                }));
+        }
+
         return data.filter(tx => {
-            const { type, dateRange, amountRange, sourceAccount, destinationAccount, category, note } = filters;
 
             if (type && tx.type !== type) return false;
 
@@ -79,12 +202,23 @@ const TransactionTable: React.FC = () => {
 
             if (category && tx.category !== category) return false;
 
-            if (note && !tx.note?.toLowerCase().includes(note.toLowerCase())) return false;
-
             return true;
         });
     };
 
+    const highlightMatches = (text: string, indices: [number, number][]) => {
+        let result = "";
+        let lastIndex = 0;
+
+        indices.forEach(([start, end], i) => {
+            result += text.slice(lastIndex, start);
+            result += `<mark>${text.slice(start, end + 1)}</mark>`;
+            lastIndex = end + 1;
+        });
+
+        result += text.slice(lastIndex);
+        return result;
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -242,6 +376,20 @@ const TransactionTable: React.FC = () => {
             title: "Note",
             dataIndex: "note",
             key: "note",
+            render: (_note: string, record: any) => {
+                const match = record._matches?.find((m: any) => m.key === "_normalized_note");
+
+                if (!match || !match.indices.length) return _note;
+
+                // Highlight the original (unnormalized) text using match indices
+                return (
+                    <span
+                        dangerouslySetInnerHTML={{
+                            __html: highlightMatches(_note, match.indices),
+                        }}
+                    />
+                );
+            },
             sorter: (a: Transaction, b: Transaction) => (a.note ?? "").localeCompare(b.note ?? ""),
         },
     ];
@@ -291,6 +439,7 @@ const TransactionTable: React.FC = () => {
                 </div>
 
                 <div style={{ display: "flex", gap: 8 }}>
+                    <Button onClick={handleExportClick} type="primary">Export Data</Button>
                     <Button
                         icon={<EditOutlined />}
                         onClick={() => setEditMode(!editMode)}
@@ -314,6 +463,27 @@ const TransactionTable: React.FC = () => {
                 pagination={{ pageSize: 10 }}
             />
 
+            <Modal
+                title="Select Columns and File Type"
+                open={isExportModalVisible}
+                onOk={handleExportModalOk}
+                onCancel={handleExportModalCancel}
+                width={500}
+            >
+                <h4>Select Columns:</h4>
+                <Checkbox.Group onChange={handleColumnChange}>
+                    {columns.map(col => (
+                        <Checkbox key={col.key} value={col.key}>{col.title}</Checkbox>
+                    ))}
+                </Checkbox.Group>
+
+                <h4>File Type:</h4>
+                <Select defaultValue="xlsx" style={{ width: 120 }} onChange={handleFileTypeChange}>
+                    <Option value="xlsx">XLSX</Option>
+                    <Option value="csv">CSV</Option>
+                    <Option value="pdf">PDF</Option>
+                </Select>
+            </Modal>
             <Modal
                 title="Confirm Deletion"
                 open={showDeleteModal}
@@ -418,4 +588,5 @@ const TransactionTable: React.FC = () => {
 };
 
 export default TransactionTable;
+
 

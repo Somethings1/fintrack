@@ -3,7 +3,6 @@
     visibility: hidden;
 }
 
-
 .ant-table-column-sorter-up {
     transform: translateY(40%);
 }
@@ -15,4 +14,10 @@
 .ant-table-column-sorter-up.active,
 .ant-table-column-sorter-down.active {
     visibility: visible;
+}
+
+mark {
+    background-color: #ffe58f;
+    padding: 0 2px;
+    border-radius: 2px;
 }
