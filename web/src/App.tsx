@@ -8,6 +8,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import { getCurrentUser, supabase } from "@/services/authService"; // Import the API client
 import { PollingProvider } from "./context/PollingProvider";
+import './App.css';
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
