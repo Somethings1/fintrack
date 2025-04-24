@@ -37,6 +37,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
     useEffect(() => {
         const { sourceAccount, destinationAccount, category, ...rest } = transaction;
 
+        if (transaction._id)
+            setTransactionType(transaction.type);
+
         form.setFieldsValue({
             ...rest,
             sourceAccount: sourceAccount === "000000000000000000000000" ? undefined : sourceAccount,
