@@ -27,6 +27,7 @@ const SavingOverview: React.FC = () => {
             setSavings(top3);
             setLoading(false);
         };
+
         fetchData();
     }, [refreshToken, lastSync]);
 
