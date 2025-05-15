@@ -77,6 +77,44 @@ export const getBaseColumns = () => [
     },
 ];
 
+export const getSimpleColumns = () => [
+    {
+        title: "Date",
+        dataIndex: "dateTime",
+        key: "dateTime",
+        sorter: (a: ResolvedTransaction, b: ResolvedTransaction) =>
+            new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),
+        render: (value: Date) =>
+            new Date(value).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }),
+    },
+    {
+        title: "Amount",
+        dataIndex: "amount",
+        key: "amount",
+        sorter: (a: ResolvedTransaction, b: ResolvedTransaction) => (a.amount ?? 0) - (b.amount ?? 0),
+        render: (value: number) => `${(value ?? 0).toLocaleString()} đ`,
+    },
+    {
+        title: "Source",
+        dataIndex: "sourceAccountName",
+        key: "sourceAccountName",
+        sorter: (a: ResolvedTransaction, b: ResolvedTransaction) =>
+            (a.sourceAccountName ?? "").localeCompare(b.sourceAccountName ?? ""),
+    },
+    {
+        title: "Destination",
+        dataIndex: "destinationAccountName",
+        key: "destinationAccountName",
+        sorter: (a: ResolvedTransaction, b: ResolvedTransaction) =>
+            (a.destinationAccountName ?? "").localeCompare(b.destinationAccountName ?? ""),
+    },
+];
+
+
 export const getEditColumn = (handleEdit: HandleEditFunction) => ({
     title: "Actions",
     key: "actions",
