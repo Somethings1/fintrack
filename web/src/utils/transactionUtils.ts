@@ -1,6 +1,7 @@
 // src/utils/transactionUtils.ts
 import Fuse from 'fuse.js';
 import { Transaction } from "@/models/Transaction"; // Assuming Transaction model path
+import dayjs from 'dayjs';
 
 export const normalizeText = (str: string | null | undefined): string =>
     (str ?? "")
@@ -49,3 +50,19 @@ export const applyFuzzySearch = (data: Transaction[], noteQuery: string): Transa
             _searchMatches: result.matches, // Store matches separately
         }));
 };
+
+
+export const normalizeTransaction = (values: any) => {
+
+        const updatedTransaction = {
+            ...values,
+            dateTime: values.dateTime instanceof dayjs ? values.dateTime.toISOString() : values.dateTime,
+            sourceAccount: values.sourceAccount || '000000000000000000000000',
+            destinationAccount: values.destinationAccount || '000000000000000000000000',
+            category: values.category || '000000000000000000000000',
+            creator: localStorage.getItem("username"),
+            isDeleted: false,
+            note: values.note || '',
+        };
+        return updatedTransaction;
+}

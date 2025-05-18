@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { RefreshProvider } from "./context/RefreshProvider";
+import { message } from 'antd';
 import WelcomePage from "./pages/WelcomePage";
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
@@ -8,7 +9,9 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import { getCurrentUser, supabase } from "@/services/authService"; // Import the API client
 import { PollingProvider } from "./context/PollingProvider";
+import { setMessageApi } from "./utils/messageProvider";
 import './App.css';
+
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -38,6 +41,12 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
 
 // App component which uses PrivateRoute and handles routes for the application
 const App = () => {
+    const [messageApi, contextHolder] = message.useMessage();
+
+    useEffect(() => {
+        setMessageApi(messageApi);
+    }, [messageApi]);
+
     useEffect(() => {
         // On first load
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -61,25 +70,28 @@ const App = () => {
         };
     }, []);
     return (
-        <RefreshProvider>
-            <Router>
-                <Routes>
-                    <Route path="/" element={<WelcomePage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/reset-password" element={<ResetPasswordPage />} />
-                    <Route path="/update-password" element={<UpdatePasswordPage />} />
+        <>
+            {contextHolder}
+            <RefreshProvider>
+                <Router>
+                    <Routes>
+                        <Route path="/" element={<WelcomePage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
+                        <Route path="/update-password" element={<UpdatePasswordPage />} />
 
-                    <Route path="/home"
-                        element={
-                            <PrivateRoute>
-                                <PollingProvider>
-                                    <HomePage />
-                                </PollingProvider>
-                            </PrivateRoute>
-                        } />
-                </Routes>
-            </Router>
-        </RefreshProvider>
+                        <Route path="/home"
+                            element={
+                                <PrivateRoute>
+                                    <PollingProvider>
+                                        <HomePage />
+                                    </PollingProvider>
+                                </PrivateRoute>
+                            } />
+                    </Routes>
+                </Router>
+            </RefreshProvider>
+        </>
     );
 };
 

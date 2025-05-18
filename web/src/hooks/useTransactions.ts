@@ -1,11 +1,13 @@
 // src/hooks/useTransactions.ts
 import { useState, useEffect, useCallback } from 'react';
-import { message } from 'antd';
+import { App } from 'antd';
 import { Transaction } from "@/models/Transaction";
 import { getStoredTransactions, deleteTransactions as deleteTransactionsService, addTransaction as addTransactionService, updateTransaction as updateTransactionService } from "@/services/transactionService";
 import { resolveAccountName, resolveCategoryName } from "@/utils/idResolver";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
+import { getMessageApi } from '@/utils/messageProvider';
+
 
 export interface ResolvedTransaction extends Transaction {
     sourceAccountName?: string;
@@ -45,6 +47,7 @@ export const useTransactions = () => {
 
     const lastSync = usePollingContext();
     const { triggerRefresh } = useRefresh();
+    const message = getMessageApi();
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -101,7 +104,7 @@ export const useTransactions = () => {
     const addTransaction = useCallback(async (values: Omit<Transaction, '_id'>) => {
         try {
             await addTransactionService(values);
-            message.success("Transaction added successfully!");
+            message.success("Transaction added successfully");
             triggerRefresh(); // Trigger context refresh which updates lastSync
         } catch (error) {
             console.error("Error adding transaction:", error);

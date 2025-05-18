@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Transaction } from "@/models/Transaction";
-import { Button, Input, Tooltip, Spin } from "antd";
+import { Button, Input, Tooltip, Spin, message } from "antd";
 import { SendOutlined, RobotOutlined } from "@ant-design/icons";
 import { getStoredAccounts } from "@/services/accountService";
 import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
 import "./ChatBot.css"; // Style it like an adult, please
+import { useTransactions } from "../hooks/useTransactions";
+import { normalizeTransaction } from "../utils/transactionUtils";
 
 interface Message {
     from: "user" | "bot";
@@ -26,6 +28,7 @@ const ChatBot: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [accountNames, setAccountNames] = useState<Record<string, string>>({});
     const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
+    const { addTransaction } = useTransactions();
 
     useEffect(() => {
         const fetchNames = async () => {
@@ -96,7 +99,8 @@ You receive a sentence from the user and return a structured JSON object like th
 }
 
 You MUST always return both "transaction" and "error". Accounts and categories are provided by pair of their ID and name.
-You should find suitable account and category and put its name in JSON result.
+You should find suitable account and category and put their IDs in JSON result.
+Use only what is provided, don't make up new account or category.
 
 Here are the accounts:
 ${JSON.stringify(accountNames)}
@@ -151,6 +155,7 @@ Now, convert this sentence:
                     },
                 ]);
             } else {
+                transaction.dateTime = new Date();
                 setMessages((prev) => [
                     ...prev,
                     {
@@ -178,8 +183,10 @@ Now, convert this sentence:
         }
     };
 
-    const handleAccept = (tx: any) => {
-        // To be implemented
+    const handleAccept = async (tx: any) => {
+        tx = normalizeTransaction(tx);
+        message.success("Hello");
+        await addTransaction(tx);
     };
 
     const handleEdit = (tx: any) => {

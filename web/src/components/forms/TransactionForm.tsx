@@ -17,6 +17,7 @@ import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
 import dayjs from "dayjs";
 import { useRefresh } from "@/context/RefreshProvider";
+import { normalizeTransaction } from "../../utils/transactionUtils";
 
 interface TransactionFormProps {
     transaction: Partial<Transaction>;
@@ -68,17 +69,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
     };
 
     const handleFinish = (values: any) => {
+        values = normalizeTransaction(values);
         const updatedTransaction = {
             ...values,
             _id: transaction._id,
-            dateTime: values.dateTime instanceof dayjs ? values.dateTime.toISOString() : values.dateTime,
-            sourceAccount: values.sourceAccount || '000000000000000000000000',
-            destinationAccount: values.destinationAccount || '000000000000000000000000',
-            category: values.category || '000000000000000000000000',
-            creator: localStorage.getItem("username"),
-            isDeleted: false,
-            note: values.note || '',
         };
+
         onSubmit(updatedTransaction);
     };
 
