@@ -63,7 +63,6 @@ export async function updateDB(storeName: string, data: any) {
         const db = await getDB();
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        console.log(`[updateDB] Putting into ${storeName}`, data);
         store.put(data);
         await tx.done;
     } catch (error) {

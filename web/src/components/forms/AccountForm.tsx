@@ -104,7 +104,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
                     <div>
                         <Button onClick={onCancel}>Cancel</Button>
                         <Button type="primary" htmlType="submit">
-                            {account ? "Update" : "Create"}
+                            {account._id ? "Update" : "Create"}
                         </Button>
                     </div>
                 </Space>

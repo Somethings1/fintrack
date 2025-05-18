@@ -138,7 +138,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                     <div>
                         <Button onClick={onCancel}>Cancel</Button>
                         <Button type="primary" htmlType="submit">
-                            {category ? "Update" : "Create"}
+                            {category._id ? "Update" : "Create"}
                         </Button>
                     </div>
                 </Space>

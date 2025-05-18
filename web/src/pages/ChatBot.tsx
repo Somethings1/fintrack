@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Transaction } from "@/models/Transaction";
-import { Button, Input, Tooltip, Spin, message } from "antd";
+import { Account } from "@/models/Account";
+import { Category } from "@/models/Category";
+import { Button, Input, Tooltip, Spin, Modal } from "antd";
 import { SendOutlined, RobotOutlined } from "@ant-design/icons";
 import { getStoredAccounts } from "@/services/accountService";
 import { getStoredSavings } from "@/services/savingService";
@@ -9,6 +11,9 @@ import "./ChatBot.css"; // Style it like an adult, please
 import { useTransactions } from "@/hooks/useTransactions";
 import { normalizeTransaction } from "@/utils/transactionUtils";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
+import { talkToGemini } from "../utils/chatbotUtils";
+import AccountForm from "../components/forms/AccountForm";
+import CategoryForm from "../components/forms/CategoryForm";
 
 interface Message {
     from: "user" | "bot";
@@ -26,151 +31,102 @@ const ChatBot: React.FC = () => {
         },
     ]);
     const [input, setInput] = useState("");
+    const [lastInput, setLastInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [accountNames, setAccountNames] = useState<Record<string, string>>({});
     const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
     const { addTransaction } = useTransactions();
     const [showAddEditModal, setShowAddEditModal] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState(null);
+
+    const [accountModalOpen, setAccountModalOpen] = useState(false);
+    const [accountToAdd, setAccountToAdd] = useState<Account>(null);
+
+    const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+    const [categoryToAdd, setCategoryToAdd] = useState<Category>(null);
+
     let accountOptions, categoryOptions;
 
+    const fetchNames = async () => {
+        const accounts = await getStoredAccounts();
+        const savings = await getStoredSavings();
+        accountOptions = [...accounts, ...savings];
+
+        categoryOptions = await getStoredCategories();
+
+        const accountMap: Record<string, string> = {};
+        const categoryMap: Record<string, string> = {};
+
+        accountOptions.forEach(a => accountMap[a._id] = a.name);
+        categoryOptions.forEach(c => categoryMap[c._id] = c.name);
+
+        setAccountNames(accountMap);
+        setCategoryNames(categoryMap);
+    };
+
     useEffect(() => {
-        const fetchNames = async () => {
-            const accounts = await getStoredAccounts();
-            const savings = await getStoredSavings();
-            accountOptions = [...accounts, ...savings];
-
-            categoryOptions = await getStoredCategories();
-
-            const accountMap: Record<string, string> = {};
-            const categoryMap: Record<string, string> = {};
-
-            accountOptions.forEach(a => accountMap[a._id] = a.name);
-            categoryOptions.forEach(c => categoryMap[c._id] = c.name);
-
-            setAccountNames(accountMap);
-            setCategoryNames(categoryMap);
-        };
-
         fetchNames();
     }, []);
 
 
-    function extractJson(text: string): any {
-        try {
-            // Remove Markdown code fences if present
-            const cleaned = text
-                .replace(/```json|```/g, "")  // remove markdown fences
-                .replace(/^\s*[\r\n]+|[\r\n]+\s*$/g, ""); // trim leading/trailing whitespace and newlines
-
-            // Parse the cleaned JSON string
-            return JSON.parse(cleaned);
-        } catch (e) {
-            console.error("Failed to parse AI response as JSON:", e, "Raw response:", text);
-            return null;
+    const handleResultFromChatbot = (transaction, error) => {
+        if (error) {
+            if (error.type === "account") setAccountToAdd({name: error.name});
+            else setCategoryToAdd({name: error.name});
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: "bot",
+                    text: error.message,
+                    transaction,
+                    buttons: [
+                        {
+                            label: error.type === "account" ? "Add Account" : "Add Category",
+                            onClick: () =>
+                                error.type === "account"
+                                    ? handleAddAccount(error.name)
+                                    : handleAddCategory(error.name),
+                        },
+                        {
+                            label: "Edit",
+                            onClick: () => handleEdit(transaction)
+                        },
+                    ],
+                },
+            ]);
+        } else {
+            transaction.dateTime = new Date();
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: "bot",
+                    text: "Here's the transaction I created. Want to accept or edit it?",
+                    transaction,
+                    buttons: [
+                        { label: "Accept", onClick: () => handleAccept(transaction) },
+                        { label: "Edit", onClick: () => handleEdit(transaction) },
+                    ],
+                },
+            ]);
         }
     }
 
-    const handleSend = async () => {
+    const handleFirstSend = async () => {
         if (!input.trim()) return;
         const userText = input.trim();
+        setLastInput(input);
         setMessages((prev) => [...prev, { from: "user", text: userText }]);
         setInput("");
+
+        await handleSend(input)
+    }
+
+    const handleSend = async (input: string) => {
         setLoading(true);
 
         try {
-            const prompt = `
-You are a financial assistant.
-
-You receive a sentence from the user and return a structured JSON object like this:
-
-{
-  transaction: {
-    amount: number,
-    type: "income" | "expense" | "transfer",
-    sourceAccount?: string (ID),
-    destinationAccount?: string (ID),
-    category?: string (ID),
-    note: string
-  },
-  error: null | {
-    type: "account" | "category", // what is missing
-    name: string, // The name of it
-    message: string // Human readable message, suggest creating one or select from existing
-  }
-}
-
-You MUST always return both "transaction" and "error". Accounts and categories are provided by pair of their ID and name.
-You should find suitable account and category and put their IDs in JSON result.
-Use only what is provided, don't make up new account or category.
-
-Here are the accounts:
-${JSON.stringify(accountNames)}
-
-And here are the categories:
-${JSON.stringify(categoryNames)}
-
-Now, convert this sentence:
-"${userText}"
-      `;
-
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_KEY}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                    }),
-                }
-            );
-
-            const data = await response.json();
-            const aiTextResponse = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-            const result = extractJson(aiTextResponse);
-            console.log(result);
-
-            if (!result || !result.transaction) {
-                console.error("Invalid AI response format");
-                return;
-            }
-
-            if (!result.transaction) {
-                throw new Error("AI did not return a transaction");
-            }
-
-            const { transaction, error } = result;
-
-            if (error) {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        from: "bot",
-                        text: error.message,
-                        buttons: [
-                            {
-                                label: error.type === "account" ? "Add Account" : "Add Category",
-                                onClick:
-                                    error.type === "account" ? handleAddAccount : handleAddCategory,
-                            },
-                        ],
-                    },
-                ]);
-            } else {
-                transaction.dateTime = new Date();
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        from: "bot",
-                        text: "Here's the transaction I created. Want to accept or edit it?",
-                        transaction,
-                        buttons: [
-                            { label: "Accept", onClick: () => handleAccept(transaction) },
-                            { label: "Edit", onClick: () => handleEdit(transaction) },
-                        ],
-                    },
-                ]);
-            }
+            const { transaction, error } = await talkToGemini(input, accountNames, categoryNames);
+            handleResultFromChatbot(transaction, error);
         } catch (err) {
             setMessages((prev) => [
                 ...prev,
@@ -179,7 +135,6 @@ Now, convert this sentence:
                     text: "Something went wrong while talking to my digital brain. Try again?",
                 },
             ]);
-            console.log(err.message);
         } finally {
             setLoading(false);
         }
@@ -201,13 +156,25 @@ Now, convert this sentence:
         setShowAddEditModal(true);
     };
 
-    const handleAddAccount = () => {
-        // To be implemented
+    const handleAddAccount = (name: string) => {
+        setAccountModalOpen(true);
     };
 
-    const handleAddCategory = () => {
-        // To be implemented
+    const handleAddCategory = (name: string) => {
+        setCategoryModalOpen(true);
     };
+
+    const handleNewAccount = () => {
+        fetchNames();
+        handleSend(lastInput);
+        setAccountModalOpen(false);
+    }
+
+    const handleNewCategory = () => {
+        fetchNames();
+        handleSend(lastInput);
+        setCategoryModalOpen(false);
+    }
 
     if (Object.keys(categoryNames).length === 0) {
         return <Spin />; // or some loading state until categories are ready
@@ -276,13 +243,13 @@ Now, convert this sentence:
                         <Input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onPressEnter={handleSend}
+                            onPressEnter={handleFirstSend}
                             placeholder="Type a sentence..."
                         />
                         <Button
                             icon={<SendOutlined />}
                             type="primary"
-                            onClick={handleSend}
+                            onClick={handleFirstSend}
                         />
                     </div>
                 </div>
@@ -316,6 +283,26 @@ Now, convert this sentence:
                 accountOptions={accountOptions}
                 categoryOptions={categoryOptions}
             />
+
+            <Modal
+                title="New account"
+                open={accountModalOpen}
+                onCancel={() => setAccountModalOpen(false)}
+                footer={null}
+                destroyOnClose
+            >
+                <AccountForm account={accountToAdd} onSubmit={handleNewAccount} onCancel={() => setAccountModalOpen(false)} />
+            </Modal>
+
+            <Modal
+                title="New category"
+                open={categoryModalOpen}
+                onCancel={() => setCategoryModalOpen(false)}
+                footer={null}
+                destroyOnClose
+            >
+                <CategoryForm category={categoryToAdd} onSubmit={handleNewCategory} onCancel={() => setCategoryModalOpen(false)} />
+            </Modal>
 
         </div>
     );

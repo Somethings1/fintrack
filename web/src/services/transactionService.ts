@@ -32,11 +32,9 @@ function getAmount(transaction: any): number {
 }
 
 async function adjustBalance(id: string, amount: number) {
-    console.log(`Trying to adjust balance ${id}`);
     const account = await getAccountById(id);
     if (account) {
         account.balance = (account.balance || 0) + amount;
-        console.log(`Updated balance on account ${id} with amount ${amount}`)
         return updateAccountLocally(id, account);
     }
 
