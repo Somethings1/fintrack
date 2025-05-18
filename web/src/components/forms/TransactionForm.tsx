@@ -38,7 +38,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
     useEffect(() => {
         const { sourceAccount, destinationAccount, category, ...rest } = transaction;
 
-        if (transaction._id)
+        if (transaction.type)
             setTransactionType(transaction.type);
 
         form.setFieldsValue({

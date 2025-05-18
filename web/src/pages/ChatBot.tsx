@@ -6,8 +6,9 @@ import { getStoredAccounts } from "@/services/accountService";
 import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
 import "./ChatBot.css"; // Style it like an adult, please
-import { useTransactions } from "../hooks/useTransactions";
-import { normalizeTransaction } from "../utils/transactionUtils";
+import { useTransactions } from "@/hooks/useTransactions";
+import { normalizeTransaction } from "@/utils/transactionUtils";
+import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
 
 interface Message {
     from: "user" | "bot";
@@ -29,25 +30,26 @@ const ChatBot: React.FC = () => {
     const [accountNames, setAccountNames] = useState<Record<string, string>>({});
     const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
     const { addTransaction } = useTransactions();
+    const [showAddEditModal, setShowAddEditModal] = useState(false);
+    const [transactionToEdit, setTransactionToEdit] = useState(null);
+    let accountOptions, categoryOptions;
 
     useEffect(() => {
         const fetchNames = async () => {
             const accounts = await getStoredAccounts();
             const savings = await getStoredSavings();
-            const all = [...accounts, ...savings];
+            accountOptions = [...accounts, ...savings];
 
-            const categories = await getStoredCategories();
+            categoryOptions = await getStoredCategories();
 
             const accountMap: Record<string, string> = {};
             const categoryMap: Record<string, string> = {};
 
-            all.forEach(a => accountMap[a._id] = a.name);
-            categories.forEach(c => categoryMap[c._id] = c.name);
+            accountOptions.forEach(a => accountMap[a._id] = a.name);
+            categoryOptions.forEach(c => categoryMap[c._id] = c.name);
 
             setAccountNames(accountMap);
             setCategoryNames(categoryMap);
-
-            console.log(categoryNames);
         };
 
         fetchNames();
@@ -185,12 +187,18 @@ Now, convert this sentence:
 
     const handleAccept = async (tx: any) => {
         tx = normalizeTransaction(tx);
-        message.success("Hello");
         await addTransaction(tx);
+        setShowAddEditModal(false);
     };
 
+    const handleCancelAddEdit = () => {
+        setTransactionToEdit(null);
+        setShowAddEditModal(false);
+    }
+
     const handleEdit = (tx: any) => {
-        // To be implemented
+        setTransactionToEdit(tx);
+        setShowAddEditModal(true);
     };
 
     const handleAddAccount = () => {
@@ -299,6 +307,15 @@ Now, convert this sentence:
                 />
             )}
 
+
+            <AddEditTransactionModal
+                open={showAddEditModal}
+                onCancel={handleCancelAddEdit}
+                onSubmit={handleAccept}
+                transactionToEdit={transactionToEdit}
+                accountOptions={accountOptions}
+                categoryOptions={categoryOptions}
+            />
 
         </div>
     );

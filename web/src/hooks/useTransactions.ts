@@ -47,6 +47,7 @@ export const useTransactions = () => {
 
     const lastSync = usePollingContext();
     const { triggerRefresh } = useRefresh();
+    const refreshToken = useRefresh();
     const message = getMessageApi();
 
     const fetchData = useCallback(async () => {
@@ -99,7 +100,7 @@ export const useTransactions = () => {
 
     useEffect(() => {
         fetchData();
-    }, [lastSync, fetchData]); // Refetch when polling updates
+    }, [lastSync, fetchData, refreshToken]); // Refetch when polling updates
 
     const addTransaction = useCallback(async (values: Omit<Transaction, '_id'>) => {
         try {
