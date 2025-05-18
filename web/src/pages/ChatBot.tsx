@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Transaction } from "@/models/Transaction";
 import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
@@ -14,6 +14,7 @@ import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal
 import { talkToGemini } from "../utils/chatbotUtils";
 import AccountForm from "../components/forms/AccountForm";
 import CategoryForm from "../components/forms/CategoryForm";
+import { useRefresh } from "@/context/RefreshProvider";
 
 interface Message {
     from: "user" | "bot";
@@ -30,6 +31,7 @@ const ChatBot: React.FC = () => {
             text: "Hi! I can understand sentences like “I spent 200k for lunch from wallet” and turn them into transactions. Try me!",
         },
     ]);
+    const refreshToken = useRefresh();
     const [input, setInput] = useState("");
     const [lastInput, setLastInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -62,17 +64,33 @@ const ChatBot: React.FC = () => {
 
         setAccountNames(accountMap);
         setCategoryNames(categoryMap);
+
+        return { accounts: accountMap, categories: categoryMap };
     };
 
     useEffect(() => {
         fetchNames();
-    }, []);
+    }, [refreshToken]);
 
+    const removeLastMessageButtons = () => {
+        setMessages((current) => {
+            const updated = [...current];
+            const last = updated.length - 1;
+            if (last >= 0 && updated[last].buttons) {
+                const cleaned = { ...updated[last] };
+                delete cleaned.buttons;
+                updated[last] = cleaned;
+                return updated;
+            }
+            return current;
+        });
+    }
 
-    const handleResultFromChatbot = (transaction, error) => {
+    const handleResultFromChatbot = (transaction, error, validity) => {
+        transaction.dateTime = new Date();
         if (error) {
-            if (error.type === "account") setAccountToAdd({name: error.name});
-            else setCategoryToAdd({name: error.name});
+            if (error.type === "account") setAccountToAdd({ name: error.name });
+            else setCategoryToAdd({ name: error.name });
             setMessages((prev) => [
                 ...prev,
                 {
@@ -84,18 +102,17 @@ const ChatBot: React.FC = () => {
                             label: error.type === "account" ? "Add Account" : "Add Category",
                             onClick: () =>
                                 error.type === "account"
-                                    ? handleAddAccount(error.name)
-                                    : handleAddCategory(error.name),
+                                    ? handleAddAccount()
+                                    : handleAddCategory(),
                         },
                         {
-                            label: "Edit",
+                            label: "Edit this transaction",
                             onClick: () => handleEdit(transaction)
                         },
                     ],
                 },
             ]);
         } else {
-            transaction.dateTime = new Date();
             setMessages((prev) => [
                 ...prev,
                 {
@@ -115,18 +132,19 @@ const ChatBot: React.FC = () => {
         if (!input.trim()) return;
         const userText = input.trim();
         setLastInput(input);
+        removeLastMessageButtons();
         setMessages((prev) => [...prev, { from: "user", text: userText }]);
         setInput("");
 
-        await handleSend(input)
+        await handleSend(input, accountNames, categoryNames);
     }
 
-    const handleSend = async (input: string) => {
+    const handleSend = async (input: string, accountNames: any, categoryNames: any) => {
         setLoading(true);
 
         try {
-            const { transaction, error } = await talkToGemini(input, accountNames, categoryNames);
-            handleResultFromChatbot(transaction, error);
+            const { transaction, error, validity } = await talkToGemini(input, accountNames, categoryNames);
+            handleResultFromChatbot(transaction, error, validity);
         } catch (err) {
             setMessages((prev) => [
                 ...prev,
@@ -144,6 +162,14 @@ const ChatBot: React.FC = () => {
         tx = normalizeTransaction(tx);
         await addTransaction(tx);
         setShowAddEditModal(false);
+        removeLastMessageButtons();
+        setMessages((prev) => [
+            ...prev,
+            {
+                from: "bot",
+                text: "New transaction added successfully. What's next?"
+            }
+        ]);
     };
 
     const handleCancelAddEdit = () => {
@@ -156,23 +182,39 @@ const ChatBot: React.FC = () => {
         setShowAddEditModal(true);
     };
 
-    const handleAddAccount = (name: string) => {
+    const handleAddAccount = () => {
         setAccountModalOpen(true);
     };
 
-    const handleAddCategory = (name: string) => {
+    const handleAddCategory = () => {
         setCategoryModalOpen(true);
     };
 
-    const handleNewAccount = () => {
-        fetchNames();
-        handleSend(lastInput);
+    const handleNewAccount = async () => {
+        const { accounts, categories } = await fetchNames();
+        removeLastMessageButtons();
+        setMessages((prev) => [
+            ...prev,
+            {
+                from: "bot",
+                text: "New account added. Now I'm trying to recreate your transaction"
+            }
+        ]);
+        handleSend(lastInput, accounts, categories);
         setAccountModalOpen(false);
     }
 
-    const handleNewCategory = () => {
-        fetchNames();
-        handleSend(lastInput);
+    const handleNewCategory = async () => {
+        const { accounts, categories } = await fetchNames();
+        removeLastMessageButtons();
+        setMessages((prev) => [
+            ...prev,
+            {
+                from: "bot",
+                text: "New category added. Now I'm trying to recreate your transaction"
+            }
+        ]);
+        handleSend(lastInput, accounts, categories);
         setCategoryModalOpen(false);
     }
 

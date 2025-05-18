@@ -33,12 +33,13 @@ You receive a sentence from the user and return a structured JSON object like th
     type: "account" | "category", // what is missing
     name: string, // The name of it
     message: string // Human readable message, indicating that you don't understand and kindly suggest creating one or edit to manually select from existing
-  }
+  },
+  // if the transaction is income, it must have destination account and category. If it's expense, it must have source account and category. Otherwise, it must have both source and destination account. The amount should be positive
 }
 
 You MUST always return both "transaction" and "error". Accounts and categories are provided by pair of their ID and name.
 You should find suitable account and category and put their IDs in JSON result.
-Use only what is provided, don't make up new account or category.
+Use only what is provided, don't make up new account or category. Don't assume account or category without user specifying it.
 
 Here are the accounts:
 ${JSON.stringify(accountNames)}
