@@ -3,9 +3,11 @@ import React from "react";
 interface BalanceProps {
   amount: number;
   type: string;
-  decimals?: number; // how many decimal places to show
-  locale?: string;   // optional, for international styling (default: en-US)
-  currencySymbol?: string; // because "đ" might not be everyone's favorite
+  decimals?: number;
+  locale?: string;
+  currencySymbol?: string;
+  size?: "xs" | "s" | "m" | "l" | "xl";
+  align?: "left" | "right" | "center";
 }
 
 const Balance: React.FC<BalanceProps> = ({
@@ -14,6 +16,8 @@ const Balance: React.FC<BalanceProps> = ({
   decimals = 2,
   locale = "en-US",
   currencySymbol = "đ",
+  size = "s",
+  align = "right"
 }) => {
   const color =
     type?.toLowerCase() === "income"
@@ -22,16 +26,33 @@ const Balance: React.FC<BalanceProps> = ({
       ? "#E83838"
       : "#000";
 
+  const fontSizeMap: Record<NonNullable<BalanceProps["size"]>, string> = {
+    xs: "0.75rem",  // 12px
+    s: "0.875rem",  // 14px
+    m: "1rem",      // 16px
+    l: "1.25rem",   // 20px
+    xl: "1.5rem",   // 24px
+  };
+
   const formattedAmount = Math.abs(amount).toLocaleString(locale, {
-    minimumFractionDigits: decimals,
+    minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
   });
 
   const sign = amount >= 0 ? "" : "-";
 
   return (
-    <span style={{ color, fontWeight: 600, textAlign: "right", width: "100%", display: "inline-block" }}>
-      {sign}{formattedAmount} {currencySymbol}
+    <span
+      style={{
+        color,
+        fontWeight: 600,
+        fontSize: fontSizeMap[size],
+        textAlign: align,
+        display: "inline-block",
+      }}
+    >
+      {sign}
+      {formattedAmount} {currencySymbol}
     </span>
   );
 };

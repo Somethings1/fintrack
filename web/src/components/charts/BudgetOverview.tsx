@@ -116,7 +116,12 @@ const BudgetOverview: React.FC = () => {
                                                 dominantBaseline="middle"
                                                 style={{ fontSize: 20, fontWeight: "bold", fill: "#333" }}
                                             >
-                                                ${chartData.reduce((acc, cur) => acc + cur.value, 0).toLocaleString()}
+                                                {chartData
+                                                    .reduce((acc, cur) => acc + cur.value, 0)
+                                                    .toLocaleString("en-US", {
+                                                        minimumFractionDigits: 0,
+                                                        maximumFractionDigits: 2,
+                                                    })} đ
                                             </text>
                                         </g>
                                     );
