@@ -1,0 +1,20 @@
+import React from "react";
+
+const Title: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+  return (
+    <h1
+      style={{
+        fontSize: "2rem",
+        fontWeight: 800,
+        color: "#111827",
+        marginBottom: "1rem",
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      {children}
+    </h1>
+  );
+};
+
+export default Title;
+

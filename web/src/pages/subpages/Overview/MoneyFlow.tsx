@@ -18,6 +18,7 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import dayjs from "dayjs";
+import { colors } from "../../../theme/color";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -55,10 +56,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div style={{ background: "#fff", padding: 10, border: "1px solid #ccc" }}>
                 <strong>{fullDate}</strong>
                 <br />
-                <span style={{ color: "#52c41a" }}>Income:</span>{" "}
+                <span style={{ color: colors.primary[600] }}>Income:</span>{" "}
                 ${payload[0]?.payload.income.toLocaleString()}
                 <br />
-                <span style={{ color: "#ff4d4f" }}>Expense:</span>{" "}
+                <span style={{ color: colors.primary[400] }}>Expense:</span>{" "}
                 ${payload[0]?.payload.expense.toLocaleString()}
             </div>
         );
@@ -129,11 +130,11 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                 return (
                     <BarChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" />
+                        <XAxis dataKey="day" interval={1} />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="income" stackId="a" fill="#52c41a" />
-                        <Bar dataKey="expense" stackId="a" fill="#ff4d4f" />
+                        <Bar radius={[8, 8, 0, 0]} dataKey="income" fill={colors.primary[600]} />
+                        <Bar radius={[8, 8, 0, 0]} dataKey="expense" fill={colors.primary[400]} />
                     </BarChart>
                 );
             case "line":
@@ -143,8 +144,8 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Line type="monotone" dataKey="income" stroke="#52c41a" />
-                        <Line type="monotone" dataKey="expense" stroke="#ff4d4f" />
+                        <Line type="monotone" dataKey="income" stroke={colors.primary[600]} />
+                        <Line type="monotone" dataKey="expense" stroke={colors.primary[400]} />
                     </LineChart>
                 );
             case "area":
@@ -154,8 +155,8 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Area type="monotone" dataKey="income" stroke="#52c41a" fill="#b7eb8f" />
-                        <Area type="monotone" dataKey="expense" stroke="#ff4d4f" fill="#ffa39e" />
+                        <Area type="monotone" dataKey="income" stroke={colors.primary[600]} fill={colors.primary[600]} />
+                        <Area type="monotone" dataKey="expense" stroke={colors.primary[400]} fill={colors.primary[400]}/>
                     </AreaChart>
                 );
             default:
@@ -164,7 +165,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
     };
 
     return (
-        <RoundedBox>
+        <RoundedBox style={{ height: 330 }}>
             <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
                 <Col>
                     <Title level={5} style={{ margin: 0 }}>Money flow</Title>
@@ -172,15 +173,15 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                 <Col>
                     <Space>
                         <span>
-                            <span style={{ color: "#52c41a" }}>● Income</span>
+                            <span style={{ color: colors.primary[600] }}>● Income</span>
                             <span style={{ margin: "0 8px" }} />
-                            <span style={{ color: "#ff4d4f" }}>● Expense</span>
+                            <span style={{ color: colors.primary[400] }}>● Expense</span>
                         </span>
                         <Select
                             value={chartType}
                             onChange={(value) => setChartType(value)}
-                            size="medium"
                             dropdownStyle={{ borderRadius: 8 }}
+                            className="chart-select"
                         >
                             <Option value="bar">Bar chart</Option>
                             <Option value="line">Line chart</Option>
@@ -190,7 +191,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                     </Space>
                 </Col>
             </Row>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height="90%">
                 {renderChart()}
             </ResponsiveContainer>
         </RoundedBox>

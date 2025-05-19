@@ -9,12 +9,14 @@ import Accounts from "./subpages/Accounts/Accounts";
 import Savings from "./subpages/Savings/Savings";
 import Subscriptions from "./subpages/Subscriptions/Subscriptions";
 import Settings from "./subpages/Settings/Settings";
+import ChatBot from "./ChatBot";
 
 const { Content } = Layout;
 
 const HomePage = () => {
   const [currentPage, setCurrentPage] = useState("overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
 
   const renderPage = () => {
     switch (currentPage) {
@@ -40,6 +42,7 @@ const HomePage = () => {
       <SideBar
         collapsed={sidebarCollapsed}
         setCurrentPage={setCurrentPage}
+        onBreakpoint={(broken) => setSidebarCollapsed(broken)}
       />
       <Layout>
         <AppHeader
@@ -47,6 +50,7 @@ const HomePage = () => {
           setSidebarCollapsed={setSidebarCollapsed}
         />
         <Content style={{ padding: "20px" }}>{renderPage()}</Content>
+        <ChatBot />
       </Layout>
     </Layout>
   );

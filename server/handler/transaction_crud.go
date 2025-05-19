@@ -231,7 +231,10 @@ func UpdateTransaction(c *gin.Context) {
     })
 
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating transaction with balance adjustment"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error updating transaction with balance adjustment",
+            "details": err.Error(),
+        })
         return
     }
 
