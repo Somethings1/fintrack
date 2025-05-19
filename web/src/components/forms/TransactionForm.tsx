@@ -95,7 +95,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
             requiredMark={false}
             onFinish={handleFinish}
         >
-            <Form.Item name="type" wrapperCol={{ span: 24 }} rules={[{ required: true }]}>
+            <Form.Item
+                name="type"
+                wrapperCol={{ span: 24 }}
+                rules={[{ required: true, message: "Please select a transaction type." }]}>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <Radio.Group onChange={handleTransactionTypeChange} value={transactionType}>
                         <Radio.Button value="income">Income</Radio.Button>
@@ -108,7 +111,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
             <Form.Item
                 name="dateTime"
                 label="Date"
-                rules={[{ required: true }]}
+                rules={[{ required: true, message: "Please select date and time" }]}
                 getValueProps={(value) => ({
                     value: value ? dayjs(value) : "",
                 })}
@@ -120,55 +123,79 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                 <InputNumber style={{ width: "100%" }} />
             </Form.Item>
 
-            {transactionType === 'income' && (
-                <>
-                    <Form.Item name="destinationAccount" label="Destination Account" rules={[{ required: true }]}>
-                        <Select>{renderAccountOptions()}</Select>
-                    </Form.Item>
-                    <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-                        <Select>
-                            {categories
-                                .filter(category => category.type === 'income')
-                                .map(category => (
-                                    <Select.Option key={category._id} value={category._id}>
-                                        {category.name}
-                                    </Select.Option>
-                                ))}
-                        </Select>
-                    </Form.Item>
-                </>
-            )}
+            {
+                transactionType === 'income' && (
+                    <>
+                        <Form.Item
+                            name="destinationAccount"
+                            label="Destination Account"
+                            rules={[{ required: true, message: "Please select a destination account"}]}>
+                            <Select>{renderAccountOptions()}</Select>
+                        </Form.Item>
+                        <Form.Item
+                            name="category"
+                            label="Category"
+                            rules={[{ required: true, message: "Please select a category" }]}>
+                            <Select>
+                                {categories
+                                    .filter(category => category.type === 'income')
+                                    .map(category => (
+                                        <Select.Option key={category._id} value={category._id}>
+                                            {category.name}
+                                        </Select.Option>
+                                    ))}
+                            </Select>
+                        </Form.Item>
+                    </>
+                )
+            }
 
-            {transactionType === 'expense' && (
-                <>
-                    <Form.Item name="sourceAccount" label="Source Account" rules={[{ required: true }]}>
-                        <Select>{renderAccountOptions()}</Select>
-                    </Form.Item>
-                    <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-                        <Select>
-                            {categories
-                                .filter(category => category.type === 'expense')
-                                .map(category => (
-                                    <Select.Option key={category._id} value={category._id}>
-                                        {category.name}
-                                    </Select.Option>
-                                ))}
-                        </Select>
-                    </Form.Item>
-                </>
-            )}
+            {
+                transactionType === 'expense' && (
+                    <>
+                        <Form.Item
+                            name="sourceAccount"
+                            label="Source Account"
+                            rules={[{ required: true, message: "Please select a source account" }]}>
+                            <Select>{renderAccountOptions()}</Select>
+                        </Form.Item>
+                        <Form.Item
+                            name="category"
+                            label="Category"
+                            rules={[{ required: true, message: "Please select a category" }]}>
+                            <Select>
+                                {categories
+                                    .filter(category => category.type === 'expense')
+                                    .map(category => (
+                                        <Select.Option key={category._id} value={category._id}>
+                                            {category.name}
+                                        </Select.Option>
+                                    ))}
+                            </Select>
+                        </Form.Item>
+                    </>
+                )
+            }
 
-            {transactionType === 'transfer' && (
-                <>
-                    <Form.Item name="sourceAccount" label="Source Account" rules={[{ required: true }]}>
-                        <Select>{renderAccountOptions()}</Select>
-                    </Form.Item>
+            {
+                transactionType === 'transfer' && (
+                    <>
+                        <Form.Item
+                        name="sourceAccount"
+                        label="Source Account"
+                        rules={[{ required: true, message: "Please select a source account" }]}>
+                            <Select>{renderAccountOptions()}</Select>
+                        </Form.Item>
 
-                    <Form.Item name="destinationAccount" label="Destination Account" rules={[{ required: true }]}>
-                        <Select>{renderAccountOptions()}</Select>
-                    </Form.Item>
-                </>
-            )}
+                        <Form.Item
+                        name="destinationAccount"
+                        label="Destination Account"
+                        rules={[{ required: true, message: "Please select a destination account" }]}>
+                            <Select>{renderAccountOptions()}</Select>
+                        </Form.Item>
+                    </>
+                )
+            }
 
             <Form.Item name="note" label="Note">
                 <Input.TextArea placeholder="Enter a note" />
@@ -180,7 +207,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                     <Button type="primary" htmlType="submit">Submit</Button>
                 </Space>
             </Form.Item>
-        </Form>
+        </Form >
     );
 };
 

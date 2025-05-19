@@ -79,7 +79,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
                     <Select allowClear options={categoryOptions} placeholder="Any Category" />
                 </Form.Item>
 
-                <Form.Item name="note" label="Note (Fuzzy Search)">
+                <Form.Item name="note" label="Note">
                     <Input placeholder="Search notes..." />
                 </Form.Item>
 

@@ -1,7 +1,7 @@
 .chatbot-container {
   position: fixed;
   bottom: 24px;
-  right: 24px;
+  left: 24px;
   z-index: 9999;
 }
 
@@ -9,12 +9,22 @@
   background-color: #1890ff;
   color: white;
   position: fixed;
-  right: 24px;
+  left: 24px;
   bottom: 24px;
 }
 
+.chatbot-icon-active.ant-btn-default {
+    background-color: #8470FF!important;
+    color: white!important;
+}
+
+.chatbot-icon-active.ant-btn-default:hover {
+    background-color: #A498FF !important;
+    color: white!important;
+}
+
 .chatbot-popup {
-  width: 300px;
+  width: 350px;
   background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -24,7 +34,7 @@
 }
 
 .chatbot-messages {
-  max-height: 300px;
+  height: 400px;
   overflow-y: auto;
   padding: 8px;
   display: flex;
@@ -33,8 +43,6 @@
 }
 
 .chat-bubble {
-  padding: 8px 12px;
-  border-radius: 16px;
   max-width: 90%;
   word-wrap: break-word;
   position: relative;
@@ -42,12 +50,32 @@
 
 .chat-bubble.bot {
   align-self: flex-start;
-  background: #f1f1f1;
+}
+
+.chat-text {
+    border-radius: 16px;
+    padding: 10px;
+}
+
+.chat-bubble.bot .chat-text {
+    background-color: #EFEFF1;
+    color: black;
+}
+
+.chat-bubble.user .chat-text {
+    background-color: #8470FF;
+    color: white!important;
+}
+
+#send-button {
+    padding: 5px 18px 5px 20px !important;
+    height: 40px;
+    width: 40px;
+    margin: auto 0;
 }
 
 .chat-bubble.user {
   align-self: flex-end;
-  background: #d1eaff;
 }
 
 .chat-buttons {

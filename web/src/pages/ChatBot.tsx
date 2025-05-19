@@ -2,8 +2,8 @@ import React, { useRef, useState, useEffect } from "react";
 import { Transaction } from "@/models/Transaction";
 import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
-import { Button, Input, Tooltip, Spin, Modal } from "antd";
-import { SendOutlined, RobotOutlined } from "@ant-design/icons";
+import { Button, Input, Tooltip, Spin, Modal, Avatar } from "antd";
+import { UserOutlined, SendOutlined, RobotOutlined } from "@ant-design/icons";
 import { getStoredAccounts } from "@/services/accountService";
 import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
@@ -229,54 +229,87 @@ const ChatBot: React.FC = () => {
 
             {visible && (
                 <div className="chatbot-popup">
+                    <h3 style={{textAlign: "center", padding: "10px", borderBottom: "1px solid #D0D0D4"}}>Fintrack assistant</h3>
                     <div className="chatbot-messages">
                         {messages.map((msg, idx) => {
+                            const isUser = msg.from === "user";
                             return (
                                 <div
                                     key={idx}
-                                    className={`chat-bubble ${msg.from === "user" ? "user" : "bot"}`}
+                                    className={`chat-bubble ${isUser ? "user" : "bot"}`}
+                                    style={{ display: "flex", alignItems: "flex-start", gap: 12 }}
                                 >
-                                    <div className="chat-text">{msg.text}</div>
-                                    {msg.transaction && (
-                                        <div
+                                    {/* Avatar */}
+                                    {!isUser && (
+                                        <Avatar
+                                            icon={<RobotOutlined />}
                                             style={{
-                                                background: "#f6f6f6",
-                                                border: "1px solid #e0e0e0",
-                                                borderRadius: 8,
-                                                padding: 12,
-                                                marginTop: 8,
-                                                fontSize: 13,
-                                                color: "#333",
+                                                backgroundColor: "#7265e6",
+                                                flexShrink: 0,
                                             }}
-                                        >
-                                            <div><strong>Amount:</strong> {(msg.transaction.amount ?? 0).toLocaleString()} đ</div>
-                                            <div><strong>Type:</strong> {msg.transaction.type}</div>
-                                            <div><strong>Date:</strong> {new Date(msg.transaction.dateTime).toLocaleString()}</div>
-                                            {msg.transaction.sourceAccount && (
-                                                <div><strong>Source:</strong> {accountNames[msg.transaction.sourceAccount]}</div>
-                                            )}
-                                            {msg.transaction.destinationAccount && (
-                                                <div><strong>Destination:</strong> {accountNames[msg.transaction.destinationAccount]}</div>
-                                            )}
-                                            {msg.transaction.category && (
-                                                <div><strong>Category:</strong> {categoryNames[msg.transaction.category]}</div>
-                                            )}
-                                            {msg.transaction.note && (
-                                                <div><strong>Note:</strong> {msg.transaction.note}</div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {msg.buttons && (
-                                        <div className="chat-buttons">
-                                            {msg.buttons.map((btn, i) => (
-                                                <Button key={i} size="small" onClick={btn.onClick}>
-                                                    {btn.label}
-                                                </Button>
-                                            ))}
-                                        </div>
+                                        />
+                                    )
+                                    }
+
+                                    {/* Bubble content */}
+                                    <div style={{ flex: 1 }}>
+                                        <div className="chat-text">{msg.text}</div>
+
+                                        {msg.transaction && (
+                                            <div
+                                                style={{
+                                                    background: "#f6f6f6",
+                                                    border: "1px solid #e0e0e0",
+                                                    borderRadius: 8,
+                                                    padding: 12,
+                                                    marginTop: 8,
+                                                    fontSize: 13,
+                                                    color: "#333",
+                                                }}
+                                            >
+                                                <div><strong>Amount:</strong> {(msg.transaction.amount ?? 0).toLocaleString()} đ</div>
+                                                <div><strong>Type:</strong> {msg.transaction.type}</div>
+                                                <div><strong>Date:</strong> {new Date(msg.transaction.dateTime).toLocaleString()}</div>
+                                                {msg.transaction.sourceAccount && (
+                                                    <div><strong>Source:</strong> {accountNames[msg.transaction.sourceAccount]}</div>
+                                                )}
+                                                {msg.transaction.destinationAccount && (
+                                                    <div><strong>Destination:</strong> {accountNames[msg.transaction.destinationAccount]}</div>
+                                                )}
+                                                {msg.transaction.category && (
+                                                    <div><strong>Category:</strong> {categoryNames[msg.transaction.category]}</div>
+                                                )}
+                                                {msg.transaction.note && (
+                                                    <div><strong>Note:</strong> {msg.transaction.note}</div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {msg.buttons && (
+                                            <div className="chat-buttons" style={{ marginTop: 8 }}>
+                                                {msg.buttons.map((btn, i) => (
+                                                    <Button key={i} size="small" onClick={btn.onClick}>
+                                                        {btn.label}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {isUser && (
+                                        <Avatar
+                                            icon={<UserOutlined />}
+                                            style={{
+                                                backgroundColor: "#EFEFF1",
+                                                flexShrink: 0,
+                                                color: "black",
+                                            }}
+                                        />
+
                                     )}
                                 </div>
-                            )
+
+                            );
                         })}
                         {loading && <Spin style={{ marginTop: 8 }} />}
                     </div>
@@ -292,6 +325,7 @@ const ChatBot: React.FC = () => {
                             icon={<SendOutlined />}
                             type="primary"
                             onClick={handleFirstSend}
+                            id="send-button"
                         />
                     </div>
                 </div>
@@ -312,7 +346,7 @@ const ChatBot: React.FC = () => {
                     icon={<RobotOutlined />}
                     size="large"
                     onClick={() => setVisible(false)}
-                    className="chatbot-icon"
+                    className="chatbot-icon chatbot-icon-active"
                 />
             )}
 

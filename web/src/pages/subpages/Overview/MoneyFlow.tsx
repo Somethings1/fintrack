@@ -180,8 +180,8 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <Select
                             value={chartType}
                             onChange={(value) => setChartType(value)}
-                            size="medium"
                             dropdownStyle={{ borderRadius: 8 }}
+                            className="chart-select"
                         >
                             <Option value="bar">Bar chart</Option>
                             <Option value="line">Line chart</Option>

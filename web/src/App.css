@@ -21,3 +21,151 @@ mark {
     padding: 0 2px;
     border-radius: 2px;
 }
+/* Make all buttons bigger padding and fully rounded */
+.ant-btn {
+  padding: 20px 18px !important;
+  border-radius: 9999px !important; /* Full rounded */
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+/* Primary button */
+.ant-btn-primary {
+  color: white !important;
+  background-color: #8470FF !important;
+  border-color: #8470FF !important;
+}
+
+.ant-btn-primary:hover{
+  background-color: #A498FF !important;
+  border-color: #A498FF !important;
+  color: white !important;
+}
+
+/* Danger button */
+.ant-btn-dangerous {
+  color: white !important;
+  background-color: #E83838 !important;
+  border-color: #E83838 !important;
+}
+
+.ant-btn-dangerous:hover{
+  background-color: #B52E2E !important; /* Darker red */
+  border-color: #B52E2E !important;
+  color: white !important;
+}
+
+/* Default / Normal button */
+.ant-btn-default {
+  color: black !important;
+  background-color: white !important;
+}
+
+.ant-btn-default:hover,
+.ant-btn-default:focus {
+  background-color: #ECEAFF !important;
+  border-color: #ECEAFF !important;
+  color: black !important;
+}
+
+/* Apply to all input-like components */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-picker,
+.ant-select-selector,
+.ant-input-number {
+  padding: 12px 20px !important;
+  border-radius: 9999px !important;
+  line-height: 1.5;
+}
+
+.ant-input-affix-wrapper .ant-input {
+    padding: 0!important;
+}
+
+.ant-select-selector {
+    padding: 5px 15px !important;
+}
+
+.ant-select-selection-item,
+.ant-select-selection-search,
+.ant-select-selection-wrap{
+    height: 22px!important;
+    line-height: 22px!important;
+}
+
+.ant-select-selector::after {
+    line-height: 22px!important;
+}
+
+.ant-select {
+    height: auto!important;
+}
+
+.ant-input-number-input {
+    padding: 0 !important;
+    font-size: 14px!important;
+}
+
+/* Special case: allow dropdowns and datepickers to breathe */
+.ant-select-selector {
+  height: auto !important;
+  display: flex;
+  align-items: center;
+}
+
+/* Adjust textarea (if you're using it) */
+textarea.ant-input {
+  border-radius: 24px !important;
+  padding: 12px 20px !important;
+}
+
+.ant-form-item-label > label {
+  padding-top: 14px; /* or 8px, depending on your input padding */
+}
+
+
+/* Reset radio buttons for pill styling */
+.ant-radio-button-wrapper {
+  padding: 6px 24px !important;
+  border-radius: 0 !important; /* Remove individual rounding */
+  font-weight: 600;
+  color: #000;
+  height: auto!important;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s ease;
+}
+
+/* First button gets left rounding */
+.ant-radio-button-wrapper:first-child {
+  border-top-left-radius: 9999px !important;
+  border-bottom-left-radius: 9999px !important;
+}
+
+/* Last button gets right rounding */
+.ant-radio-button-wrapper:last-child {
+  border-top-right-radius: 9999px !important;
+  border-bottom-right-radius: 9999px !important;
+}
+
+/* Checked button */
+.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background-color: #8470FF !important;
+  color: white !important;
+  border-color: #8470FF !important;
+  z-index: 1; /* Ensure the selected one is on top */
+}
+
+/* Hovered button */
+.ant-radio-button-wrapper:not(.ant-radio-button-wrapper-checked):hover {
+  background-color: #ECEAFF !important;
+  color: black !important;
+  border-color: #A498FF !important;
+}
+
+/* Make the buttons blend like a group, not separate chunks */
+.ant-radio-button-wrapper:not(:first-child) {
+  margin-left: -1px; /* Eliminate double borders */
+}
+

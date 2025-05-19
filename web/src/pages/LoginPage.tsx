@@ -69,7 +69,7 @@ const LoginPage = () => {
                     Fintrack
                 </Title>
             </div>
-            <div style={{ maxWidth: 400, margin: "180px auto", padding: 24, border: "1px solid #eee", borderRadius: 8, background: 'white' }}>
+            <div style={{ maxWidth: 400, margin: "100px auto", padding: 24, border: "1px solid #eee", borderRadius: 8, background: 'white' }}>
                 <Tabs
                     activeKey={tab}
                     onChange={(key) => {

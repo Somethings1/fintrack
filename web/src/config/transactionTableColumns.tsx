@@ -61,7 +61,6 @@ export const getBaseColumns = () => [
         dataIndex: "note",
         key: "note",
         render: (note: string, record: ResolvedTransaction) => {
-            // Assuming fuzzy search results are stored in _searchMatches
             const match = record._searchMatches?.find((m: any) => m.key === "_normalized_note");
             if (!match || !match.indices?.length) return note ?? '';
 
@@ -80,7 +79,9 @@ export const getBaseColumns = () => [
 const HIDDEN_KEYS = ["type", "categoryName", "note"];
 
 export const getSimpleColumns = () => {
-    return getBaseColumns().filter(col => !HIDDEN_KEYS.includes(col.key));
+    return getBaseColumns()
+        .filter(col => !HIDDEN_KEYS.includes(col.key))
+        .map(col => ({...col, sorter: false}));
 };
 
 export const getEditColumn = (handleEdit: HandleEditFunction) => ({
