@@ -4,6 +4,7 @@ import { Button } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { ResolvedTransaction } from '@/hooks/useTransactions'; // Import type
 import { highlightMatches } from '@/utils/transactionUtils'; // Import utility
+import Balance from '../components/Balance';
 
 type HandleEditFunction = (transaction: ResolvedTransaction) => void;
 
@@ -26,7 +27,9 @@ export const getBaseColumns = () => [
         dataIndex: "amount",
         key: "amount",
         sorter: (a: ResolvedTransaction, b: ResolvedTransaction) => (a.amount ?? 0) - (b.amount ?? 0),
-        render: (value: number) => `${(value ?? 0).toLocaleString()} đ`,
+        render: (value: number, record: ResolvedTransaction) => {
+            return <Balance amount={value} type={record.type} />;
+        },
     },
     {
         title: "Type",
@@ -76,12 +79,12 @@ export const getBaseColumns = () => [
     },
 ];
 
-const HIDDEN_KEYS = ["type", "categoryName", "note"];
+const HIDDEN_KEYS = ["type", "note"];
 
 export const getSimpleColumns = () => {
     return getBaseColumns()
         .filter(col => !HIDDEN_KEYS.includes(col.key))
-        .map(col => ({...col, sorter: false}));
+        .map(col => ({ ...col, sorter: false }));
 };
 
 export const getEditColumn = (handleEdit: HandleEditFunction) => ({
@@ -92,8 +95,8 @@ export const getEditColumn = (handleEdit: HandleEditFunction) => ({
         <Button
             icon={<EditOutlined />}
             onClick={(e) => {
-                 e.stopPropagation(); // Prevent row click if any
-                 handleEdit(transaction);
+                e.stopPropagation(); // Prevent row click if any
+                handleEdit(transaction);
             }}
             size="small"
             aria-label={`Edit transaction ${transaction._id}`}
