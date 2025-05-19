@@ -9,26 +9,16 @@ import BudgetOverview from "@/components/charts/BudgetOverview";
 import SavingOverview from "./SavingOverview";
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
+import Title from "@/components/Title";
+import { getCurrentUser } from "@/services/authService";
+
+const name = (await getCurrentUser())?.user_metadata?.full_name ?? "Anonymous";
 
 const Overview = () => {
-    const [ selectedMonth, setSelectedMonth ] = useState<Dayjs>(dayjs());
-
-    const handleMonthChange = (date: Dayjs) => {
-        setSelectedMonth(date);
-    }
-
     return (
         <>
-            <Row gutter={[16, 16]}>
-                <Col>
-                    <DatePicker
-                        picker="month"
-                        value={selectedMonth}
-                        onChange={handleMonthChange}
-                        allowClear={false}
-                    />
-                </Col>
-            </Row>
+            <Title>Welcome back, {name}</Title>
+            <h2 style={{ marginBottom: '20px' }}>Let's look at your finances this month:</h2>
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} md={12} lg={6}>
                     <TotalBalance />

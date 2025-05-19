@@ -7,8 +7,8 @@ import { usePollingContext } from "@/context/PollingProvider";
 import { Button, Modal, Space, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
+import Title from "../../../components/Title";
 
-const { Title } = Typography;
 
 const Savings = () => {
     const [savings, setSavings] = useState<Saving[]>([]);
@@ -35,7 +35,7 @@ const Savings = () => {
     return (
         <>
             <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Savings</Title>
+            <Title>Saving Goals</Title>
                 <Button
                     icon={<PlusOutlined />}
                     type="primary"

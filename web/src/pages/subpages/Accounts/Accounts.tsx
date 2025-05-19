@@ -7,8 +7,8 @@ import { usePollingContext } from "@/context/PollingProvider";
 import { Button, Modal, Space, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import AccountForm from "@/components/forms/AccountForm";
+import Title from "../../../components/Title";
 
-const { Title } = Typography;
 
 const Accounts = () => {
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -35,7 +35,7 @@ const Accounts = () => {
     return (
         <>
             <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Accounts</Title>
+            <Title>Accounts</Title>
                 <Button
                     icon={<PlusOutlined />}
                     type="primary"

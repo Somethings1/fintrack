@@ -7,8 +7,8 @@ import { usePollingContext } from "@/context/PollingProvider";
 import { Button, Modal, Space, Typography, Row, Col } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import CategoryForm from "@/components/forms/CategoryForm";
+import Title from "../../../components/Title";
 
-const { Title } = Typography;
 
 const Budget = () => {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -36,7 +36,7 @@ const Budget = () => {
     return (
         <>
             <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Categories</Title>
+            <Title>Budget</Title>
                 <Button
                     icon={<PlusOutlined />}
                     type="primary"
