@@ -48,7 +48,7 @@ const Balance: React.FC<BalanceProps> = ({
         fontWeight: 600,
         fontSize: fontSizeMap[size],
         textAlign: align,
-        width: align === "left" ? "auto" : "90%",
+        width: align === "left" ? "auto" : "100%",
         display: "inline-block",
       }}
     >

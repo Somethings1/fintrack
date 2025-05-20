@@ -11,6 +11,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import Title from "@/components/Title";
 import { getCurrentUser } from "@/services/authService";
+import Subtitle from "../../../components/Subtitle";
 
 const name = (await getCurrentUser())?.user_metadata?.full_name ?? "Anonymous";
 
@@ -18,7 +19,7 @@ const Overview = () => {
     return (
         <>
             <Title>Welcome back, {name}</Title>
-            <h2 style={{ marginBottom: '20px' }}>Let's look at your finances this month:</h2>
+            <Subtitle>Let's look at your finances this month</Subtitle>
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} md={12} lg={6}>
                     <TotalBalance />

@@ -40,6 +40,9 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
         if (category) {
             form.setFieldsValue({ ...category });
         }
+        else {
+            form.setFieldValue("type", "expense" );
+        }
     }, [category]);
 
     const handleFinish = async (values: any) => {
@@ -131,7 +134,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                                 okButtonProps={{ danger: true }}
                                 onConfirm={handleDelete}
                             >
-                                <Button danger loading={isDeleting}>Delete</Button>
+                                <Button danger type="primary" loading={isDeleting}>Delete</Button>
                             </Popconfirm>
                         )}
                     </div>
