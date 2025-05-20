@@ -22,46 +22,20 @@ import {
 import RoundedBox from "@/components/RoundedBox";
 import CategoryForm from "@/components/forms/CategoryForm";
 import { Transaction } from "@/models/Transaction";
+import Balance from "@/components/Balance";
 
 const { Text, Title } = Typography;
 
 const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
 const daysUntilToday = new Date().getDate();
-const formatMoney = (n: number) => "$" + n.toLocaleString();
 
-const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
-    const [category, setCategory] = useState<Category | null>(null);
-    const [total, setTotal] = useState<number>(0);
+const CategoryBox: React.FC<{ category: Category, spent: number }> = ({ category, spent }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { triggerRefresh } = useRefresh();
-    const refreshToken = useRefresh();
-    const { transactions: lastSync } = usePollingContext();
-
-    useEffect(() => {
-        const fetchData = async () => {
-            const cats = await getStoredCategories();
-            const target = cats.find((c: Category) => c._id === categoryId);
-            setCategory(target || null);
-
-            const txs = await getStoredTransactions();
-            const filtered = txs.filter((tx: Transaction) => {
-                const d = new Date(tx.dateTime);
-                return (
-                    tx.category === categoryId &&
-                    d.getFullYear() === new Date().getFullYear() &&
-                    d.getMonth() === new Date().getMonth()
-                );
-            });
-
-            const sum = filtered.reduce((acc, tx) => acc + tx.amount, 0);
-            setTotal(sum);
-        };
-
-        fetchData();
-    }, [categoryId, refreshToken, lastSync]);
 
     if (!category) return null;
 
+    const total = spent;
     const isIncome = category.type === "income";
     const budget = category.budget ?? 0;
     const percent = budget > 0 ? Math.min((total / budget) * 100, 999) : 0;
@@ -80,17 +54,15 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
                     onClick={() => setIsModalOpen(true)}
                     style={{
                         position: "absolute",
-                        top: 10,
-                        right: 10,
+                        top: 5,
+                        right: 5,
                         zIndex: 10,
-                        backgroundColor: "#f0f0f0",
-                        border: "none",
                     }}
                 />
 
                 <Space direction="vertical" style={{ width: "100%" }}>
-                    <Space>
-                        <span>{category.icon}</span>
+                    <Space style={{ margin: "0px 5px 10px 5px" }}>
+                        <span style={{ fontSize: "20px" }}>{category.icon}</span>
                         <Title level={5} style={{ margin: 0 }}>
                             {category.name}
                         </Title>
@@ -103,18 +75,15 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
                                     percent={parseFloat(percent.toFixed(0))}
                                     width={150}
                                     format={() => (
-                                        <div>
-                                            <Text strong>{percent.toFixed(0)}%</Text>
+                                        <div style={{ marginTop: "-13px", lineHeight: "10px" }}>
                                             <Text
                                                 type="secondary"
-                                                style={{ fontSize: "11px", marginLeft: "5px" }}
+                                                style={{ fontSize: "11px", marginLeft: "5px", marginBottom: "-10px" }}
                                             >
-                                                {isIncome ? "gained" : "spent"}
+                                                {percent.toFixed(0)}% {isIncome ? "gained" : "spent"}
                                             </Text>
                                             <br />
-                                            <Text style={{ fontSize: "14px", fontWeight: "bold" }}>
-                                                {formatMoney(total)}
-                                            </Text>
+                                            <Balance amount={total} type="" size="m" align="center" />
                                         </div>
                                     )}
                                 />
@@ -129,13 +98,13 @@ const CategoryBox: React.FC<{ categoryId: string }> = ({ categoryId }) => {
                                     height: 150,
                                 }}
                             >
-                                <Text type="secondary" style={{ fontSize: "11px" }}>
+                                <Text type="secondary" style={{ fontSize: "11px", marginBottom: "15px" }}>
                                     Left
                                 </Text>
                                 <br />
-                                <Text style={{ fontSize: "18px", fontWeight: "bold" }}>
-                                    {formatMoney(remaining)} / {formatMoney(budget)}
-                                </Text>
+                                <div style={{ display: "inline-block", width: "100%", marginBottom: "15px" }}>
+                                    <Balance amount={remaining} type="" size="l" align="left" /> / <Balance align="left" amount={budget} type="" size="xs" />
+                                </div>
                                 <br />
                                 <Tag
                                     icon={

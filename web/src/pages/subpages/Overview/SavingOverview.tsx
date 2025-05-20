@@ -50,7 +50,7 @@ const SavingOverview: React.FC = () => {
                                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                                     <Text strong style={{ marginBottom: 7 }}>{saving.name}</Text>
                                     <Text style={{ width: '80%', textAlign: "right" }}>
-                                        <Balance amount={saving.balance} type="" /> / <Balance amount={saving.goal} type="" />
+                                        <Balance amount={saving.balance} type="" align="left" /> / <Balance align="left" amount={saving.goal} type="" />
                                     </Text>
                                 </div>
                                 <ProgressBar percent={parseFloat(percentage.toFixed(2))} />
