@@ -8,14 +8,27 @@ import TotalSavings from "./TotalSavings";
 import BudgetOverview from "@/components/charts/BudgetOverview";
 import SavingOverview from "./SavingOverview";
 import dayjs, { Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Title from "@/components/Title";
 import { getCurrentUser } from "@/services/authService";
 import Subtitle from "../../../components/Subtitle";
 
-const name = (await getCurrentUser())?.user_metadata?.full_name ?? "Anonymous";
 
 const Overview = () => {
+    const [name, setName] = useState("");
+
+    useEffect(() => {
+        const fetchName = async () => {
+            try {
+                const user = await getCurrentUser();
+                setName(user?.user_metadata?.full_name ?? "");
+            }
+            catch (e) {
+                console.error("Wtf???");
+            }
+        }
+        fetchName();
+    }, [])
     return (
         <>
 
