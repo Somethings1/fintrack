@@ -50,7 +50,7 @@ const TransactionActionBar: React.FC<TransactionActionBarProps> = ({
     return (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: '8px' }}>
             {/* Left Side Buttons */}
-            <div> {/* Use Ant Design Space for consistent gap and wrapping */}
+            <Space wrap>
                 <Button
                     type={isFilterActive ? "primary" : "default"}
                     icon={<FilterOutlined />}
@@ -76,7 +76,7 @@ const TransactionActionBar: React.FC<TransactionActionBarProps> = ({
                         Delete ({selectedRowCount})
                     </Button>
                 )}
-            </div>
+            </Space>
 
             {/* Right Side Buttons */}
             <Space wrap>
