@@ -178,7 +178,7 @@ const SavingForm: React.FC<SavingFormProps> = ({
                                 cancelText="No"
                                 onConfirm={handleDelete}
                             >
-                                <Button danger loading={isDeleting}>
+                                <Button danger type="primary" loading={isDeleting}>
                                     Delete
                                 </Button>
                             </Popconfirm>

@@ -174,3 +174,7 @@ textarea.ant-input {
   margin-left: -1px; /* Eliminate double borders */
 }
 
+
+.ant-btn.table-edit-btn {
+    padding: 0px !important;
+}

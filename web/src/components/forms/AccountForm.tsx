@@ -112,7 +112,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
                                 cancelText="No"
                                 onConfirm={handleDelete}
                             >
-                                <Button danger loading={isDeleting}>Delete</Button>
+                                <Button danger type="primary" loading={isDeleting}>Delete</Button>
                             </Popconfirm>
                         )}
                     </div>

@@ -98,7 +98,8 @@ export const getEditColumn = (handleEdit: HandleEditFunction) => ({
                 e.stopPropagation(); // Prevent row click if any
                 handleEdit(transaction);
             }}
-            size="small"
+            shape="circle"
+            className="table-edit-btn"
             aria-label={`Edit transaction ${transaction._id}`}
         />
     ),
