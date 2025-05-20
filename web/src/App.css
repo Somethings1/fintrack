@@ -95,7 +95,7 @@ mark {
     line-height: 22px!important;
 }
 
-.ant-pagination-options .ant-select-selector {
+.ant-pagination-options .ant-select-selector, .chart-select .ant-select-selector {
     padding: 5px 20px !important;
 }
 

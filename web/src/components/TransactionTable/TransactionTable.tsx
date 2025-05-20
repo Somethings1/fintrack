@@ -14,6 +14,7 @@ import ExportModal from "@/components/modals/ExportModal";
 import DeleteConfirmationModal from "@/components/modals/DeleteConfirmationModal";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
 import TransactionActionBar from "./TransactionActionBar"; // Import the action bar
+import './TransactionTable.css';
 
 const TransactionTable: React.FC = () => {
     // --- Hooks ---
@@ -167,6 +168,7 @@ const TransactionTable: React.FC = () => {
                     dataSource={filteredTransactions}
                     columns={columns}
                     rowSelection={rowSelection}
+                    rowClassName={() => "transaction-table-row"}
                     pagination={{
                         current: pagination.current,
                         pageSize: pagination.pageSize,

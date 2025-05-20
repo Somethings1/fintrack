@@ -7,7 +7,9 @@ const Title: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
         fontSize: "2rem",
         fontWeight: 800,
         color: "#111827",
-        marginBottom: "1rem",
+        marginBottom: "-0.5rem",
+        display: "block",
+        width: "100%",
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >

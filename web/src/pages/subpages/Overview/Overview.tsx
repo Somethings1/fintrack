@@ -18,8 +18,12 @@ const name = (await getCurrentUser())?.user_metadata?.full_name ?? "Anonymous";
 const Overview = () => {
     return (
         <>
-            <Title>Welcome back, {name}</Title>
-            <Subtitle>Let's look at your finances this month</Subtitle>
+
+            <Row gutter={[16, 16]} style={{ margin: 0, marginBottom: 20 }}>
+                <Title>Welcome back, {name}</Title>
+                <br />
+                <Subtitle>Let's look at your finances this month</Subtitle>
+            </Row>
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} md={12} lg={6}>
                     <TotalBalance />

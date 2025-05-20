@@ -91,7 +91,7 @@ const TransactionActionBar: React.FC<TransactionActionBarProps> = ({
                     {editMode ? "Exit Edit" : "Edit Mode"}
                 </Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAddNew}>
-                    Add New
+                    Add new transaction
                 </Button>
             </Space>
         </div>

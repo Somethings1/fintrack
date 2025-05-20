@@ -11,6 +11,7 @@ import RoundedBox from "@/components/RoundedBox";
 import AccountForm from "@/components/forms/AccountForm";
 import { getStoredTransactions } from "@/services/transactionService";
 import { Account } from "@/models/Account";
+import Balance from "../../../components/Balance";
 
 const { Title, Text } = Typography;
 
@@ -75,18 +76,16 @@ const AccountBox: React.FC<AccountBoxProps> = ({ account }) => {
                     onClick={() => setIsModalOpen(true)}
                     style={{
                         position: "absolute",
-                        top: 10,
-                        right: 10,
+                        top: 5,
+                        right: 5,
                         zIndex: 10,
-                        backgroundColor: "#f0f0f0",
-                        border: "none",
                     }}
                 />
 
                 <div style={{ fontSize: 24 }}>{account.icon}</div>
-                <Title level={5} style={{ marginBottom: 0 }}>{account.name}</Title>
-                <Text strong>{account.balance?.toLocaleString()}₫</Text>
-                <div>{renderChange()}</div>
+                <Title level={5} style={{ marginBottom: 10 }}>{account.name}</Title>
+                <Balance amount={account.balance} type="" size="l" align="left" />
+                <div style={{ marginTop: 10 }}>{renderChange()}</div>
             </RoundedBox>
 
             <Modal

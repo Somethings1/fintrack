@@ -97,8 +97,11 @@ const Budget = () => {
 
     return (
         <>
-            <Title>Budget</Title>
-            <Subtitle>Where you keep track and manage your budgets</Subtitle>
+
+            <Row gutter={[16, 16]} style={{ margin: 0, marginBottom: 20 }}>
+                <Title>Budget</Title>
+                <Subtitle>Where you keep track and manage your budgets</Subtitle>
+            </Row>
 
             <Space
                 style={{
@@ -140,7 +143,7 @@ const Budget = () => {
                     shape="round"
                     onClick={() => setIsModalOpen(true)}
                 >
-                    New Category
+                    Add new category
                 </Button>
 
             </Space>
