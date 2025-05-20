@@ -35,8 +35,8 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
             <Button
                 icon={<EditOutlined />}
                 shape="circle"
-                type="text"
-                style={{ position: "absolute", top: 8, right: 8 }}
+                size="small"
+                style={{ position: "absolute", top: 5, right: 5 }}
                 onClick={() => setIsModalOpen(true)}
             />
 

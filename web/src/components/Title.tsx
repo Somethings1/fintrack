@@ -5,7 +5,7 @@ const Title: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
     <h1
       style={{
         fontSize: "2rem",
-        fontWeight: 800,
+        fontWeight: 700,
         color: "#111827",
         marginBottom: "-0.5rem",
         display: "block",
