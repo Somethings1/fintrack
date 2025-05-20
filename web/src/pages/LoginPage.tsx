@@ -18,6 +18,7 @@ const LoginPage = () => {
     const [form] = Form.useForm();
     const [tab, setTab] = useState<"login" | "signup">("login");
     const [error, setError] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
     const navigate = useNavigate();
 
     const handleSubmit = async (values: any) => {
@@ -27,14 +28,16 @@ const LoginPage = () => {
         try {
             if (tab === "login") {
                 await signIn(email, password);
+                navigate("/home");
             } else {
                 if (password !== confirmPassword) {
                     setError("Passwords do not match!");
                     return;
                 }
                 await signUp(name, email, password);
+                setMessage("Sign up successfully. Please check your mail box to find confirmation mail.")
+                setTab("login");
             }
-            navigate("/home");
         } catch (err: any) {
             setError(err.message || `${tab} failed`);
         }
@@ -54,6 +57,15 @@ const LoginPage = () => {
                 <Alert
                     message={error}
                     type="error"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                />
+            )}
+
+            {message && (
+                <Alert
+                    message={message}
+                    type="info"
                     showIcon
                     style={{ marginBottom: 16 }}
                 />

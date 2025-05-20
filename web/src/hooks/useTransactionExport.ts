@@ -4,9 +4,9 @@ import { message } from 'antd';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import * as Papa from 'papaparse';
-import { jsPDF } from 'jspdf';
 
-export type ExportFileType = 'xlsx' | 'csv' | 'pdf';
+
+export type ExportFileType = 'xlsx' | 'csv';
 
 export const useTransactionExport = (availableColumns: { key: string; title: string }[]) => {
     const [isExportModalVisible, setIsExportModalVisible] = useState(false);
@@ -58,9 +58,6 @@ export const useTransactionExport = (availableColumns: { key: string; title: str
                 case 'csv':
                     exportToCSV(preparedData);
                     break;
-                case 'pdf':
-                    exportToPDF(preparedData, columnsToExport.map(c => c.title));
-                    break;
                 default:
                     message.error('Invalid file type selected.');
                     break;
@@ -85,23 +82,6 @@ export const useTransactionExport = (availableColumns: { key: string; title: str
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         saveAs(blob, 'transactions_export.csv');
     };
-
-    const exportToPDF = (data: any[], headers: string[]) => {
-        const doc = new jsPDF();
-        (doc as any).autoTable({ // Use autoTable for better formatting
-            head: [headers],
-            body: data.map(row => headers.map(header => {
-                 // Format amount specifically for PDF if needed
-                 if (header === 'Amount' && typeof row[header] === 'number') {
-                     return `${row[header].toLocaleString()} đ`;
-                 }
-                 return String(row[header] ?? '');
-            })),
-            startY: 10, // Adjust start position if needed
-        });
-        doc.save('transactions_export.pdf');
-    };
-
 
     return {
         isExportModalVisible,
