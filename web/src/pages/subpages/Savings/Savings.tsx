@@ -7,8 +7,8 @@ import { usePollingContext } from "@/context/PollingProvider";
 import { Button, Modal, Select, Space, Typography, Row, Col, Badge } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
-import Title from "../../../components/Title";
-import Subtitle from "../../../components/Subtitle";
+import Title from "@/components/Title";
+import Subtitle from "@/components/Subtitle";
 import dayjs from "dayjs";
 
 const { Option } = Select;

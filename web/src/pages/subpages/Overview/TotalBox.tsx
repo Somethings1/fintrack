@@ -3,8 +3,8 @@ import RoundedBox from "@/components/RoundedBox";
 import { Typography } from "antd";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
-import { colors } from "../../../theme/color";
-import Balance from "../../../components/Balance";
+import { colors } from "@/theme/color";
+import Balance from "@/components/Balance";
 
 const { Title, Text } = Typography;
 

@@ -4,8 +4,8 @@ import { Card, Typography, Space, Progress, Button, Modal } from "antd";
 import { EditOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
 import RoundedBox from "@/components/RoundedBox"; // Adjust path as needed
-import Balance from "../../../components/Balance";
-import ProgressBar from "../../../components/charts/ProgressBar";
+import Balance from "@/components/Balance";
+import ProgressBar from "@/components/charts/ProgressBar";
 
 const { Text, Title } = Typography;
 

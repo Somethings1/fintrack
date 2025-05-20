@@ -11,9 +11,9 @@ import "./ChatBot.css"; // Style it like an adult, please
 import { useTransactions } from "@/hooks/useTransactions";
 import { normalizeTransaction } from "@/utils/transactionUtils";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
-import { talkToGemini } from "../utils/chatbotUtils";
-import AccountForm from "../components/forms/AccountForm";
-import CategoryForm from "../components/forms/CategoryForm";
+import { talkToGemini } from "@/utils/chatbotUtils";
+import AccountForm from "@/components/forms/AccountForm";
+import CategoryForm from "@/components/forms/CategoryForm";
 import { useRefresh } from "@/context/RefreshProvider";
 
 interface Message {

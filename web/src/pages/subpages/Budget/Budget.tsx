@@ -22,7 +22,7 @@ import CategoryForm from "@/components/forms/CategoryForm";
 import Title from "@/components/Title";
 import { getStoredTransactions } from "@/services/transactionService";
 import { Transaction } from "@/models/Transaction";
-import Subtitle from "../../../components/Subtitle";
+import Subtitle from "@/components/Subtitle";
 
 const { Option } = Select;
 

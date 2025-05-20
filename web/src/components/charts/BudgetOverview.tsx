@@ -6,7 +6,7 @@ import { getStoredCategories } from "@/services/categoryService";
 import { getStoredTransactions } from "@/services/transactionService";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
-import { colors } from "../../theme/color";
+import { colors } from "@/theme/color";
 
 const { Title } = Typography;
 const COLORS = ["#FF6384", "#36A2EB", "#FFCE56", "#8E44AD", "#1ABC9C", "#E67E22", "#2ECC71"];

@@ -11,7 +11,7 @@ import RoundedBox from "@/components/RoundedBox";
 import AccountForm from "@/components/forms/AccountForm";
 import { getStoredTransactions } from "@/services/transactionService";
 import { Account } from "@/models/Account";
-import Balance from "../../../components/Balance";
+import Balance from "@/components/Balance";
 
 const { Title, Text } = Typography;
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { colors } from "../theme/color";
+import { colors } from "@/theme/color";
 
 const Subtitle: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   return (

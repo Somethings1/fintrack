@@ -4,7 +4,7 @@ import { Button } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { ResolvedTransaction } from '@/hooks/useTransactions'; // Import type
 import { highlightMatches } from '@/utils/transactionUtils'; // Import utility
-import Balance from '../components/Balance';
+import Balance from '@/components/Balance';
 
 type HandleEditFunction = (transaction: ResolvedTransaction) => void;
 

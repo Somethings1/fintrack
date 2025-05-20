@@ -18,7 +18,7 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import dayjs from "dayjs";
-import { colors } from "../../../theme/color";
+import { colors } from "@/theme/color";
 
 const { Title } = Typography;
 const { Option } = Select;

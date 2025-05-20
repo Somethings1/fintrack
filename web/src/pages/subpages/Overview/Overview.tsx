@@ -11,7 +11,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useState, useEffect } from 'react';
 import Title from "@/components/Title";
 import { getCurrentUser } from "@/services/authService";
-import Subtitle from "../../../components/Subtitle";
+import Subtitle from "@/components/Subtitle";
 
 
 const Overview = () => {
@@ -29,6 +29,7 @@ const Overview = () => {
         }
         fetchName();
     }, [])
+
     return (
         <>
 

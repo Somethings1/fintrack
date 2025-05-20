@@ -5,8 +5,8 @@ import { getStoredSavings } from "@/services/savingService";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
 import { Saving } from "@/types/Saving";
-import ProgressBar from "../../../components/charts/ProgressBar";
-import Balance from "../../../components/Balance";
+import ProgressBar from "@/components/charts/ProgressBar";
+import Balance from "@/components/Balance";
 
 const { Title, Text } = Typography;
 

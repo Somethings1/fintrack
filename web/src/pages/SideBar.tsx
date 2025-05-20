@@ -10,7 +10,7 @@ import {
   SettingOutlined,
 } from "@ant-design/icons";
 import "@fontsource/orbitron";
-import { colors } from "../theme/color";
+import { colors } from "@/theme/color";
 
 const { Sider } = Layout;
 const { Title } = Typography;
