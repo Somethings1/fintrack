@@ -12,10 +12,7 @@ import (
     "github.com/joho/godotenv"
 )
 
-func main() {
-	util.InitDB()
-    godotenv.Load()
-
+func startControllers () {
 	r := gin.Default()
 	corsConfig := cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
@@ -125,5 +122,11 @@ func main() {
 
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))
+}
+
+func main() {
+	util.InitDB()
+    godotenv.Load()
+    startControllers();
 }
 

@@ -4,6 +4,7 @@ import (
     "io"
     "fmt"
     "time"
+    "bytes"
     "github.com/gin-gonic/gin"
 )
 
