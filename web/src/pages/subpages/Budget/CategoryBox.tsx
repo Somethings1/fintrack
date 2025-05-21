@@ -21,7 +21,6 @@ import {
 } from "@ant-design/icons";
 import RoundedBox from "@/components/RoundedBox";
 import CategoryForm from "@/components/forms/CategoryForm";
-import { Transaction } from "@/models/Transaction";
 import Balance from "@/components/Balance";
 
 const { Text, Title } = Typography;

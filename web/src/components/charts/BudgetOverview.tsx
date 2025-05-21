@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Tabs, Typography, Spin, Empty } from "antd";
+import { Tabs, Typography, Spin, Empty, Button } from "antd";
+import { LinkOutlined } from "@ant-design/icons";
 import { Label, PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import RoundedBox from "@/components/RoundedBox";
 import { getStoredCategories } from "@/services/categoryService";
@@ -13,7 +14,13 @@ const COLORS = ["#FF6384", "#36A2EB", "#FFCE56", "#8E44AD", "#1ABC9C", "#E67E22"
 
 const formatMoney = (n: number) => "$" + n.toLocaleString();
 
-const BudgetOverview: React.FC = () => {
+interface BudgetOverviewProps {
+    linkToBudget: () => void;
+}
+
+const BudgetOverview: React.FC<BudgetOverviewProps> = ({
+    linkToBudget,
+}) => {
     const [data, setData] = useState<{ income: any[], expense: any[] }>({ income: [], expense: [] });
     const [loading, setLoading] = useState(true);
     const refreshToken = useRefresh();
@@ -167,7 +174,19 @@ const BudgetOverview: React.FC = () => {
     );
 
     return (
-        <RoundedBox style={{ height: 330 }}>
+        <RoundedBox style={{ height: 330, position: "relative" }}>
+            <Button
+                shape="circle"
+                icon={<LinkOutlined />}
+                size="large"
+                onClick={linkToBudget}
+                style={{
+                    position: "absolute",
+                    top: 5,
+                    right: 5,
+                    zIndex: 10,
+                }}
+            />
             <Title level={5} style={{ margin: 0 }}>Budget</Title>
             {loading ? (
                 <Spin tip="Loading... Just like your finances.">

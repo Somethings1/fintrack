@@ -16,6 +16,7 @@ const { Sider } = Layout;
 const { Title } = Typography;
 
 interface SidebarProps {
+    currentPage: string;
   setCurrentPage: (page: string) => void;
   collapsed: boolean;
   onBreakpoint: (broken: boolean) => void;
@@ -72,11 +73,8 @@ const CustomMenuItem: React.FC<MenuItemProps> = ({
   );
 };
 
-const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoint }) => {
-  const [selectedKey, setSelectedKey] = useState("overview");
-
+const SideBar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, collapsed, onBreakpoint }) => {
   const handleSelection = (key: string) => {
-    setSelectedKey(key);
     setCurrentPage(key);
   };
 
@@ -108,7 +106,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
       </div>
       <Menu
         mode="vertical"
-        selectedKeys={[selectedKey]}
+        selectedKeys={[currentPage]}
         style={{
           backgroundColor: colors.primary[100],
           borderRight: "none",
@@ -119,7 +117,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="overview"
           icon={<DashboardOutlined />}
           label="Overview"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
@@ -127,7 +125,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="transactions"
           icon={<TransactionOutlined />}
           label="Transactions"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
@@ -135,7 +133,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="budget"
           icon={<DollarOutlined />}
           label="Budget"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
@@ -143,7 +141,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="accounts"
           icon={<BankOutlined />}
           label="Accounts"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
@@ -151,7 +149,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="savings"
           icon={<WalletOutlined />}
           label="Savings"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
@@ -159,7 +157,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="subscriptions"
           icon={<AppstoreOutlined />}
           label="Subscriptions"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
@@ -167,7 +165,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           itemKey="settings"
           icon={<SettingOutlined />}
           label="Settings"
-          selectedKey={selectedKey}
+          selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}
         />
