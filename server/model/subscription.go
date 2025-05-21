@@ -18,9 +18,8 @@ type Subscription struct {
     CurrentInterval    int                `bson:"current_interval" json:"currentInterval,omitempty"`
     RemindBefore       int                `bson:"remind_before" json:"remindBefore"` // Number of day to remind user before activation day
 
-    LastActive         time.Time          `bson:"last_active" json:"lastActive,omitempty"` // Most recent active day
+    NextActive         time.Time          `bson:"next_active" json:"nextActive"`
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
-    IsActive           bool               `bson:"is_active" json:"isActive"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
 }
 
