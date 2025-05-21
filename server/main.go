@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fintrack/server/handler"
+	"fintrack/server/handler/controller"
+    "fintrack/server/handler/middleware"
 	"fintrack/server/util"
 	"fmt"
 	"log"
@@ -29,97 +30,97 @@ func main() {
 
 	r.Use(cors.New(corsConfig))
 
-	r.Use(handler.LoggingMiddleware())
-	r.Use(handler.PrintRequestDetails())
+	r.Use(middleware.LoggingMiddleware())
+	r.Use(middleware.PrintRequestDetails())
 
-	api := r.Group("/api", handler.AuthMiddleware())
+	api := r.Group("/api", middleware.AuthMiddleware())
 
 	transactions := api.Group("/transactions")
 	{
 		transactions.POST("/add",
-			handler.TransactionFormatMiddleware(),
-			handler.AddTransaction)
+			middleware.TransactionFormatMiddleware(),
+			controller.AddTransaction)
 
 		transactions.GET("/get/:year",
-			handler.GetTransactionsByYear)
+			controller.GetTransactionsByYear)
 
 		transactions.GET("/get-since/:time",
-			handler.GetTransactionsSince)
+			controller.GetTransactionsSince)
 
 		transactions.PUT("/update/:id",
-			handler.TransactionOwnershipMiddleware(),
-			handler.TransactionFormatMiddleware(),
-			handler.UpdateTransaction)
+			middleware.TransactionOwnershipMiddleware(),
+			middleware.TransactionFormatMiddleware(),
+			controller.UpdateTransaction)
 
 		transactions.DELETE("/delete/:id",
-			handler.TransactionOwnershipMiddleware(),
-			handler.DeleteTransaction)
+			middleware.TransactionOwnershipMiddleware(),
+			controller.DeleteTransaction)
 	}
 
 	accounts := api.Group("/accounts")
 	{
 		accounts.POST("/add",
-			handler.AccountFormatMiddleware(),
-			handler.AddAccount)
+			middleware.AccountFormatMiddleware(),
+			controller.AddAccount)
 
 		accounts.GET("/get",
-			handler.GetAccounts)
+			controller.GetAccounts)
 
 		accounts.GET("/get-since/:time",
-			handler.GetAccountsSince)
+			controller.GetAccountsSince)
 
 		accounts.PUT("/update/:id",
-			handler.AccountOwnershipMiddleware(),
-			handler.AccountFormatMiddleware(),
-			handler.UpdateAccount)
+			middleware.AccountOwnershipMiddleware(),
+			middleware.AccountFormatMiddleware(),
+			controller.UpdateAccount)
 
 		accounts.DELETE("/delete/:id",
-			handler.AccountOwnershipMiddleware(),
-			handler.DeleteAccount)
+			middleware.AccountOwnershipMiddleware(),
+			controller.DeleteAccount)
 	}
 
 	savings := api.Group("/savings")
 	{
 		savings.POST("/add",
-			handler.SavingFormatMiddleware(),
-			handler.AddSaving)
+			middleware.SavingFormatMiddleware(),
+			controller.AddSaving)
 
 		savings.GET("/get",
-			handler.GetSavings)
+			controller.GetSavings)
 
 		savings.GET("/get-since/:time",
-			handler.GetSavingsSince)
+			controller.GetSavingsSince)
 
 		savings.PUT("/update/:id",
-			handler.SavingOwnershipMiddleware(),
-			handler.SavingFormatMiddleware(),
-			handler.UpdateSaving)
+			middleware.SavingOwnershipMiddleware(),
+			middleware.SavingFormatMiddleware(),
+			controller.UpdateSaving)
 
 		savings.DELETE("/delete/:id",
-			handler.SavingOwnershipMiddleware(),
-			handler.DeleteSaving)
+			middleware.SavingOwnershipMiddleware(),
+			controller.DeleteSaving)
 	}
 
 	categories := api.Group("/categories")
 	{
 		categories.POST("/add",
-			handler.CategoryFormatMiddleware(),
-			handler.AddCategory)
+			middleware.CategoryFormatMiddleware(),
+			controller.AddCategory)
 
 		categories.GET("/get",
-			handler.GetCategories)
+			controller.GetCategories)
 
 		categories.GET("/get-since/:time",
-			handler.GetCategoriesSince)
+			controller.GetCategoriesSince)
 
 		categories.PUT("/update/:id",
-			handler.CategoryOwnershipMiddleware(),
-			handler.CategoryFormatMiddleware(),
-			handler.UpdateCategory)
+			middleware.CategoryOwnershipMiddleware(),
+			middleware.CategoryFormatMiddleware(),
+			controller.UpdateCategory)
 
 		categories.DELETE("/delete/:id",
-			handler.CategoryOwnershipMiddleware(),
-			handler.DeleteCategory)
+			middleware.CategoryOwnershipMiddleware(),
+			controller.DeleteCategory)
 	}
 
 	fmt.Println("Server running on http://localhost:8080")

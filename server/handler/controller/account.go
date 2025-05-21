@@ -1,4 +1,4 @@
-package handler
+package controller
 
 import (
     "io"
@@ -18,40 +18,42 @@ import (
 )
 
 //////////////////
-// Saving
+// Account Handlers
 //////////////////
 
-func AddSaving(c *gin.Context) {
-    tmp, _ := c.Get("saving")
-    saving := tmp.(model.Saving)
+// AddAccount adds a new account and sets the LastUpdate timestamp
+func AddAccount(c *gin.Context) {
+    tmp, _ := c.Get("account")
+    account := tmp.(model.Account)
 
-    // Set the last_update field to the current time
-    saving.LastUpdate = time.Now()
+    // Set the LastUpdate field to the current time
+    account.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    result, err := util.SavingCollection.InsertOne(ctx, saving)
+    result, err := util.AccountCollection.InsertOne(ctx, account)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding saving"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding account"})
         return
     }
 
     c.JSON(http.StatusOK, gin.H{
-        "message": "Saving added successfully",
+        "message": "Account added successfully",
         "id": result.InsertedID,
     })
 }
 
-func GetSavings(c *gin.Context) {
+// GetAccounts fetches all accounts for the current user
+func GetAccounts(c *gin.Context) {
     filter := bson.M{"owner": c.GetString("username")}
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    cursor, err := util.SavingCollection.Find(ctx, filter)
+    cursor, err := util.AccountCollection.Find(ctx, filter)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching savings"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching accounts"})
         return
     }
     defer cursor.Close(ctx)
@@ -61,19 +63,20 @@ func GetSavings(c *gin.Context) {
 
     c.Stream(func(w io.Writer) bool {
         if cursor.Next(ctx) {
-            var saving model.Saving
-            if err := cursor.Decode(&saving); err != nil {
-                fmt.Println("Error decoding saving:", err)
+            var account model.Account
+            if err := cursor.Decode(&account); err != nil {
+                fmt.Println("Error decoding account:", err)
                 return false
             }
-            json.NewEncoder(w).Encode(saving)
+            json.NewEncoder(w).Encode(account)
             return true
         }
         return false
     })
 }
 
-func GetSavingsSince(c *gin.Context) {
+// GetAccountsSince fetches accounts updated after a specific timestamp
+func GetAccountsSince(c *gin.Context) {
     sinceStr := c.Param("time")
     sinceTime, err := time.Parse(time.RFC3339, sinceStr)
     if err != nil {
@@ -95,9 +98,9 @@ func GetSavingsSince(c *gin.Context) {
         {Key: "last_update", Value: -1},
     })
 
-    cursor, err := util.SavingCollection.Find(ctx, filter, opts)
+    cursor, err := util.AccountCollection.Find(ctx, filter, opts)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching savings"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching accounts"})
         return
     }
     defer cursor.Close(ctx)
@@ -107,69 +110,69 @@ func GetSavingsSince(c *gin.Context) {
 
     c.Stream(func(w io.Writer) bool {
         if cursor.Next(ctx) {
-            var saving model.Saving
-            if err := cursor.Decode(&saving); err != nil {
-                fmt.Println("Error decoding saving:", err)
+            var account model.Account
+            if err := cursor.Decode(&account); err != nil {
+                fmt.Println("Error decoding account:", err)
                 return false
             }
-            json.NewEncoder(w).Encode(saving)
+            json.NewEncoder(w).Encode(account)
             return true
         }
         return false
     })
 }
 
-func UpdateSaving(c *gin.Context) {
-    tmp, _ := c.Get("saving")
-    saving := tmp.(model.Saving)
+// UpdateAccount updates an existing account and sets the LastUpdate timestamp
+func UpdateAccount(c *gin.Context) {
+    tmp, _ := c.Get("account")
+    account := tmp.(model.Account)
     id, err := primitive.ObjectIDFromHex(c.Param("id"))
     if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid saving ID"})
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account ID"})
         return
     }
-
-    // Set the last_update field to the current time
-    saving.LastUpdate = time.Now()
-
     filter := bson.M{"_id": id}
+
+    // Set the LastUpdate field to the current time
+    account.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err = util.SavingCollection.UpdateOne(ctx, filter, bson.M{"$set": saving})
+    _, err = util.AccountCollection.UpdateOne(ctx, filter, bson.M{"$set": account})
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating saving"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating account"})
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "Saving updated successfully"})
+    c.JSON(http.StatusOK, gin.H{"message": "Account updated successfully"})
 }
 
-// DeleteSaving performs a soft delete by marking the saving and its related transactions as deleted
-func DeleteSaving(c *gin.Context) {
+// DeleteAccount performs a soft delete by marking the account and its related transactions as deleted
+func DeleteAccount(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid saving ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account ID"})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Step 1: Soft delete the saving
-	savingUpdate := bson.M{
+	// Step 1: Soft delete the account
+	accountUpdate := bson.M{
 		"$set": bson.M{
 			"is_deleted":  true,
 			"last_update": time.Now(),
 		},
 	}
-	_, err = util.SavingCollection.UpdateOne(ctx, bson.M{"_id": id}, savingUpdate)
+	_, err = util.AccountCollection.UpdateOne(ctx, bson.M{"_id": id}, accountUpdate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting saving"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting account"})
 		return
 	}
 
-	// Step 2: Soft delete related transactions (where saving is source or destination)
+	// Step 2: Soft delete related transactions (where account is source or destination)
 	transactionUpdate := bson.M{
 		"$set": bson.M{
 			"is_deleted":  true,
@@ -179,7 +182,7 @@ func DeleteSaving(c *gin.Context) {
 	filter := bson.M{
 		"$or": []bson.M{
 			{"source_account": id},
-            {"destination_account": id},
+			{"destination_account": id},
 		},
 	}
 	_, err = util.TransactionCollection.UpdateMany(ctx, filter, transactionUpdate)
@@ -188,6 +191,6 @@ func DeleteSaving(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Saving and related transactions soft deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Account and related transactions soft deleted successfully"})
 }
 
