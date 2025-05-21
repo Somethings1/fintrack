@@ -27,7 +27,7 @@ You receive a sentence from the user and return a structured JSON object like th
     sourceAccount?: string (ID),
     destinationAccount?: string (ID),
     category?: string (ID),
-    note: string
+    note: string // should not include information about amount and account
   },
   error: null | {
     type: "account" | "category", // what is missing
