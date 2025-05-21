@@ -12,12 +12,14 @@ import (
 )
 
 var (
-    MongoClient           *mongo.Client
-    UserCollection        *mongo.Collection
-    AccountCollection     *mongo.Collection
-    TransactionCollection *mongo.Collection
-    CategoryCollection    *mongo.Collection
-    SavingCollection      *mongo.Collection
+    MongoClient             *mongo.Client
+    UserCollection          *mongo.Collection
+    AccountCollection       *mongo.Collection
+    TransactionCollection   *mongo.Collection
+    CategoryCollection      *mongo.Collection
+    SavingCollection        *mongo.Collection
+    SubscriptionCollection  *mongo.Collection
+    NotificationCollection  *mongo.Collection
 )
 
 func InitDB() {
@@ -35,6 +37,8 @@ func InitDB() {
     TransactionCollection = db.Collection("transactions")
     CategoryCollection = db.Collection("categories")
     SavingCollection = db.Collection("savings")
+    SubscriptionCollection = db.Collection("subscriptions")
+    NotificationCollection = db.Collection("notifications")
 
     if err := createUserIndex(); err != nil {
         log.Fatal("Failed to create user index:", err)
@@ -50,6 +54,12 @@ func InitDB() {
     }
     if err := createCategoryIndex(); err != nil {
         log.Fatal("Failed to create category index:", err)
+    }
+    if err := createSubscriptionIndex(); err != nil {
+        log.Fatal("Failed to create subscription index:", err)
+    }
+    if err := createNotificationIndex(); err != nil {
+        log.Fatal("Failed to create notification index:", err)
     }
 }
 
@@ -113,6 +123,31 @@ func createCategoryIndex() error {
     _, err := CategoryCollection.Indexes().CreateOne(ctx, indexModel)
     return err
 }
+
+func createSubscriptionIndex() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    indexModel := mongo.IndexModel{
+        Keys: bson.M{"last_update": 1}, // Index on last_update for quick lookups
+    }
+
+    _, err := SubscriptionCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
+}
+
+func createNotificationIndex() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    indexModel := mongo.IndexModel{
+        Keys: bson.M{"last_update": 1}, // Index on last_update for quick lookups
+    }
+
+    _, err := NotificationCollection.Indexes().CreateOne(ctx, indexModel)
+    return err
+}
+
 
 func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount float64) (int64, error) {
     now := time.Now()
