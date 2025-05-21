@@ -9,15 +9,18 @@ type Subscription struct {
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Creator            string             `bson:"creator" json:"creator"`
 	Amount             float64            `bson:"amount" json:"amount"`
-    SourceAccount      primitive.ObjectID `bson:"source_account,omitempty" json:"sourceAccount,omitempty"`
-    Category           primitive.ObjectID `bson:"category,omitempty" json:"category,omitempty"`
+    SourceAccount      primitive.ObjectID `bson:"source_account,omitempty" json:"sourceAccount"`
+    Category           primitive.ObjectID `bson:"category,omitempty" json:"category"`
 
 	StartDate          time.Time          `bson:"start_date" json:"startDate"`
     Interval           string             `bson:"interval" json:"interval"` // day, week, month, year
-    MaxInterval        int                `bson:"max_interval,omitempty" json:"maxInterval,omitempty"` // number of interval to repeat
-    CurrentInterval    int                `bson:"current_interval" json:"currentInterval"`
+    MaxInterval        int                `bson:"max_interval,omitempty" json:"maxInterval"` // number of interval to repeat
+    CurrentInterval    int                `bson:"current_interval" json:"currentInterval,omitempty"`
+    RemindBefore       int                `bson:"remind_before" json:"remindBefore"` // Number of day to remind user before activation day
 
+    LastActive         time.Time          `bson:"last_active" json:"lastActive,omitempty"` // Most recent active day
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
+    IsActive           bool               `bson:"is_active" json:"isActive"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
 }
 

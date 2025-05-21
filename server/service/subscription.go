@@ -13,7 +13,7 @@ import (
     "go.mongodb.org/mongo-driver/mongo"
 )
 
-func getSubscriptionById (id string) (model.Subscription, error) {
+func GetSubscriptionById (id string) (model.Subscription, error) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -27,7 +27,7 @@ func getSubscriptionById (id string) (model.Subscription, error) {
     err = util.SubscriptionCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&subscription)
     if err != nil {
         if err == mongo.ErrNoDocuments {
-            return model.Subscription{}, errors.New("transaction not found")
+            return model.Subscription{}, errors.New("Subscription not found")
         }
         return model.Subscription{}, err
     }
