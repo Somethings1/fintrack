@@ -6,7 +6,7 @@ import { getStoredCategories } from "@/services/categoryService";
 import { getStoredTransactions } from "@/services/transactionService";
 import { useRefresh } from "@/context/RefreshProvider";
 import { usePollingContext } from "@/context/PollingProvider";
-import { colors } from "../../theme/color";
+import { colors } from "@/theme/color";
 
 const { Title } = Typography;
 const COLORS = ["#FF6384", "#36A2EB", "#FFCE56", "#8E44AD", "#1ABC9C", "#E67E22", "#2ECC71"];
@@ -116,7 +116,12 @@ const BudgetOverview: React.FC = () => {
                                                 dominantBaseline="middle"
                                                 style={{ fontSize: 20, fontWeight: "bold", fill: "#333" }}
                                             >
-                                                ${chartData.reduce((acc, cur) => acc + cur.value, 0).toLocaleString()}
+                                                {chartData
+                                                    .reduce((acc, cur) => acc + cur.value, 0)
+                                                    .toLocaleString("en-US", {
+                                                        minimumFractionDigits: 0,
+                                                        maximumFractionDigits: 2,
+                                                    })} đ
                                             </text>
                                         </g>
                                     );

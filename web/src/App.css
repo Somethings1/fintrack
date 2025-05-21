@@ -29,6 +29,10 @@ mark {
   transition: all 0.3s ease;
 }
 
+.ant-btn.ant-btn-circle {
+    padding: 20px !important;
+}
+
 /* Primary button */
 .ant-btn-primary {
   color: white !important;
@@ -83,15 +87,16 @@ mark {
     padding: 0!important;
 }
 
-.ant-select-selector {
-    padding: 5px 15px !important;
-}
 
 .ant-select-selection-item,
 .ant-select-selection-search,
 .ant-select-selection-wrap{
     height: 22px!important;
     line-height: 22px!important;
+}
+
+.ant-pagination-options .ant-select-selector, .chart-select .ant-select-selector {
+    padding: 5px 20px !important;
 }
 
 .ant-select-selector::after {
@@ -127,7 +132,7 @@ textarea.ant-input {
 
 /* Reset radio buttons for pill styling */
 .ant-radio-button-wrapper {
-  padding: 6px 24px !important;
+  padding: 5px 24px !important;
   border-radius: 0 !important; /* Remove individual rounding */
   font-weight: 600;
   color: #000;
@@ -169,3 +174,7 @@ textarea.ant-input {
   margin-left: -1px; /* Eliminate double borders */
 }
 
+
+.ant-btn.table-edit-btn {
+    padding: 0px !important;
+}

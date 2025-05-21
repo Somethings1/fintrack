@@ -14,6 +14,7 @@ import ExportModal from "@/components/modals/ExportModal";
 import DeleteConfirmationModal from "@/components/modals/DeleteConfirmationModal";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
 import TransactionActionBar from "./TransactionActionBar"; // Import the action bar
+import './TransactionTable.css';
 
 const TransactionTable: React.FC = () => {
     // --- Hooks ---
@@ -56,6 +57,10 @@ const TransactionTable: React.FC = () => {
     const [transactionToEdit, setTransactionToEdit] = useState<ResolvedTransaction | null>(null);
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 10,
+    });
 
     // --- Handlers (many are now passed to the action bar) ---
     const handleEditClick = (transaction: ResolvedTransaction) => {
@@ -163,7 +168,16 @@ const TransactionTable: React.FC = () => {
                     dataSource={filteredTransactions}
                     columns={columns}
                     rowSelection={rowSelection}
-                    pagination={{ pageSize: 10, showSizeChanger: true, pageSizeOptions: ['10', '20', '50', '100'] }}
+                    rowClassName={() => "transaction-table-row"}
+                    pagination={{
+                        current: pagination.current,
+                        pageSize: pagination.pageSize,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50'],
+                        onChange: (page, pageSize) => {
+                            setPagination({ current: page, pageSize });
+                        },
+                    }}
                     scroll={{ x: 'max-content' }}
                 />
             </Spin>

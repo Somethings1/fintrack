@@ -10,7 +10,7 @@ import {
   SettingOutlined,
 } from "@ant-design/icons";
 import "@fontsource/orbitron";
-import { colors } from "../theme/color";
+import { colors } from "@/theme/color";
 
 const { Sider } = Layout;
 const { Title } = Typography;
@@ -27,6 +27,7 @@ interface MenuItemProps {
   label: string;
   selectedKey: string;
   setSelectedKey: (key: string) => void;
+  collapsed: boolean;
 }
 
 const CustomMenuItem: React.FC<MenuItemProps> = ({
@@ -35,15 +36,16 @@ const CustomMenuItem: React.FC<MenuItemProps> = ({
   label,
   selectedKey,
   setSelectedKey,
+  collapsed,
 }) => {
   const [hovered, setHovered] = useState(false);
   const isSelected = selectedKey === itemKey;
   const isHovered = hovered && !isSelected;
 
   const style: React.CSSProperties = {
-      padding: "5px 20px",
+      padding: collapsed ? "0 13px" : "5px 20px",
       borderRadius: "100px",
-      height: "auto",
+      height: collapsed ? "40px" : "auto",
       fontSize: "0.9rem",
     color: isSelected
         ? colors.white
@@ -119,6 +121,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Overview"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
         <CustomMenuItem
           itemKey="transactions"
@@ -126,6 +129,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Transactions"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
         <CustomMenuItem
           itemKey="budget"
@@ -133,6 +137,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Budget"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
         <CustomMenuItem
           itemKey="accounts"
@@ -140,6 +145,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Accounts"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
         <CustomMenuItem
           itemKey="savings"
@@ -147,6 +153,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Savings"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
         <CustomMenuItem
           itemKey="subscriptions"
@@ -154,6 +161,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Subscriptions"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
         <CustomMenuItem
           itemKey="settings"
@@ -161,6 +169,7 @@ const SideBar: React.FC<SidebarProps> = ({ setCurrentPage, collapsed, onBreakpoi
           label="Settings"
           selectedKey={selectedKey}
           setSelectedKey={handleSelection}
+          collapsed={collapsed}
         />
       </Menu>
     </Sider>

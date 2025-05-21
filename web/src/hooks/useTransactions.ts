@@ -105,7 +105,6 @@ export const useTransactions = () => {
     const addTransaction = useCallback(async (values: Omit<Transaction, '_id'>) => {
         try {
             await addTransactionService(values);
-            message.success("Transaction added successfully");
             triggerRefresh(); // Trigger context refresh which updates lastSync
         } catch (error) {
             console.error("Error adding transaction:", error);
@@ -116,7 +115,6 @@ export const useTransactions = () => {
     const updateTransaction = useCallback(async (id: string, values: Partial<Transaction>) => {
         try {
             await updateTransactionService(id, values);
-            message.success("Transaction updated successfully!");
             triggerRefresh();
         } catch (error) {
             console.error("Error updating transaction:", error);
@@ -128,7 +126,6 @@ export const useTransactions = () => {
         if (ids.length === 0) return;
         try {
             await deleteTransactionsService(ids);
-            message.success(`Deleted ${ids.length} transaction(s).`);
             triggerRefresh();
         } catch (error) {
             console.error("Error deleting transactions:", error);

@@ -17,7 +17,7 @@ import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
 import dayjs from "dayjs";
 import { useRefresh } from "@/context/RefreshProvider";
-import { normalizeTransaction } from "../../utils/transactionUtils";
+import { normalizeTransaction } from "@/utils/transactionUtils";
 
 interface TransactionFormProps {
     transaction: Partial<Transaction>;

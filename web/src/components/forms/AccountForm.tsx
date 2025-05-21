@@ -69,8 +69,16 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             onFinish={handleFinish}
+            requiredMark={false}
         >
-            <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+            <Form.Item
+                name="name"
+                label="Name"
+                rules={[{
+                    required: true,
+                    message: "Name is required"
+                }]}
+            >
                 <Input />
             </Form.Item>
 
@@ -83,7 +91,14 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
                 }}
             />
 
-            <Form.Item name="balance" label="Balance" rules={[{ required: true }]}>
+            <Form.Item
+                name="balance"
+                label="Balance"
+                rules={[{
+                    required: true,
+                    message: "Please specify a balance"
+                }]}
+            >
                 <InputNumber style={{ width: "100%" }} min={0} />
             </Form.Item>
 
@@ -97,7 +112,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
                                 cancelText="No"
                                 onConfirm={handleDelete}
                             >
-                                <Button danger loading={isDeleting}>Delete</Button>
+                                <Button danger type="primary" loading={isDeleting}>Delete</Button>
                             </Popconfirm>
                         )}
                     </div>

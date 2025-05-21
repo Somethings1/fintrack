@@ -4,6 +4,8 @@ import { Card, Typography, Space, Progress, Button, Modal } from "antd";
 import { EditOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
 import RoundedBox from "@/components/RoundedBox"; // Adjust path as needed
+import Balance from "@/components/Balance";
+import ProgressBar from "@/components/charts/ProgressBar";
 
 const { Text, Title } = Typography;
 
@@ -33,8 +35,8 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
             <Button
                 icon={<EditOutlined />}
                 shape="circle"
-                type="text"
-                style={{ position: "absolute", top: 8, right: 8 }}
+                size="small"
+                style={{ position: "absolute", top: 5, right: 5 }}
                 onClick={() => setIsModalOpen(true)}
             />
 
@@ -45,16 +47,21 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
             </Space>
 
             {/* Due Date + Expand Toggle */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+            <div style={{marginTop: 4 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                     Due date: {formatDate(saving.goalDate)}
                 </Text>
-                <Button
-                    icon={expanded ? <UpOutlined /> : <DownOutlined />}
-                    type="text"
-                    size="small"
+                <span
+                    style={{
+                        display: "inline-block",
+                        fontSize: "10px",
+                        lineHeight: "20px",
+                        marginLeft: "5px",
+                    }}
                     onClick={() => setExpanded(!expanded)}
-                />
+                >
+                    {expanded ? <UpOutlined /> : <DownOutlined />}
+                </span>
             </div>
 
             {/* Created Date (Collapsible) */}
@@ -65,31 +72,18 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
             )}
 
             {/* Balance / Goal */}
-            <div style={{ marginTop: 8 }}>
-                <Title level={4} style={{ margin: 0 }}>
-                    {saving.balance.toLocaleString()}
-                    <Text type="secondary" style={{ fontSize: 14 }}>
-                        {" "} / {saving.goal.toLocaleString()}
-                    </Text>
-                </Title>
+            <div style={{ marginTop: 18, marginBottom: 28 }}>
+            <Balance amount={saving.balance} type="" align="left" size="xl" /> / <Balance amount={saving.goal} type="" align="left" size="xs"/>
             </div>
 
-            {/* Progress Bar */}
-            <Progress
-                percent={parseFloat(percentage.toFixed(2))}
-                showInfo
-                strokeColor="#1890ff"
-                style={{ marginTop: 8 }}
-            />
+            <ProgressBar percent={parseFloat(percentage.toFixed(2))}/>
 
             {/* Remaining Line */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                     Left to complete the goal
                 </Text>
-                <Text strong style={{ fontSize: 16 }}>
-                    {remaining.toLocaleString()}
-                </Text>
+                <Balance amount={remaining} type="" size="s" align="left"/>
             </div>
 
             {/* Modal for Editing */}

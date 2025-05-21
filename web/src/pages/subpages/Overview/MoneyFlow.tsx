@@ -18,7 +18,7 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import dayjs from "dayjs";
-import { colors } from "../../../theme/color";
+import { colors } from "@/theme/color";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -144,8 +144,18 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Line type="monotone" dataKey="income" stroke={colors.primary[600]} />
-                        <Line type="monotone" dataKey="expense" stroke={colors.primary[400]} />
+                        <Line
+                            type="monotone"
+                            dataKey="income"
+                            strokeWidth={2}
+                            stroke={colors.primary[600]}
+                        />
+                        <Line
+                            type="monotone"
+                            dataKey="expense"
+                            strokeWidth={2}
+                            stroke={colors.primary[400]}
+                        />
                     </LineChart>
                 );
             case "area":
@@ -155,8 +165,20 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                         <XAxis dataKey="day" />
                         <YAxis tickFormatter={formatYAxis} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Area type="monotone" dataKey="income" stroke={colors.primary[600]} fill={colors.primary[600]} />
-                        <Area type="monotone" dataKey="expense" stroke={colors.primary[400]} fill={colors.primary[400]}/>
+                        <Area
+                            type="monotone"
+                            dataKey="income"
+                            stroke={colors.primary[600]}
+                            strokeWidth={2}
+                            fill={colors.primary[600]}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="expense"
+                            stroke={colors.primary[300]}
+                            strokeWidth={2}
+                            fill={colors.primary[300]}
+                        />
                     </AreaChart>
                 );
             default:
@@ -172,10 +194,10 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                 </Col>
                 <Col>
                     <Space>
-                        <span>
-                            <span style={{ color: colors.primary[600] }}>● Income</span>
+                        <span style={{ marginRight: "10px" }}>
+                            <span style={{ color: colors.primary[600] }}>●</span> Income
                             <span style={{ margin: "0 8px" }} />
-                            <span style={{ color: colors.primary[400] }}>● Expense</span>
+                            <span style={{ color: colors.primary[300] }}>●</span> Expense
                         </span>
                         <Select
                             value={chartType}

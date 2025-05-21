@@ -39,6 +39,7 @@ export async function saveToDB(storeName: string, data: any[]) {
         await tx.done;
     } catch (error) {
         console.error(`Error storing data in IndexedDB (${storeName}):`, error);
+        throw new Error("Error caching data. Contact our customer service for help");
     }
 }
 
@@ -54,7 +55,7 @@ export async function getFromDB(storeName: string): Promise<any[]> {
         return await store.getAll();
     } catch (error) {
         console.error(`Error fetching data from IndexedDB (${storeName}):`, error);
-        return [];
+        throw new Error("Error caching data. Contact our customer service for help");
     }
 }
 
@@ -67,6 +68,7 @@ export async function updateDB(storeName: string, data: any) {
         await tx.done;
     } catch (error) {
         console.error(`[updateDB] Failed to update ${storeName}:`, error, data);
+        throw new Error("Error caching data. Contact our customer service for help");
     }
 }
 
@@ -88,5 +90,6 @@ export async function deleteFromDB(storeName: string, id: string) {
         await updateDB(storeName, existing); // Reuse your updateDB here
     } catch (error) {
         console.error(`[deleteFromDB] Failed to soft delete from ${storeName}:`, error);
+        throw new Error("Error caching data. Contact our customer service for help");
     }
 }

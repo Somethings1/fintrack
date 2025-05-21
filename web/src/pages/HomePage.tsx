@@ -38,18 +38,18 @@ const HomePage = () => {
   };
 
   return (
-    <Layout style={{ minHeight: "100vh", minWidth: "100vw" }}>
+    <Layout style={{ height: "100vh", overflow: "hidden"}}>
       <SideBar
         collapsed={sidebarCollapsed}
         setCurrentPage={setCurrentPage}
         onBreakpoint={(broken) => setSidebarCollapsed(broken)}
       />
-      <Layout>
+      <Layout style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <AppHeader
           collapsed={sidebarCollapsed}
           setSidebarCollapsed={setSidebarCollapsed}
         />
-        <Content style={{ padding: "20px" }}>{renderPage()}</Content>
+        <Content style={{ padding: "20px", overflow: "auto", flex: 1 }}>{renderPage()}</Content>
         <ChatBot />
       </Layout>
     </Layout>

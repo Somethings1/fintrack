@@ -1,0 +1,7 @@
+.transaction-table-row {
+    height: 40px!important;
+}
+
+.transaction-table-row td {
+    padding: 14px 16px !important;
+}

@@ -50,7 +50,7 @@ const TransactionActionBar: React.FC<TransactionActionBarProps> = ({
     return (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: '8px' }}>
             {/* Left Side Buttons */}
-            <Space wrap> {/* Use Ant Design Space for consistent gap and wrapping */}
+            <Space wrap>
                 <Button
                     type={isFilterActive ? "primary" : "default"}
                     icon={<FilterOutlined />}
@@ -91,7 +91,7 @@ const TransactionActionBar: React.FC<TransactionActionBarProps> = ({
                     {editMode ? "Exit Edit" : "Edit Mode"}
                 </Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAddNew}>
-                    Add New
+                    Add new transaction
                 </Button>
             </Space>
         </div>

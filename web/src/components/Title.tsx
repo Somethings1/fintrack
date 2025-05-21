@@ -5,9 +5,11 @@ const Title: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
     <h1
       style={{
         fontSize: "2rem",
-        fontWeight: 800,
+        fontWeight: 700,
         color: "#111827",
-        marginBottom: "1rem",
+        marginBottom: "-0.5rem",
+        display: "block",
+        width: "100%",
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >

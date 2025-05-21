@@ -37,7 +37,6 @@ export const deleteCategories = async (ids: string[]) => {
             await updateTransaction(tx._id, {
                 ...tx,
                 isDeleted: true,
-                lastUpdate: new Date(),
             });
         }
     }

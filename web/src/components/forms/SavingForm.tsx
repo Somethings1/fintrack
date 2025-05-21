@@ -102,8 +102,16 @@ const SavingForm: React.FC<SavingFormProps> = ({
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
             onFinish={handleFinish}
+            requiredMark={false}
         >
-            <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+            <Form.Item
+                name="name"
+                label="Name"
+                rules={[{
+                    required: true,
+                    message: "Name cannot be blank"
+                }]}
+            >
                 <Input />
             </Form.Item>
 
@@ -116,18 +124,35 @@ const SavingForm: React.FC<SavingFormProps> = ({
                 }}
             />
 
-            <Form.Item name="balance" label="Balance" rules={[{ required: true }]}>
+            <Form.Item
+                name="balance"
+                label="Initial balance"
+                rules={[{
+                    required: true,
+                    message: "Please specify a balance"
+                }]}
+            >
                 <InputNumber style={{ width: "100%" }} min={0} />
             </Form.Item>
 
-            <Form.Item name="goal" label="Goal" rules={[{ required: true }]}>
+            <Form.Item
+                name="goal"
+                label="Goal balance"
+                rules={[{
+                    required: true,
+                    message: "Please specify a goal."
+                }]}
+            >
                 <InputNumber style={{ width: "100%" }} min={0} />
             </Form.Item>
 
             <Form.Item
                 name="goalDate"
                 label="Goal Date"
-                rules={[{ required: true, message: "Please select goal date" }]}
+                rules={[{
+                    required: true,
+                    message: "Please select goal date"
+                }]}
             >
                 <DatePicker style={{ width: "100%" }} />
             </Form.Item>
@@ -135,7 +160,10 @@ const SavingForm: React.FC<SavingFormProps> = ({
             <Form.Item
                 name="createdDate"
                 label="Starting Date"
-                rules={[{ required: true }]}
+                rules={[{
+                    required: true,
+                    message: "Please select starting date"
+                }]}
             >
                 <DatePicker style={{ width: "100%" }} />
             </Form.Item>
@@ -150,7 +178,7 @@ const SavingForm: React.FC<SavingFormProps> = ({
                                 cancelText="No"
                                 onConfirm={handleDelete}
                             >
-                                <Button danger loading={isDeleting}>
+                                <Button danger type="primary" loading={isDeleting}>
                                     Delete
                                 </Button>
                             </Popconfirm>
@@ -158,7 +186,7 @@ const SavingForm: React.FC<SavingFormProps> = ({
                     </div>
                     <div>
                         <Button onClick={onCancel}>Cancel</Button>
-                        <Button type="primary" htmlType="submit">
+                        <Button type="primary" htmlType="submit" style={{ marginLeft: "20px" }}>
                             {saving?._id ? "Update" : "Create"}
                         </Button>
                     </div>

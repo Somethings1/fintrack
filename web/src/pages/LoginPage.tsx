@@ -18,6 +18,7 @@ const LoginPage = () => {
     const [form] = Form.useForm();
     const [tab, setTab] = useState<"login" | "signup">("login");
     const [error, setError] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
     const navigate = useNavigate();
 
     const handleSubmit = async (values: any) => {
@@ -27,14 +28,16 @@ const LoginPage = () => {
         try {
             if (tab === "login") {
                 await signIn(email, password);
+                navigate("/home");
             } else {
                 if (password !== confirmPassword) {
                     setError("Passwords do not match!");
                     return;
                 }
                 await signUp(name, email, password);
+                setMessage("Sign up successfully. Please check your mail box to find confirmation mail.")
+                setTab("login");
             }
-            navigate("/home");
         } catch (err: any) {
             setError(err.message || `${tab} failed`);
         }
@@ -48,10 +51,106 @@ const LoginPage = () => {
         }
     };
 
-    return (
-        <div style={{ padding: '1px', width: '100vw', height: '100vh', background: 'url("background.jpg") center center/cover' }}>
+    const renderForm = () => (
+        <>
+            {error && (
+                <Alert
+                    message={error}
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                />
+            )}
 
-            <div style={{ padding: "0 16px", textAlign: "center", color: "white" }}>
+            {message && (
+                <Alert
+                    message={message}
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                />
+            )}
+
+            <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                {tab === "signup" && (
+                    <Form.Item
+                        name="name"
+                        label="Name"
+                        rules={[{ required: true }]}
+                    >
+                        <Input />
+                    </Form.Item>
+                )}
+
+                <Form.Item
+                    name="email"
+                    label="Email"
+                    rules={[{ required: true, type: "email" }]}
+                >
+                    <Input />
+                </Form.Item>
+
+                <Form.Item
+                    name="password"
+                    label="Password"
+                    rules={[{ required: true }]}
+                >
+                    <Input.Password />
+                </Form.Item>
+
+                {tab === "signup" && (
+                    <Form.Item
+                        name="confirmPassword"
+                        label="Confirm Password"
+                        rules={[{ required: true }]}
+                    >
+                        <Input.Password />
+                    </Form.Item>
+                )}
+
+                {tab === "login" && (
+                    <Form.Item>
+                        <Link onClick={() => navigate("/reset-password")}>
+                            Forgot password?
+                        </Link>
+                    </Form.Item>
+                )}
+
+                <Form.Item>
+                    <Button type="primary" htmlType="submit" block>
+                        {tab === "login" ? "Login" : "Sign Up"}
+                    </Button>
+                </Form.Item>
+            </Form>
+
+            <Divider plain>OR</Divider>
+
+            <Button
+                icon={<GoogleOutlined />}
+                block
+                onClick={handleGoogleLogin}
+            >
+                Sign in with Google
+            </Button>
+        </>
+    );
+
+    return (
+        <div
+            style={{
+                padding: "1px",
+                width: "100vw",
+                height: "100vh",
+                background: 'url("background.jpg") center center/cover',
+            }}
+        >
+            <div
+                style={{
+                    padding: "0 16px",
+                    textAlign: "center",
+                    color: "white",
+                }}
+            >
                 <Title
                     level={3}
                     style={{
@@ -69,7 +168,17 @@ const LoginPage = () => {
                     Fintrack
                 </Title>
             </div>
-            <div style={{ maxWidth: 400, margin: "100px auto", padding: 24, border: "1px solid #eee", borderRadius: 8, background: 'white' }}>
+
+            <div
+                style={{
+                    maxWidth: 400,
+                    margin: "100px auto",
+                    padding: 24,
+                    border: "1px solid #eee",
+                    borderRadius: 8,
+                    background: "white",
+                }}
+            >
                 <Tabs
                     activeKey={tab}
                     onChange={(key) => {
@@ -78,54 +187,19 @@ const LoginPage = () => {
                         form.resetFields();
                     }}
                     centered
-                >
-                    <Tabs.TabPane tab="Login" key="login" />
-                    <Tabs.TabPane tab="Sign Up" key="signup" />
-                </Tabs>
-
-                {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />}
-
-                <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                    {tab === "signup" && (
-                        <>
-                            <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-                                <Input />
-                            </Form.Item>
-                        </>
-                    )}
-
-                    <Form.Item name="email" label="Email" rules={[{ required: true, type: "email" }]}>
-                        <Input />
-                    </Form.Item>
-
-                    <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-                        <Input.Password />
-                    </Form.Item>
-
-                    {tab === "signup" && (
-                        <Form.Item name="confirmPassword" label="Confirm Password" rules={[{ required: true }]}>
-                            <Input.Password />
-                        </Form.Item>
-                    )}
-
-                    {tab === "login" && (
-                        <Form.Item>
-                            <Link onClick={() => navigate("/reset-password")}>Forgot password?</Link>
-                        </Form.Item>
-                    )}
-
-                    <Form.Item>
-                        <Button type="primary" htmlType="submit" block>
-                            {tab === "login" ? "Login" : "Sign Up"}
-                        </Button>
-                    </Form.Item>
-                </Form>
-
-                <Divider plain>OR</Divider>
-
-                <Button icon={<GoogleOutlined />} block onClick={handleGoogleLogin}>
-                    Sign in with Google
-                </Button>
+                    items={[
+                        {
+                            key: "login",
+                            label: "Login",
+                            children: renderForm(),
+                        },
+                        {
+                            key: "signup",
+                            label: "Sign Up",
+                            children: renderForm(),
+                        },
+                    ]}
+                />
             </div>
         </div>
     );
