@@ -38,9 +38,6 @@ func startControllers () {
 			middleware.TransactionFormatMiddleware(),
 			controller.AddTransaction)
 
-		transactions.GET("/get/:year",
-			controller.GetTransactionsByYear)
-
 		transactions.GET("/get-since/:time",
 			controller.GetTransactionsSince)
 
@@ -59,9 +56,6 @@ func startControllers () {
 		accounts.POST("/add",
 			middleware.AccountFormatMiddleware(),
 			controller.AddAccount)
-
-		accounts.GET("/get",
-			controller.GetAccounts)
 
 		accounts.GET("/get-since/:time",
 			controller.GetAccountsSince)
@@ -82,9 +76,6 @@ func startControllers () {
 			middleware.SavingFormatMiddleware(),
 			controller.AddSaving)
 
-		savings.GET("/get",
-			controller.GetSavings)
-
 		savings.GET("/get-since/:time",
 			controller.GetSavingsSince)
 
@@ -103,9 +94,6 @@ func startControllers () {
 		categories.POST("/add",
 			middleware.CategoryFormatMiddleware(),
 			controller.AddCategory)
-
-		categories.GET("/get",
-			controller.GetCategories)
 
 		categories.GET("/get-since/:time",
 			controller.GetCategoriesSince)
