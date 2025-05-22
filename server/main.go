@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fintrack/server/handler/controller"
-    "fintrack/server/handler/middleware"
+	"fintrack/server/controller"
+    "fintrack/server/middleware"
 	"fintrack/server/util"
 	"fmt"
 	"log"
