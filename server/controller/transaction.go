@@ -58,7 +58,6 @@ func GetTransactionsSince(c *gin.Context) {
 func AddTransaction(c *gin.Context) {
     tx, _ := c.Get("transaction")
     transaction := tx.(model.Transaction)
-    transaction.LastUpdate = time.Now()
 
     ctx := context.Background()
     result, err := service.AddTransaction(ctx, transaction)
@@ -77,7 +76,6 @@ func AddTransaction(c *gin.Context) {
     })
 }
 
-
 func UpdateTransaction(c *gin.Context) {
     id, err := primitive.ObjectIDFromHex(c.Param("id"))
     if err != nil {
@@ -87,7 +85,6 @@ func UpdateTransaction(c *gin.Context) {
 
     tx, _ := c.Get("transaction")
     newTx := tx.(model.Transaction)
-    newTx.LastUpdate = time.Now()
 
     ctx := context.Background()
     err = service.UpdateTransaction(ctx, id, newTx)

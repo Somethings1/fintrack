@@ -58,6 +58,7 @@ func AddTransaction (ctx context.Context, transaction model.Transaction) (interf
         return nil, fmt.Errorf("Failed to start session: %w", err)
     }
     defer session.EndSession(ctx)
+    transaction.LastUpdate = time.Now()
 
     result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
         // Insert transaction
@@ -91,6 +92,7 @@ func AddTransaction (ctx context.Context, transaction model.Transaction) (interf
 }
 
 func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.Transaction) error {
+    newTx.LastUpdate = time.Now()
     return util.MongoClient.UseSession(ctx, func(sc mongo.SessionContext) error {
         if err := sc.StartTransaction(); err != nil {
             return err

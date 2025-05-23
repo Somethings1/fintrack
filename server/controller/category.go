@@ -1,77 +1,23 @@
 package controller
 
 import (
-    "io"
-    "fmt"
-    "time"
-    "context"
-    "net/http"
-    "encoding/json"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
 
-    "fintrack/server/util"
-    "fintrack/server/model"
+	"fintrack/server/model"
+	"fintrack/server/service"
 
-    "github.com/gin-gonic/gin"
-    "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/mongo/options"
-    "go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 //////////////////
 // Category
 //////////////////
-
-func AddCategory(c *gin.Context) {
-    tmp, _ := c.Get("category")
-    category := tmp.(model.Category)
-
-    // Set the last_update field to the current time
-    category.LastUpdate = time.Now()
-
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    result, err := util.CategoryCollection.InsertOne(ctx, category)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding category"})
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "message": "Category added successfully",
-        "id": result.InsertedID,
-    })
-}
-
-func GetCategories(c *gin.Context) {
-    filter := bson.M{"owner": c.GetString("username")}
-
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    cursor, err := util.CategoryCollection.Find(ctx, filter)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching categories"})
-        return
-    }
-    defer cursor.Close(ctx)
-
-    c.Header("Content-Type", "application/json")
-    c.Status(http.StatusOK)
-
-    c.Stream(func(w io.Writer) bool {
-        if cursor.Next(ctx) {
-            var category model.Category
-            if err := cursor.Decode(&category); err != nil {
-                fmt.Println("Error decoding category:", err)
-                return false
-            }
-            json.NewEncoder(w).Encode(category)
-            return true
-        }
-        return false
-    })
-}
 
 func GetCategoriesSince(c *gin.Context) {
     sinceStr := c.Param("time")
@@ -81,21 +27,11 @@ func GetCategoriesSince(c *gin.Context) {
         return
     }
 
-    filter := bson.M{
-        "last_update": bson.M{
-            "$gt": sinceTime,
-        },
-        "owner": c.GetString("username"),
-    }
-
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    opts := options.Find().SetSort(bson.D{
-        {Key: "last_update", Value: -1},
-    })
 
-    cursor, err := util.CategoryCollection.Find(ctx, filter, opts)
+    cursor, err := service.FetchCategoriesSince(ctx, c.GetString("username"), sinceTime)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching categories"})
         return
@@ -118,6 +54,26 @@ func GetCategoriesSince(c *gin.Context) {
         return false
     })
 }
+
+func AddCategory(c *gin.Context) {
+    tmp, _ := c.Get("category")
+    category := tmp.(model.Category)
+
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    result, err := service.AddCategory(ctx, category)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding category"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Category added successfully",
+        "id": result,
+    })
+}
+
 
 func UpdateCategory(c *gin.Context) {
     tmp, _ := c.Get("category")
@@ -128,17 +84,15 @@ func UpdateCategory(c *gin.Context) {
         return
     }
 
-    // Set the last_update field to the current time
-    category.LastUpdate = time.Now()
-
-    filter := bson.M{"_id": id}
-
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err = util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
+    err = service.UpdateCategory(ctx, id, category)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating category"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error updating category",
+            "detail": err.Error(),
+        })
         return
     }
 
@@ -156,32 +110,15 @@ func DeleteCategory(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Step 1: Soft delete the category
-	categoryUpdate := bson.M{
-		"$set": bson.M{
-			"is_deleted":  true,
-			"last_update": time.Now(),
-		},
-	}
-	_, err = util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, categoryUpdate)
+    err = service.DeleteCategory(ctx, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting category"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Cannot delete category",
+            "detail": err.Error(),
+        })
 		return
 	}
 
-	// Step 2: Soft delete related transactions (with this category)
-	transactionUpdate := bson.M{
-		"$set": bson.M{
-			"is_deleted":  true,
-			"last_update": time.Now(),
-		},
-	}
-	_, err = util.TransactionCollection.UpdateMany(ctx, bson.M{"category": id}, transactionUpdate)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error soft deleting related transactions"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Category and related transactions soft deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Category and related transactions deleted successfully"})
 }
 
