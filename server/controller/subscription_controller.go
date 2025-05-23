@@ -21,28 +21,6 @@ import (
 // Subscription Handlers
 //////////////////
 
-func AddSubscription(c *gin.Context) {
-    tx, _ := c.Get("subscription")
-    subscription := tx.(model.Subscription)
-    subscription.LastUpdate = time.Now()
-
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    result, err := util.SubscriptionCollection.InsertOne(ctx, subscription);
-
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding new subscription"})
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "message": "Subscription added successfully",
-        "id": result,
-    })
-}
-
-// GetSubscriptionsSince fetches all subscriptions updated after a specific timestamp
 func GetSubscriptionsSince(c *gin.Context) {
     sinceStr := c.Param("time")
     sinceTime, err := time.Parse(time.RFC3339, sinceStr)
@@ -86,6 +64,27 @@ func GetSubscriptionsSince(c *gin.Context) {
             return true
         }
         return false
+    })
+}
+
+func AddSubscription(c *gin.Context) {
+    tx, _ := c.Get("subscription")
+    subscription := tx.(model.Subscription)
+    subscription.LastUpdate = time.Now()
+
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    result, err := util.SubscriptionCollection.InsertOne(ctx, subscription);
+
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding new subscription"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Subscription added successfully",
+        "id": result,
     })
 }
 
