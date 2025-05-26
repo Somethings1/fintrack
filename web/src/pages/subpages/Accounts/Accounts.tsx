@@ -72,8 +72,8 @@ const Accounts = () => {
         <>
 
             <Row gutter={[16, 16]} style={{ margin: 0, marginBottom: 20 }}>
-            <Title>Accounts</Title>
-            <Subtitle>All your money containers in one place</Subtitle>
+                <Title>Accounts</Title>
+                <Subtitle>All your money containers in one place</Subtitle>
             </Row>
 
             <Space

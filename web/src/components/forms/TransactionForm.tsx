@@ -129,7 +129,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                         <Form.Item
                             name="destinationAccount"
                             label="Destination Account"
-                            rules={[{ required: true, message: "Please select a destination account"}]}>
+                            rules={[{ required: true, message: "Please select a destination account" }]}>
                             <Select>{renderAccountOptions()}</Select>
                         </Form.Item>
                         <Form.Item
@@ -181,16 +181,16 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                 transactionType === 'transfer' && (
                     <>
                         <Form.Item
-                        name="sourceAccount"
-                        label="Source Account"
-                        rules={[{ required: true, message: "Please select a source account" }]}>
+                            name="sourceAccount"
+                            label="Source Account"
+                            rules={[{ required: true, message: "Please select a source account" }]}>
                             <Select>{renderAccountOptions()}</Select>
                         </Form.Item>
 
                         <Form.Item
-                        name="destinationAccount"
-                        label="Destination Account"
-                        rules={[{ required: true, message: "Please select a destination account" }]}>
+                            name="destinationAccount"
+                            label="Destination Account"
+                            rules={[{ required: true, message: "Please select a destination account" }]}>
                             <Select>{renderAccountOptions()}</Select>
                         </Form.Item>
                     </>
