@@ -108,6 +108,25 @@ func startControllers () {
 			controller.DeleteCategory)
 	}
 
+	subscriptions := api.Group("/subscriptions")
+	{
+		subscriptions.POST("/add",
+			middleware.SubscriptionFormatMiddleware(),
+			controller.AddSubscription)
+
+		subscriptions.GET("/get-since/:time",
+			controller.GetSubscriptionsSince)
+
+		subscriptions.PUT("/update/:id",
+			middleware.SubscriptionOwnershipMiddleware(),
+			middleware.SubscriptionFormatMiddleware(),
+			controller.UpdateCategory)
+
+		subscriptions.DELETE("/delete/:id",
+			middleware.SubscriptionOwnershipMiddleware(),
+			controller.DeleteSubscription)
+	}
+
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))
 }
