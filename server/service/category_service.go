@@ -53,7 +53,13 @@ func FetchCategoriesSince(ctx context.Context, username string, since time.Time)
 
 func AddCategory(ctx context.Context, category model.Category) (interface{}, error) {
 	category.LastUpdate = time.Now()
-	return util.CategoryCollection.InsertOne(ctx, category)
+
+    result, err := util.CategoryCollection.InsertOne(ctx, category)
+    if err != nil {
+        return nil, err
+    }
+
+    return result, nil
 }
 
 func UpdateCategory(ctx context.Context, id primitive.ObjectID, category model.Category) error {

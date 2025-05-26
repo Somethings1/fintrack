@@ -64,7 +64,10 @@ func AddCategory(c *gin.Context) {
 
     result, err := service.AddCategory(ctx, category)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding category"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error adding category",
+            "detail": err.Error(),
+        })
         return
     }
 
