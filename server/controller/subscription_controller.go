@@ -1,20 +1,18 @@
 package controller
 
 import (
-    "io"
-    "fmt"
-    "time"
-    "context"
-    "net/http"
-    "encoding/json"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
 
-    "fintrack/server/util"
-    "fintrack/server/model"
+	"fintrack/server/model"
+	"fintrack/server/service"
 
-    "github.com/gin-gonic/gin"
-    "go.mongodb.org/mongo-driver/bson"
-    "go.mongodb.org/mongo-driver/mongo/options"
-    "go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 //////////////////
@@ -23,29 +21,23 @@ import (
 
 func GetSubscriptionsSince(c *gin.Context) {
     sinceStr := c.Param("time")
+    username := c.GetString("username")
+
     sinceTime, err := time.Parse(time.RFC3339, sinceStr)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
         return
     }
 
-    filter := bson.M{
-        "last_update": bson.M{
-            "$gt": sinceTime,
-        },
-        "creator": c.GetString("username"),
-    }
-
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    opts := options.Find().SetSort(bson.D{
-        {Key: "last_update", Value: -1},
-    })
-
-    cursor, err := util.SubscriptionCollection.Find(ctx, filter, opts)
+    cursor, err := service.FetchSubscriptionsSince(ctx, username, sinceTime)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching subscriptions"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error fetching subscriptions",
+            "detail": err.Error(),
+        })
         return
     }
     defer cursor.Close(ctx)
@@ -70,15 +62,17 @@ func GetSubscriptionsSince(c *gin.Context) {
 func AddSubscription(c *gin.Context) {
     tx, _ := c.Get("subscription")
     subscription := tx.(model.Subscription)
-    subscription.LastUpdate = time.Now()
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    result, err := util.SubscriptionCollection.InsertOne(ctx, subscription);
+    result, err := service.AddSubscription(ctx, subscription)
 
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding new subscription"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error adding new subscription",
+            "detail": err.Error(),
+        })
         return
     }
 
@@ -97,15 +91,16 @@ func UpdateSubscription(c *gin.Context) {
 
     tx, _ := c.Get("subscription")
     newTx := tx.(model.Subscription)
-    newTx.LastUpdate = time.Now()
-    filter := bson.M{"_id": id}
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err = util.SubscriptionCollection.UpdateOne(ctx, filter, bson.M{"$set": newTx})
+    err = service.UpdateSubscription(ctx, id, newTx)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating subscription"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error updating subscription",
+            "detail": err.Error(),
+        })
         return
     }
 
@@ -119,23 +114,15 @@ func DeleteSubscription(c *gin.Context) {
         return
     }
 
-    subscriptionUpdate := bson.M{
-        "$set": bson.M{
-            "is_deleted": true,
-            "last_update": time.Now(),
-        },
-    }
-
-    filter := bson.M{
-        "_id": id,
-    }
-
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    _, err = util.SubscriptionCollection.UpdateOne(ctx, filter, subscriptionUpdate)
+    err = service.DeleteSubscription(ctx, id)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting subscription", "details": err.Error()})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error deleting subscription",
+            "detail": err.Error(),
+        })
         return
     }
 
