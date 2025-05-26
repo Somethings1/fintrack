@@ -52,6 +52,17 @@ func FetchSavingsSince (ctx context.Context, username string, since time.Time) (
     return util.SavingCollection.Find(ctx, filter, opts)
 }
 
+func AddSaving(ctx context.Context, saving model.Saving) (interface{}, error) {
+    saving.LastUpdate = time.Now()
+
+    result, err := util.SavingCollection.InsertOne(ctx, saving)
+    if err != nil {
+        return nil, err
+    }
+
+    return result.InsertedID, nil
+}
+
 func UpdateSaving (ctx context.Context, id primitive.ObjectID, saving model.Saving) error {
     saving.LastUpdate = time.Now()
     filter := bson.M{"_id": id}

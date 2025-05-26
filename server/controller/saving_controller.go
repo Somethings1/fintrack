@@ -24,21 +24,21 @@ func AddSaving(c *gin.Context) {
     tmp, _ := c.Get("saving")
     saving := tmp.(model.Saving)
 
-    // Set the last_update field to the current time
-    saving.LastUpdate = time.Now()
-
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    result, err := util.SavingCollection.InsertOne(ctx, saving)
+    result, err := service.AddSaving(ctx, saving)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding saving"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error adding saving",
+            "detail": err.Error(),
+        })
         return
     }
 
     c.JSON(http.StatusOK, gin.H{
         "message": "Saving added successfully",
-        "id": result.InsertedID,
+        "id": result,
     })
 }
 
@@ -91,7 +91,10 @@ func UpdateSaving(c *gin.Context) {
 
     err = service.UpdateSaving(ctx, id, saving)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating saving"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error updating saving",
+            "detail": err.Error(),
+        })
         return
     }
 
