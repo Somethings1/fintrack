@@ -23,22 +23,23 @@ import (
 func AddAccount(c *gin.Context) {
     tmp, _ := c.Get("account")
     account := tmp.(model.Account)
-
-    // Set the LastUpdate field to the current time
-    account.LastUpdate = time.Now()
+    username := c.GetString("username")
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    result, err := util.AccountCollection.InsertOne(ctx, account)
+    result, err := service.AddAccount(ctx, username, account)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding account"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error adding account",
+            "detail": err.Error(),
+        })
         return
     }
 
     c.JSON(http.StatusOK, gin.H{
         "message": "Account added successfully",
-        "id": result.InsertedID,
+        "id": result,
     })
 }
 
@@ -55,7 +56,10 @@ func GetAccountsSince(c *gin.Context) {
 
     cursor, err := service.FetchAccountsSince(ctx, c.GetString("username"), sinceTime)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching accounts"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error fetching accounts",
+            "detail": err.Error(),
+        })
         return
     }
     defer cursor.Close(ctx)

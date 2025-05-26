@@ -52,6 +52,17 @@ func FetchAccountsSince(ctx context.Context, username string, since time.Time) (
     return util.AccountCollection.Find(ctx, filter, opts)
 }
 
+func AddAccount(ctx context.Context, username string, account model.Account) (interface{}, error) {
+    account.LastUpdate = time.Now()
+    result, err := util.AccountCollection.InsertOne(ctx, account)
+
+    if err != nil {
+        return nil, err
+    }
+
+    return result.InsertedID, nil
+}
+
 func UpdateAccount(ctx context.Context, id primitive.ObjectID, account model.Account) error {
     filter := bson.M{"_id": id}
     account.LastUpdate = time.Now()
