@@ -33,7 +33,10 @@ func GetTransactionsSince(c *gin.Context) {
 
     cursor, err := service.FetchTransactionsSince(ctx, c.GetString("username"), sinceTime)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching transactions"})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error fetching transactions",
+            "detail": err.Error(),
+        })
         return
     }
     defer cursor.Close(ctx)
@@ -65,7 +68,7 @@ func AddTransaction(c *gin.Context) {
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Transaction failed",
-            "details": err.Error(),
+            "detail": err.Error(),
         })
         return
     }
@@ -92,7 +95,7 @@ func UpdateTransaction(c *gin.Context) {
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error updating transaction with balance adjustment",
-            "details": err.Error(),
+            "detail": err.Error(),
         })
         return
     }
@@ -110,7 +113,10 @@ func DeleteTransaction(c *gin.Context) {
     ctx := context.Background()
     err = service.DeleteTransaction(ctx, id)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting transaction", "details": err.Error()})
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error deleting transaction",
+            "details": err.Error(),
+        })
         return
     }
 

@@ -184,5 +184,4 @@ func DeleteTransaction (ctx context.Context, id primitive.ObjectID) error {
 
         return sc.CommitTransaction(sc)
     })
-
 }
