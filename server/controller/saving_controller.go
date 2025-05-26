@@ -10,7 +10,6 @@ import (
 
 	"fintrack/server/model"
 	"fintrack/server/service"
-	"fintrack/server/util"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
