@@ -117,7 +117,7 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 		StartDate, err := time.Parse(time.RFC3339, _subscription.StartDate)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Invalid date format on `dateTime`",
+				"error": "Invalid date format on `startDate`",
 			})
 			return
 		}
