@@ -1,11 +1,12 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'FinanceTracker';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const TRANSACTION_STORE = 'transactions';
 const ACCOUNT_STORE = 'accounts';
 const SAVING_STORE = 'savings';
 const CATEGORY_STORE = 'categories';
+const SUBSCRIPTION_STORE = 'subscriptions';
 
 export async function getDB() {
     return openDB(DB_NAME, DB_VERSION, {
@@ -21,6 +22,9 @@ export async function getDB() {
             }
             if (!db.objectStoreNames.contains(CATEGORY_STORE)) {
                 db.createObjectStore(CATEGORY_STORE, { keyPath: '_id' });
+            }
+            if (!db.objectStoreNames.contains(SUBSCRIPTION_STORE)) {
+                db.createObjectStore(SUBSCRIPTION_STORE, { keyPath: '_id' });
             }
         }
     });

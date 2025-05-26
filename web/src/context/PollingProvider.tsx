@@ -7,7 +7,7 @@ type PollingContextType = {
 
 const PollingContext = createContext<PollingContextType>({});
 
-const POLLING_KEYS = ["transactions", "accounts", "savings", "categories"];
+const POLLING_KEYS = ["transactions", "accounts", "savings", "categories", "subscriptions"];
 
 export const PollingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const values = POLLING_KEYS.reduce((acc, key) => {

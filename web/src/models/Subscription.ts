@@ -1,5 +1,7 @@
 export interface Subscription {
     _id: string;
+    name: string;
+    icon: string;
     creator: string;
     amount: number;
     sourceAccount: string;
