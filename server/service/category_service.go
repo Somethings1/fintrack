@@ -59,7 +59,7 @@ func AddCategory(ctx context.Context, category model.Category) (interface{}, err
         return nil, err
     }
 
-    return result, nil
+    return result.InsertedID, nil
 }
 
 func UpdateCategory(ctx context.Context, id primitive.ObjectID, category model.Category) error {
