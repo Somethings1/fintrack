@@ -32,6 +32,8 @@ func SubscriptionOwnershipMiddleware() gin.HandlerFunc {
 func SubscriptionFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Subscription struct {
+            Name            string  `json:"name"`
+            Icon            string  `json:"icon"`
 			Creator         string  `json:"creator"`
 			Amount          float64 `json:"amount"`
 			SourceAccount   string  `json:"sourceAccount"`
@@ -142,6 +144,8 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 
 
 		subscription := model.Subscription{
+            Name:           _subscription.Name,
+            Icon:           _subscription.Icon,
 			Creator:        _subscription.Creator,
 			Amount:         _subscription.Amount,
 			SourceAccount:  srcID,
