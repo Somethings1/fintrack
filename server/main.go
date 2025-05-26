@@ -120,7 +120,7 @@ func startControllers () {
 		subscriptions.PUT("/update/:id",
 			middleware.SubscriptionOwnershipMiddleware(),
 			middleware.SubscriptionFormatMiddleware(),
-			controller.UpdateCategory)
+			controller.UpdateSubscription)
 
 		subscriptions.DELETE("/delete/:id",
 			middleware.SubscriptionOwnershipMiddleware(),
