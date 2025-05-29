@@ -22,7 +22,7 @@ type Notification struct {
 	Title              string             `bson:"title" json:"title"`
 	Message            string             `bson:"message" json:"message"`
     Read               bool               `bson:"read" json:"read"`
-    DeliveredViaSocket bool               `bson:"delivered_via_socket"`
+    Delivered          bool               `bson:"delivered"`
     ScheduledAt        time.Time          `bson:"scheduled_at" json:"scheduledAt"`
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
