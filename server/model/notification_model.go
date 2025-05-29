@@ -5,15 +5,25 @@ import (
 	"time"
 )
 
+type NotificationType string
+
+const (
+    TypeTransaction     NotificationType = "transaction"
+    TypeOverBudget      NotificationType = "over_budget"
+    TypeFinishIncome    NotificationType = "finish_income"
+    TypeSubscription    NotificationType = "subscription"
+)
+
 type Notification struct {
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	UserId             primitive.ObjectID `bson:"user_id" json:"userId"`
-    TransactionId      primitive.ObjectID `bson:"transaction_id" json:"transactionId,omitempty"`
-    CategoryId         primitive.ObjectID `bson:"category_id" json:"categoryId,omitempty"`
-    SubscriptionId     primitive.ObjectID `bson:"subscription_id" json:"subscriptionId,omitempty"`
+    Type               NotificationType   `bson:"type" json:"type"`
+    ReferenceId        primitive.ObjectID `bson:"reference_id" json:"referenceId"`
 	Title              string             `bson:"title" json:"title"`
 	Message            string             `bson:"message" json:"message"`
     Read               bool               `bson:"read" json:"read"`
+    DeliveredViaSocket bool               `bson:"delivered_via_socket"`
+    ScheduledAt        time.Time          `bson:"scheduled_at" json:"scheduledAt"`
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
 }
