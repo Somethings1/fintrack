@@ -13,7 +13,6 @@ import (
 
 var (
     MongoClient             *mongo.Client
-    UserCollection          *mongo.Collection
     AccountCollection       *mongo.Collection
     TransactionCollection   *mongo.Collection
     CategoryCollection      *mongo.Collection
@@ -32,7 +31,6 @@ func InitDB() {
 
     db := client.Database("finance_db")
 
-    UserCollection = db.Collection("users")
     AccountCollection = db.Collection("accounts")
     TransactionCollection = db.Collection("transactions")
     CategoryCollection = db.Collection("categories")
@@ -40,9 +38,6 @@ func InitDB() {
     SubscriptionCollection = db.Collection("subscriptions")
     NotificationCollection = db.Collection("notifications")
 
-    if err := createUserIndex(); err != nil {
-        log.Fatal("Failed to create user index:", err)
-    }
     if err := createTransactionIndex(); err != nil {
         log.Fatal("Failed to create transaction index:", err)
     }
@@ -63,28 +58,16 @@ func InitDB() {
     }
 }
 
-func createUserIndex() error {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    indexModel := mongo.IndexModel{
-        Keys:    bson.M{"username": 1}, // Ascending index on "username"
-        Options: options.Index().SetUnique(true),
-    }
-
-    _, err := UserCollection.Indexes().CreateOne(ctx, indexModel)
-    return err
-}
-
 func createTransactionIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    indexModel := mongo.IndexModel{
-        Keys: bson.M{"last_update": 1}, // Index on last_update for efficient syncing
+    indexModel := []mongo.IndexModel{
+        {Keys: bson.M{"creator": 1}},
+        {Keys: bson.M{"last_update": 1}},
     }
 
-    _, err := TransactionCollection.Indexes().CreateOne(ctx, indexModel)
+    _, err := TransactionCollection.Indexes().CreateMany(ctx, indexModel)
     return err
 }
 
@@ -92,11 +75,12 @@ func createAccountIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    indexModel := mongo.IndexModel{
-        Keys: bson.M{"last_update": 1}, // Index on last_update for fast updates
+    indexModel := []mongo.IndexModel{
+        {Keys: bson.M{"owner": 1}},
+        {Keys: bson.M{"last_update": 1}},
     }
 
-    _, err := AccountCollection.Indexes().CreateOne(ctx, indexModel)
+    _, err := AccountCollection.Indexes().CreateMany(ctx, indexModel)
     return err
 }
 
@@ -104,11 +88,12 @@ func createSavingIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    indexModel := mongo.IndexModel{
-        Keys: bson.M{"last_update": 1}, // Index on last_update for better performance
+    indexModel := []mongo.IndexModel{
+        {Keys: bson.M{"owner": 1}},
+        {Keys: bson.M{"last_update": 1}},
     }
 
-    _, err := SavingCollection.Indexes().CreateOne(ctx, indexModel)
+    _, err := SavingCollection.Indexes().CreateMany(ctx, indexModel)
     return err
 }
 
@@ -116,11 +101,12 @@ func createCategoryIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    indexModel := mongo.IndexModel{
-        Keys: bson.M{"last_update": 1}, // Index on last_update for quick lookups
+    indexModel := []mongo.IndexModel{
+        {Keys: bson.M{"owner": 1}},
+        {Keys: bson.M{"last_update": 1}},
     }
 
-    _, err := CategoryCollection.Indexes().CreateOne(ctx, indexModel)
+    _, err := CategoryCollection.Indexes().CreateMany(ctx, indexModel)
     return err
 }
 
@@ -128,11 +114,13 @@ func createSubscriptionIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    indexModel := mongo.IndexModel{
-        Keys: bson.M{"last_update": 1}, // Index on last_update for quick lookups
+    indexModel := []mongo.IndexModel{
+        {Keys: bson.M{"last_update": 1}},
+        {Keys: bson.M{"creator": 1}},
+        {Keys: bson.M{"notify_at": 1}},
     }
 
-    _, err := SubscriptionCollection.Indexes().CreateOne(ctx, indexModel)
+    _, err := SubscriptionCollection.Indexes().CreateMany(ctx, indexModel)
     return err
 }
 
@@ -140,11 +128,14 @@ func createNotificationIndex() error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    indexModel := mongo.IndexModel{
-        Keys: bson.M{"last_update": 1}, // Index on last_update for quick lookups
+    indexModel := []mongo.IndexModel{
+        {Keys: bson.M{"user_id": 1}},
+        {Keys: bson.M{"scheduled_at": 1}},
+        {Keys: bson.M{"delivered_via_socket": 1}},
+        {Keys: bson.M{"last_update": 1}},
     }
 
-    _, err := NotificationCollection.Indexes().CreateOne(ctx, indexModel)
+    _, err := NotificationCollection.Indexes().CreateMany(ctx, indexModel)
     return err
 }
 
