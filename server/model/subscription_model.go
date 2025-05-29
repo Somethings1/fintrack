@@ -20,7 +20,8 @@ type Subscription struct {
     CurrentInterval    int                `bson:"current_interval" json:"currentInterval,omitempty"`
     RemindBefore       int                `bson:"remind_before" json:"remindBefore"` // Number of day to remind user before activation day
 
-    NextActive         time.Time          `bson:"next_active" json:"nextActive"`
+    NextActive         time.Time          `bson:"next_active"`
+    NotifyAt           time.Time          `bson:"notify_at"` // for indexing
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
 }
