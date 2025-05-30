@@ -16,7 +16,7 @@ const (
 
 type Notification struct {
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	UserId             primitive.ObjectID `bson:"user_id" json:"userId"`
+	Owner              string             `bson:"owner" json:"owner"`
     Type               NotificationType   `bson:"type" json:"type"`
     ReferenceId        primitive.ObjectID `bson:"reference_id" json:"referenceId"`
 	Title              string             `bson:"title" json:"title"`
