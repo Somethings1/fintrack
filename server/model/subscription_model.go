@@ -18,6 +18,7 @@ type Subscription struct {
     Interval           string             `bson:"interval" json:"interval"` // day, week, month, year
     MaxInterval        int                `bson:"max_interval,omitempty" json:"maxInterval"` // number of interval to repeat
     CurrentInterval    int                `bson:"current_interval" json:"currentInterval,omitempty"`
+    IsActive           bool               `bson:"is_active" json:"isActive"`
     RemindBefore       int                `bson:"remind_before" json:"remindBefore"` // Number of day to remind user before activation day
 
     NextActive         time.Time          `bson:"next_active"`
