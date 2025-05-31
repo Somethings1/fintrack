@@ -11,6 +11,7 @@ import (
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 
@@ -34,6 +35,22 @@ func GetNotificationById (id string) (model.Notification, error) {
     }
 
     return notification, nil
+}
+
+func FetchNotificationSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
+    filter := bson.M{
+        "last_update": bson.M{
+            "$gt": since,
+        },
+        "owner": username,
+        "delivered": true,
+    }
+
+    opts := options.Find().SetSort(bson.D{
+        {Key: "last_update", Value: -1},
+    })
+
+    return util.NotificationCollection.Find(ctx, filter, opts)
 }
 
 func AddNotification(ctx context.Context, notif model.Notification) (interface{}, error) {
