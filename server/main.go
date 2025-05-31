@@ -2,14 +2,16 @@ package main
 
 import (
 	"fintrack/server/controller"
-    "fintrack/server/middleware"
+	"fintrack/server/middleware"
+	"fintrack/server/socket"
 	"fintrack/server/util"
+	"fintrack/server/cronjob"
 	"fmt"
 	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 func startControllers () {
@@ -30,7 +32,9 @@ func startControllers () {
 	r.Use(middleware.LoggingMiddleware())
 	r.Use(middleware.PrintRequestDetails())
 
+
 	api := r.Group("/api", middleware.AuthMiddleware())
+    api.GET("/ws", socket.HandleWebSocket)
 
 	transactions := api.Group("/transactions")
 	{
@@ -127,13 +131,38 @@ func startControllers () {
 			controller.DeleteSubscription)
 	}
 
+    notifications := api.Group("/notifications")
+    {
+        notifications.POST("/add",
+            middleware.NotificationFormatMiddleware(),
+            controller.AddNotification)
+        notifications.GET("/get-since/:time",
+            controller.GetNotificationsSince)
+        notifications.PUT("/mark-as-read/:id",
+            middleware.NotificationOwnershipMiddleware(),
+            controller.MarkNotificationRead)
+        notifications.PUT("/update/:id",
+            middleware.NotificationOwnershipMiddleware(),
+            middleware.NotificationFormatMiddleware(),
+            controller.UpdateNotification)
+        notifications.DELETE("/delete/:id",
+            middleware.NotificationOwnershipMiddleware(),
+            controller.DeleteNotification)
+    }
+
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))
+}
+
+func startCronJobs() {
+    cronjob.CreateSubscriptionNotificationsCron()
+    cronjob.CreateSubscriptionTransactionCron()
 }
 
 func main() {
 	util.InitDB()
     godotenv.Load()
-    startControllers();
+    startControllers()
+    startCronJobs()
 }
 
