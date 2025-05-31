@@ -142,7 +142,6 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
             return
         }
 
-
 		subscription := model.Subscription{
             Name:           _subscription.Name,
             Icon:           _subscription.Icon,

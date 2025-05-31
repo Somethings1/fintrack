@@ -3,7 +3,6 @@ package middleware
 import (
 	"fintrack/server/model"
 	"fintrack/server/service"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
@@ -29,7 +28,7 @@ func NotificationOwnershipMiddleware() gin.HandlerFunc {
 	}
 }
 
-func NotificationFormat() gin.HandlerFunc {
+func NotificationFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Notification struct {
             Owner       string                      `json:"owner"`
@@ -94,7 +93,6 @@ func NotificationFormat() gin.HandlerFunc {
             Title:          _notification.Title,
             Message:        _notification.Message,
             Read:           false,
-            Delivered:      false,
             ScheduledAt:    ScheduledAt,
             LastUpdate:     time.Now(),
             IsDeleted:      false,

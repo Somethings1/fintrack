@@ -55,7 +55,6 @@ func FetchNotificationSince(ctx context.Context, username string, since time.Tim
 
 func AddNotification(ctx context.Context, notif model.Notification) (interface{}, error) {
     notif.LastUpdate = time.Now()
-    notif.Delivered = false
     result, err := util.NotificationCollection.InsertOne(ctx, notif)
 
     if err != nil {
@@ -74,6 +73,30 @@ func MarkAsRead(ctx context.Context, notifID primitive.ObjectID) error {
     }
 
     _, err := util.NotificationCollection.UpdateByID(ctx, notifID, update)
+
+    return err
+}
+
+func UpdateNotification(ctx context.Context, id primitive.ObjectID, notif model.Notification) error {
+    filter := bson.M{"_id": id}
+    notif.LastUpdate = time.Now()
+    update := bson.M{"$set": notif}
+
+    _, err := util.NotificationCollection.UpdateOne(ctx, filter, update)
+
+    return err
+}
+
+func DeleteNotification(ctx context.Context, id primitive.ObjectID) error {
+    filter := bson.M{"_id": id}
+    update := bson.M{
+        "$set": bson.M{
+            "is_deleted": true,
+            "last_update": time.Now(),
+        },
+    }
+
+    _, err := util.NotificationCollection.UpdateOne(ctx, filter, update)
 
     return err
 }

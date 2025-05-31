@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"fintrack/server/model"
@@ -71,22 +72,84 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, subscription
 	return err
 }
 
-func DeleteSubscription(ctx context.Context, id primitive.ObjectID) error {
-    subscriptionUpdate := bson.M{
+func OnNotificationCreated(ctx context.Context, id primitive.ObjectID) error {
+    update := bson.M{
         "$set": bson.M{
-            "is_deleted": true,
+            "notify_at":  time.Time{},
             "last_update": time.Now(),
         },
     }
 
-    filter := bson.M{
-        "_id": id,
-    }
-
-    _, err := util.SubscriptionCollection.UpdateOne(ctx, filter, subscriptionUpdate)
+    _, err := util.SubscriptionCollection.UpdateByID(ctx, id, update)
     if err != nil {
-        return err
+        return fmt.Errorf("failed to clear notify_at after notification: %w", err)
     }
 
     return nil
+}
+
+func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
+	sub, err := GetSubscriptionById(id.String())
+	if err != nil {
+		return err
+	}
+
+	newInterval := sub.CurrentInterval + 1
+
+	isActive := true
+	if sub.MaxInterval > 0 && newInterval > sub.MaxInterval {
+		isActive = false
+	}
+
+	var nextActive time.Time
+	switch sub.Interval {
+	case "week":
+		nextActive = sub.StartDate.AddDate(0, 0, newInterval*7)
+	case "month":
+		nextActive = sub.StartDate.AddDate(0, newInterval, 0)
+	case "year":
+		nextActive = sub.StartDate.AddDate(newInterval, 0, 0)
+	default:
+		return fmt.Errorf("unknown interval type: %s", sub.Interval)
+	}
+
+	notifyAt := nextActive.AddDate(0, 0, -sub.RemindBefore)
+	now := time.Now()
+
+	update := bson.M{
+		"$set": bson.M{
+			"current_interval": newInterval,
+			"next_active":      nextActive,
+			"is_active":        isActive,
+			"notify_at":        notifyAt,
+			"last_update":      now,
+		},
+	}
+
+	_, err = util.SubscriptionCollection.UpdateByID(ctx, id, update)
+	if err != nil {
+		return fmt.Errorf("failed to update subscription: %w", err)
+	}
+
+	return nil
+}
+
+func DeleteSubscription(ctx context.Context, id primitive.ObjectID) error {
+	subscriptionUpdate := bson.M{
+		"$set": bson.M{
+			"is_deleted":  true,
+			"last_update": time.Now(),
+		},
+	}
+
+	filter := bson.M{
+		"_id": id,
+	}
+
+	_, err := util.SubscriptionCollection.UpdateOne(ctx, filter, subscriptionUpdate)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
