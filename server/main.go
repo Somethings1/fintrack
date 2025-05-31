@@ -19,12 +19,13 @@ func startControllers () {
 	corsConfig := cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Upgrade", "Connection", "Content-Type", "Authorization", "Origin", "Accept", "clientId"},
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
-			return origin == "http://localhost:3000"
+			return origin == "http://localhost:5173"
 		},
 		ExposeHeaders: []string{"Content-Length", "Set-Cookie"},
+        AllowWebSockets: true,
 	}
 
 	r.Use(cors.New(corsConfig))
