@@ -131,7 +131,6 @@ func createNotificationIndex() error {
 	indexModel := []mongo.IndexModel{
 		{Keys: bson.M{"owner": 1}},
 		{Keys: bson.M{"scheduled_at": 1}},
-		{Keys: bson.M{"delivered_via_socket": 1}},
 		{Keys: bson.M{"last_update": 1}},
 	}
 
