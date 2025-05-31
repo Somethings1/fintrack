@@ -52,7 +52,7 @@ func FetchAccountsSince(ctx context.Context, username string, since time.Time) (
     return util.AccountCollection.Find(ctx, filter, opts)
 }
 
-func AddAccount(ctx context.Context, username string, account model.Account) (interface{}, error) {
+func AddAccount(ctx context.Context, account model.Account) (interface{}, error) {
     account.LastUpdate = time.Now()
     result, err := util.AccountCollection.InsertOne(ctx, account)
 

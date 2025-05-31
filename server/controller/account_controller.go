@@ -22,12 +22,11 @@ import (
 func AddAccount(c *gin.Context) {
     tmp, _ := c.Get("account")
     account := tmp.(model.Account)
-    username := c.GetString("username")
 
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    result, err := service.AddAccount(ctx, username, account)
+    result, err := service.AddAccount(ctx, account)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error adding account",
