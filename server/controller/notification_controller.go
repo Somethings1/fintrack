@@ -94,3 +94,49 @@ func MarkNotificationRead(c *gin.Context) {
     c.Status(http.StatusNoContent)
 }
 
+func UpdateNotification(c *gin.Context) {
+    tmp, _ := c.Get("notification")
+    notification := tmp.(model.Notification)
+    id, err := primitive.ObjectIDFromHex(c.Param("id"))
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
+        return
+    }
+
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    err = service.UpdateNotification(ctx, id, notification)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error updating notification",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Notification updated successfully"})
+}
+
+func DeleteNotification(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+    err = service.DeleteNotification(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Error deleting notification",
+            "detail": err.Error(),
+        })
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Notification deleted successfully"})
+}
+
