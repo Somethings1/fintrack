@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"net/http"
+    "context"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -74,9 +75,9 @@ func HandleWebSocket(c *gin.Context) {
 	Manager.Register(clientId, username, conn)
 
 	conn.WriteJSON(map[string]interface{}{
-        "collection": "",
-        "action":     "init",
-		"detail": clientId,
+        "collection":   "",
+        "action":       "init",
+		"detail":       clientId,
 	})
 
 	go func() {
@@ -93,6 +94,18 @@ func HandleWebSocket(c *gin.Context) {
 			}
 		}
 	}()
+}
+
+func BroadcastFromContext(ctx context.Context, message interface{}) {
+    userId, ok1 := ctx.Value("userId").(string)
+    clientId, ok2 := ctx.Value("clientId").(string)
+
+    if !ok1 || !ok2 {
+        log.Println("BroadcastFromContext: missing userId or clientId in context")
+        return
+    }
+
+    Manager.BroadcastToUserExcept(userId, clientId, message)
 }
 
 var Manager = &WebSocketManager{

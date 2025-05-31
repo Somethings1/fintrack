@@ -33,7 +33,7 @@ func startControllers () {
 	r.Use(middleware.PrintRequestDetails())
 
 
-	api := r.Group("/api", middleware.AuthMiddleware())
+	api := r.Group("/api", middleware.AuthMiddleware(), middleware.ContextInjectorMiddleware())
     api.GET("/ws", socket.HandleWebSocket)
 
 	transactions := api.Group("/transactions")

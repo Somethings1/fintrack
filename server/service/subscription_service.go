@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fintrack/server/model"
+	"fintrack/server/socket"
 	"fintrack/server/util"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -60,6 +61,12 @@ func AddSubscription(ctx context.Context, subscription model.Subscription) (inte
 		return nil, err
 	}
 
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "subscriptions",
+		"action":     "create",
+		"detail":     subscription,
+	})
+
 	return res.InsertedID, nil
 }
 
@@ -69,23 +76,32 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, subscription
 	subscription.LastUpdate = time.Now()
 
 	_, err := util.SubscriptionCollection.UpdateOne(ctx, filter, newSubscription)
-	return err
+	if err != nil {
+		return err
+	}
+
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "subscriptions",
+		"action":     "update",
+		"detail":     subscription,
+	})
+
+	return nil
 }
 
 func OnNotificationCreated(ctx context.Context, id primitive.ObjectID) error {
-    update := bson.M{
-        "$set": bson.M{
-            "notify_at":  time.Time{},
-            "last_update": time.Now(),
-        },
-    }
+	update := bson.M{
+		"$set": bson.M{
+			"notify_at": time.Time{},
+		},
+	}
 
-    _, err := util.SubscriptionCollection.UpdateByID(ctx, id, update)
-    if err != nil {
-        return fmt.Errorf("failed to clear notify_at after notification: %w", err)
-    }
+	_, err := util.SubscriptionCollection.UpdateByID(ctx, id, update)
+	if err != nil {
+		return fmt.Errorf("failed to clear notify_at after notification: %w", err)
+	}
 
-    return nil
+	return nil
 }
 
 func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
@@ -131,6 +147,12 @@ func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
 		return fmt.Errorf("failed to update subscription: %w", err)
 	}
 
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "subscriptions",
+		"action":     "renew",
+		"detail":     "",
+	})
+
 	return nil
 }
 
@@ -150,6 +172,12 @@ func DeleteSubscription(ctx context.Context, id primitive.ObjectID) error {
 	if err != nil {
 		return err
 	}
+
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "subscriptions",
+		"action":     "delete",
+		"detail":     id,
+	})
 
 	return nil
 }

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,9 +26,7 @@ func GetCategoriesSince(c *gin.Context) {
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
+    ctx := c.Request.Context()
 
     cursor, err := service.FetchCategoriesSince(ctx, c.GetString("username"), sinceTime)
     if err != nil {
@@ -59,10 +56,7 @@ func AddCategory(c *gin.Context) {
     tmp, _ := c.Get("category")
     category := tmp.(model.Category)
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    result, err := service.AddCategory(ctx, category)
+    result, err := service.AddCategory(c.Request.Context(), category)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error adding category",
@@ -87,10 +81,7 @@ func UpdateCategory(c *gin.Context) {
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    err = service.UpdateCategory(ctx, id, category)
+    err = service.UpdateCategory(c.Request.Context(), id, category)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error updating category",
@@ -102,7 +93,6 @@ func UpdateCategory(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"message": "Category updated successfully"})
 }
 
-// DeleteCategory performs a soft delete by marking the category and its related transactions as deleted
 func DeleteCategory(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -110,10 +100,7 @@ func DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-    err = service.DeleteCategory(ctx, id)
+    err = service.DeleteCategory(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Cannot delete category",

@@ -4,7 +4,6 @@ import (
     "io"
     "fmt"
     "time"
-    "context"
     "net/http"
     "encoding/json"
 
@@ -27,9 +26,7 @@ func GetTransactionsSince(c *gin.Context) {
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
+    ctx := c.Request.Context()
 
     cursor, err := service.FetchTransactionsSince(ctx, c.GetString("username"), sinceTime)
     if err != nil {
@@ -62,8 +59,7 @@ func AddTransaction(c *gin.Context) {
     tx, _ := c.Get("transaction")
     transaction := tx.(model.Transaction)
 
-    ctx := context.Background()
-    result, err := service.AddTransaction(ctx, transaction)
+    result, err := service.AddTransaction(c.Request.Context(), transaction)
 
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
@@ -89,8 +85,7 @@ func UpdateTransaction(c *gin.Context) {
     tx, _ := c.Get("transaction")
     newTx := tx.(model.Transaction)
 
-    ctx := context.Background()
-    err = service.UpdateTransaction(ctx, id, newTx)
+    err = service.UpdateTransaction(c.Request.Context(), id, newTx)
 
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
@@ -110,8 +105,7 @@ func DeleteTransaction(c *gin.Context) {
         return
     }
 
-    ctx := context.Background()
-    err = service.DeleteTransaction(ctx, id)
+    err = service.DeleteTransaction(c.Request.Context(), id)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error deleting transaction",

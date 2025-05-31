@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
-    "fmt"
 
 	"fintrack/server/model"
+	"fintrack/server/socket"
 	"fintrack/server/util"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -54,21 +55,37 @@ func FetchCategoriesSince(ctx context.Context, username string, since time.Time)
 func AddCategory(ctx context.Context, category model.Category) (interface{}, error) {
 	category.LastUpdate = time.Now()
 
-    result, err := util.CategoryCollection.InsertOne(ctx, category)
-    if err != nil {
-        return nil, err
-    }
+	result, err := util.CategoryCollection.InsertOne(ctx, category)
+	if err != nil {
+		return nil, err
+	}
 
-    return result.InsertedID, nil
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "categories",
+		"action":     "create",
+		"detail":     category,
+	})
+
+	return result.InsertedID, nil
 }
 
 func UpdateCategory(ctx context.Context, id primitive.ObjectID, category model.Category) error {
-    category.LastUpdate = time.Now()
+	category.LastUpdate = time.Now()
 
-    filter := bson.M{"_id": id}
-    _, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
+	filter := bson.M{"_id": id}
+	_, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
 
-    return err
+	if err != nil {
+		return err
+	}
+
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "categories",
+		"action":     "update",
+		"detail":     category,
+	})
+
+	return nil
 }
 
 func DeleteCategory(ctx context.Context, id primitive.ObjectID) error {
@@ -78,9 +95,9 @@ func DeleteCategory(ctx context.Context, id primitive.ObjectID) error {
 			"last_update": time.Now(),
 		},
 	}
-    _, err := util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, categoryUpdate)
+	_, err := util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, categoryUpdate)
 	if err != nil {
-        return fmt.Errorf("Error deleting category: %w", err)
+		return fmt.Errorf("Error deleting category: %w", err)
 	}
 
 	transactionUpdate := bson.M{
@@ -90,9 +107,15 @@ func DeleteCategory(ctx context.Context, id primitive.ObjectID) error {
 		},
 	}
 	_, err = util.TransactionCollection.UpdateMany(ctx, bson.M{"category": id}, transactionUpdate)
-    if err != nil {
-        return fmt.Errorf("Error deleting related transactions: %w", err)
-    }
+	if err != nil {
+		return fmt.Errorf("Error deleting related transactions: %w", err)
+	}
 
-    return err
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "categories",
+		"action":     "delete",
+		"detail":     id,
+	})
+
+	return err
 }

@@ -1,10 +1,12 @@
 package middleware
 
 import (
-    "os"
-    "net/http"
-    "encoding/json"
-    "github.com/gin-gonic/gin"
+	"context"
+	"encoding/json"
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"os"
+	"time"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -39,3 +41,19 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func ContextInjectorMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userId := c.GetString("username")
+		clientId := c.GetHeader("clientId")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		ctx = context.WithValue(c.Request.Context(), "userId", userId)
+		ctx = context.WithValue(ctx, "clientId", clientId)
+
+		c.Request = c.Request.WithContext(ctx)
+
+		c.Next()
+	}
+}

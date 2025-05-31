@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,84 +19,77 @@ import (
 //////////////////
 
 func AddSaving(c *gin.Context) {
-    tmp, _ := c.Get("saving")
-    saving := tmp.(model.Saving)
+	tmp, _ := c.Get("saving")
+	saving := tmp.(model.Saving)
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	result, err := service.AddSaving(c.Request.Context(), saving)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "Error adding saving",
+			"detail": err.Error(),
+		})
+		return
+	}
 
-    result, err := service.AddSaving(ctx, saving)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": "Error adding saving",
-            "detail": err.Error(),
-        })
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "message": "Saving added successfully",
-        "id": result,
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Saving added successfully",
+		"id":      result,
+	})
 }
 
 func GetSavingsSince(c *gin.Context) {
-    sinceStr := c.Param("time")
-    sinceTime, err := time.Parse(time.RFC3339, sinceStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
-        return
-    }
+	sinceStr := c.Param("time")
+	sinceTime, err := time.Parse(time.RFC3339, sinceStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	ctx := c.Request.Context()
 
-    cursor, err := service.FetchSavingsSince(ctx, c.GetString("username"), sinceTime)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching savings"})
-        return
-    }
-    defer cursor.Close(ctx)
+	cursor, err := service.FetchSavingsSince(ctx, c.GetString("username"), sinceTime)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching savings"})
+		return
+	}
+	defer cursor.Close(ctx)
 
-    c.Header("Content-Type", "application/json")
-    c.Status(http.StatusOK)
+	c.Header("Content-Type", "application/json")
+	c.Status(http.StatusOK)
 
-    c.Stream(func(w io.Writer) bool {
-        if cursor.Next(ctx) {
-            var saving model.Saving
-            if err := cursor.Decode(&saving); err != nil {
-                fmt.Println("Error decoding saving:", err)
-                return false
-            }
-            json.NewEncoder(w).Encode(saving)
-            return true
-        }
-        return false
-    })
+	c.Stream(func(w io.Writer) bool {
+		if cursor.Next(ctx) {
+			var saving model.Saving
+			if err := cursor.Decode(&saving); err != nil {
+				fmt.Println("Error decoding saving:", err)
+				return false
+			}
+			json.NewEncoder(w).Encode(saving)
+			return true
+		}
+		return false
+	})
 }
 
 func UpdateSaving(c *gin.Context) {
-    tmp, _ := c.Get("saving")
-    saving := tmp.(model.Saving)
-    id, err := primitive.ObjectIDFromHex(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid saving ID"})
-        return
-    }
+	tmp, _ := c.Get("saving")
+	saving := tmp.(model.Saving)
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid saving ID"})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	err = service.UpdateSaving(c.Request.Context(), id, saving)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "Error updating saving",
+			"detail": err.Error(),
+		})
+		return
+	}
 
-    err = service.UpdateSaving(ctx, id, saving)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": "Error updating saving",
-            "detail": err.Error(),
-        })
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{"message": "Saving updated successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Saving updated successfully"})
 }
 
 func DeleteSaving(c *gin.Context) {
@@ -107,18 +99,14 @@ func DeleteSaving(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-    err = service.DeleteSaving(ctx, id)
+	err = service.DeleteSaving(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-            "error": "Error soft deleting related transactions",
-            "detail": err.Error(),
-        })
+			"error":  "Error soft deleting related transactions",
+			"detail": err.Error(),
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Saving and related transactions soft deleted successfully"})
 }
-

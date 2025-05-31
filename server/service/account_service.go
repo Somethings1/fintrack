@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
-    "fmt"
 
 	"fintrack/server/model"
+	"fintrack/server/socket"
 	"fintrack/server/util"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -49,27 +50,43 @@ func FetchAccountsSince(ctx context.Context, username string, since time.Time) (
 		{Key: "last_update", Value: -1},
 	})
 
-    return util.AccountCollection.Find(ctx, filter, opts)
+	return util.AccountCollection.Find(ctx, filter, opts)
 }
 
 func AddAccount(ctx context.Context, account model.Account) (interface{}, error) {
-    account.LastUpdate = time.Now()
-    result, err := util.AccountCollection.InsertOne(ctx, account)
+	account.LastUpdate = time.Now()
+	result, err := util.AccountCollection.InsertOne(ctx, account)
 
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
-    return result.InsertedID, nil
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "accounts",
+		"action":     "create",
+		"detail":     account,
+	})
+
+	return result.InsertedID, nil
 }
 
 func UpdateAccount(ctx context.Context, id primitive.ObjectID, account model.Account) error {
-    filter := bson.M{"_id": id}
-    account.LastUpdate = time.Now()
-    updateAccount := bson.M{"$set": account}
+	filter := bson.M{"_id": id}
+	account.LastUpdate = time.Now()
+	updateAccount := bson.M{"$set": account}
 
-    _, err := util.AccountCollection.UpdateOne(ctx, filter, updateAccount)
-    return err
+	_, err := util.AccountCollection.UpdateOne(ctx, filter, updateAccount)
+	if err != nil {
+		return err
+	}
+
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "accounts",
+		"action":     "update",
+		"detail":     account,
+	})
+
+	return nil
 }
 
 func DeleteAccount(ctx context.Context, id primitive.ObjectID) error {
@@ -79,9 +96,9 @@ func DeleteAccount(ctx context.Context, id primitive.ObjectID) error {
 			"last_update": time.Now(),
 		},
 	}
-    _, err := util.AccountCollection.UpdateOne(ctx, bson.M{"_id": id}, accountUpdate)
+	_, err := util.AccountCollection.UpdateOne(ctx, bson.M{"_id": id}, accountUpdate)
 	if err != nil {
-        return fmt.Errorf("Error deleting account: %w", err)
+		return fmt.Errorf("Error deleting account: %w", err)
 	}
 
 	transactionUpdate := bson.M{
@@ -98,8 +115,14 @@ func DeleteAccount(ctx context.Context, id primitive.ObjectID) error {
 	}
 	_, err = util.TransactionCollection.UpdateMany(ctx, filter, transactionUpdate)
 	if err != nil {
-        return fmt.Errorf("Error deleting related transactions: %w", err)
+		return fmt.Errorf("Error deleting related transactions: %w", err)
 	}
 
-    return nil
+	socket.BroadcastFromContext(ctx, map[string]interface{}{
+		"collection": "accounts",
+		"action":     "delete",
+		"detail":     id,
+	})
+
+	return nil
 }

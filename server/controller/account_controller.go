@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,10 +22,7 @@ func AddAccount(c *gin.Context) {
     tmp, _ := c.Get("account")
     account := tmp.(model.Account)
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    result, err := service.AddAccount(ctx, account)
+    result, err := service.AddAccount(c.Request.Context(), account)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error adding account",
@@ -49,8 +45,7 @@ func GetAccountsSince(c *gin.Context) {
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+    ctx := c.Request.Context()
 
     cursor, err := service.FetchAccountsSince(ctx, c.GetString("username"), sinceTime)
     if err != nil {
@@ -88,10 +83,7 @@ func UpdateAccount(c *gin.Context) {
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    err = service.UpdateAccount(ctx, id, account)
+    err = service.UpdateAccount(c.Request.Context(), id, account)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error updating account",
@@ -110,10 +102,7 @@ func DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-    err = service.DeleteAccount(ctx, id)
+    err = service.DeleteAccount(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
             "error": "Error deleting account",
