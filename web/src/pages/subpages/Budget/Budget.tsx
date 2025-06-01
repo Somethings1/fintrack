@@ -35,7 +35,6 @@ const Budget = () => {
 
     const { triggerRefresh } = useRefresh();
     const refreshToken = useRefresh();
-    const lastSync = usePollingContext();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -62,7 +61,7 @@ const Budget = () => {
         };
 
         fetchData();
-    }, [refreshToken, lastSync]);
+    }, [refreshToken]);
 
     const handleNewCategory = async (category: Category) => {
         await addCategory(category);

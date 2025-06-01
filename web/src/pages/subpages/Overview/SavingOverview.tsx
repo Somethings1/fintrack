@@ -22,7 +22,6 @@ const SavingOverview: React.FC<SavingOverviewProps> = ({
     const [loading, setLoading] = useState(true);
 
     const refreshToken = useRefresh();
-    const lastSync = usePollingContext();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -37,7 +36,7 @@ const SavingOverview: React.FC<SavingOverviewProps> = ({
         };
 
         fetchData();
-    }, [refreshToken, lastSync]);
+    }, [refreshToken]);
 
     return (
         <RoundedBox style={{ padding: 16, height: 290, position: "relative" }}>

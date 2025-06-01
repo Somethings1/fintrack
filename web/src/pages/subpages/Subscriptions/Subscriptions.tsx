@@ -30,7 +30,6 @@ const Subscriptions = () => {
 
     const { triggerRefresh } = useRefresh();
     const refreshToken = useRefresh();
-    const lastSync = usePollingContext();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -39,7 +38,7 @@ const Subscriptions = () => {
         };
 
         fetchData();
-    }, [refreshToken, lastSync]);
+    }, [refreshToken]);
 
     const handleNewSubscription = async (subscription: Subscription) => {
         await addSubscription(subscription);

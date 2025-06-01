@@ -41,7 +41,6 @@ const Savings = () => {
 
     const { triggerRefresh } = useRefresh();
     const refreshToken = useRefresh();
-    const lastSync = usePollingContext();
 
     useEffect(() => {
         const fetchSavings = async () => {
@@ -50,7 +49,7 @@ const Savings = () => {
         };
 
         fetchSavings();
-    }, [refreshToken, lastSync]);
+    }, [refreshToken]);
 
     useEffect(() => {
         const today = dayjs();

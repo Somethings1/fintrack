@@ -72,7 +72,6 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
     const [chartType, setChartType] = useState<ChartType>("bar");
     const [data, setData] = useState<any[]>([]);
     const { refreshCount } = useRefresh();
-    const { transactions: lastSync } = usePollingContext();
 
     const processData = async () => {
         const transactions = await getStoredTransactions();
@@ -122,7 +121,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
 
     useEffect(() => {
         processData();
-    }, [refreshCount, lastSync, account]);
+    }, [refreshCount, account]);
 
     const renderChart = () => {
         switch (chartType) {
