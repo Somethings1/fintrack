@@ -70,21 +70,47 @@ func GetNotificationsSince(c *gin.Context) {
 	})
 }
 
-func MarkNotificationRead(c *gin.Context) {
-	idStr := c.Param("id")
-	notifID, err := primitive.ObjectIDFromHex(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
+func MarkNotificationsRead(c *gin.Context) {
+	var body struct {
+		IDs []string `json:"ids"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	if err := service.MarkAsRead(c.Request.Context(), notifID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notification as read"})
+	var notifIDs []primitive.ObjectID
+	for _, idStr := range body.IDs {
+		id, err := primitive.ObjectIDFromHex(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID: " + idStr})
+			return
+		}
+		notifIDs = append(notifIDs, id)
+	}
+
+	username := c.GetString("username")
+	for _, id := range notifIDs {
+		notif, err := service.GetNotificationById(id.Hex())
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Notification not found: " + id.Hex()})
+			return
+		}
+		if string(notif.Owner) != username {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You are not the creator of notification " + id.Hex()})
+			return
+		}
+	}
+
+	if err := service.MarkAsRead(c.Request.Context(), notifIDs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
 		return
 	}
 
 	c.Status(http.StatusNoContent)
 }
+
 
 func UpdateNotification(c *gin.Context) {
 	tmp, _ := c.Get("notification")

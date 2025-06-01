@@ -139,9 +139,8 @@ func startControllers () {
             controller.AddNotification)
         notifications.GET("/get-since/:time",
             controller.GetNotificationsSince)
-        notifications.PUT("/mark-as-read/:id",
-            middleware.NotificationOwnershipMiddleware(),
-            controller.MarkNotificationRead)
+        notifications.PUT("/mark-read",
+            controller.MarkNotificationsRead)
         notifications.PUT("/update/:id",
             middleware.NotificationOwnershipMiddleware(),
             middleware.NotificationFormatMiddleware(),

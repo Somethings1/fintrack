@@ -69,7 +69,12 @@ func AddNotification(ctx context.Context, notif model.Notification) (interface{}
 	return result.InsertedID, nil
 }
 
-func MarkAsRead(ctx context.Context, notifID primitive.ObjectID) error {
+func MarkAsRead(ctx context.Context, notifIDs []primitive.ObjectID) error {
+    filter := bson.M{
+        "_id": bson.M{
+            "$in": notifIDs,
+        },
+    }
 	update := bson.M{
 		"$set": bson.M{
 			"read":        true,
@@ -77,7 +82,7 @@ func MarkAsRead(ctx context.Context, notifID primitive.ObjectID) error {
 		},
 	}
 
-	_, err := util.NotificationCollection.UpdateByID(ctx, notifID, update)
+	_, err := util.NotificationCollection.UpdateMany(ctx, filter, update)
 
 	if err != nil {
 		return err
@@ -86,7 +91,7 @@ func MarkAsRead(ctx context.Context, notifID primitive.ObjectID) error {
 	socket.BroadcastFromContext(ctx, map[string]interface{}{
 		"collection": "notifications",
 		"action":     "mark",
-		"detail":     "",
+		"detail":     notifIDs,
 	})
 
 	return nil
