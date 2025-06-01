@@ -1,18 +1,24 @@
 package cronjob
 
 import (
-    "context"
-    "log"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
-    "go.mongodb.org/mongo-driver/bson"
-    "fintrack/server/model"
-    "fintrack/server/service"
-    "fintrack/server/util"
+	"fintrack/server/model"
+	"fintrack/server/service"
+	"fintrack/server/util"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func CreateSubscriptionNotificationsCron() {
     ticker := time.NewTicker(1 * time.Hour)
+    if os.Getenv("DEV") == "true" {
+        ticker = time.NewTicker(1 * time.Minute)
+    }
     defer ticker.Stop()
 
     for {
@@ -20,6 +26,7 @@ func CreateSubscriptionNotificationsCron() {
         ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
         now := time.Now()
+        fmt.Printf(">>>>>>>>>>Hello I'm checking to create notification\n")
 
         filter := bson.M{
             "is_active": true,
@@ -40,6 +47,10 @@ func CreateSubscriptionNotificationsCron() {
                 log.Println("Error decoding subscription:", err)
                 continue
             }
+            fmt.Printf("Hello I found something\n");
+
+            ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
+            ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
 
             notif := model.Notification{
                 Owner: sub.Creator,
@@ -50,11 +61,11 @@ func CreateSubscriptionNotificationsCron() {
                 ScheduledAt: time.Now(),
             }
 
-            if _, err := service.AddNotification(ctx, notif); err != nil {
+            if _, err := service.AddNotification(ctxWithInfo, notif); err != nil {
                 log.Println("Failed to create notification for subscription:", err)
             }
 
-            service.OnNotificationCreated(ctx, sub.ID)
+            service.OnNotificationCreated(ctxWithInfo, sub.ID)
         }
 
         cursor.Close(ctx)
@@ -64,6 +75,9 @@ func CreateSubscriptionNotificationsCron() {
 
 func CreateSubscriptionTransactionCron() {
     ticker := time.NewTicker(1 * time.Hour)
+    if os.Getenv("DEV") == "true" {
+        ticker = time.NewTicker(1 * time.Minute)
+    }
     defer ticker.Stop()
 
     for {
@@ -71,6 +85,7 @@ func CreateSubscriptionTransactionCron() {
         ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
         now := time.Now()
+        fmt.Printf(">>>>>>>>>>Hello I'm checking to create transaction\n")
 
         filter := bson.M{
             "is_active": true,
@@ -92,6 +107,9 @@ func CreateSubscriptionTransactionCron() {
                 continue
             }
 
+            ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
+            ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
+
             txn := model.Transaction{
                 Creator:        sub.Creator,
                 Amount:         sub.Amount,
@@ -103,12 +121,12 @@ func CreateSubscriptionTransactionCron() {
                 IsDeleted:      false,
             }
 
-            if _, err := service.AddTransaction(ctx, txn); err != nil {
+            if _, err := service.AddTransaction(ctxWithInfo, txn); err != nil {
                 log.Println("Failed to create transaction for subscription:", err)
                 continue
             }
 
-            if err := service.OnTransactionCreated(ctx, sub.ID); err != nil {
+            if err := service.OnTransactionCreated(ctxWithInfo, sub.ID); err != nil {
                 log.Println("Failed to update subscription after transaction:", err)
             }
         }

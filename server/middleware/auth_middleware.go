@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+    "fintrack/server/util"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -49,8 +50,8 @@ func ContextInjectorMiddleware() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		ctx = context.WithValue(c.Request.Context(), "userId", userId)
-		ctx = context.WithValue(ctx, "clientId", clientId)
+		ctx = context.WithValue(c.Request.Context(), util.UserIdKey, userId)
+		ctx = context.WithValue(ctx, util.ClientIdKey, clientId)
 
 		c.Request = c.Request.WithContext(ctx)
 

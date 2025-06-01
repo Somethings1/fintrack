@@ -125,7 +125,8 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 		// Interval
 		if _subscription.Interval != "week" &&
 			_subscription.Interval != "month" &&
-			_subscription.Interval != "year" {
+			_subscription.Interval != "year" &&
+            _subscription.Interval != "test"{
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid interval type: expected " +
 					"{week|month|year}, but got `" +
@@ -155,6 +156,8 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			MaxInterval:    _subscription.MaxInterval,
             CurrentInterval: _subscription.CurrentInterval,
             RemindBefore: _subscription.RemindBefore,
+
+            IsActive: true,
 		}
 
 		c.Set("subscription", subscription)

@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+    "fintrack/server/util"
 	"github.com/gorilla/websocket"
 	"net/http"
     "context"
@@ -97,8 +98,8 @@ func HandleWebSocket(c *gin.Context) {
 }
 
 func BroadcastFromContext(ctx context.Context, message interface{}) {
-    userId, ok1 := ctx.Value("userId").(string)
-    clientId, ok2 := ctx.Value("clientId").(string)
+    userId, ok1 := ctx.Value(util.UserIdKey).(string)
+    clientId, ok2 := ctx.Value(util.ClientIdKey).(string)
 
     if !ok1 || !ok2 {
         log.Println("BroadcastFromContext: missing userId or clientId in context")

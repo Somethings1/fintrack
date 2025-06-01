@@ -105,7 +105,7 @@ func OnNotificationCreated(ctx context.Context, id primitive.ObjectID) error {
 }
 
 func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
-	sub, err := GetSubscriptionById(id.String())
+	sub, err := GetSubscriptionById(id.Hex())
 	if err != nil {
 		return err
 	}
@@ -119,6 +119,8 @@ func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
 
 	var nextActive time.Time
 	switch sub.Interval {
+	case "test":
+		nextActive = sub.StartDate.Add(time.Duration(newInterval) * time.Minute)
 	case "week":
 		nextActive = sub.StartDate.AddDate(0, 0, newInterval*7)
 	case "month":
