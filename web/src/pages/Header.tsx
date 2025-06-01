@@ -10,6 +10,7 @@ import {
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/authService";
+import NotificationPopover from '@/components/NotificationPopover';
 
 const { Header } = Layout;
 
@@ -103,9 +104,7 @@ const AppHeader: React.FC<HeaderProps> = ({
 
             {/* Right-side controls: Notifications + Avatar */}
             <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                <Popover content="No notifications" trigger="click">
-                    <BellOutlined style={{ fontSize: "18px", cursor: "pointer" }} />
-                </Popover>
+                <NotificationPopover />
 
                 <Popover
                     content={<Button onClick={handleLogout} type="link">Logout</Button>}

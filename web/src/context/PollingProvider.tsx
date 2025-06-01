@@ -18,7 +18,6 @@ async function fetchCollection(
     lastSync: string,
     updateLastSync: (collection: string, timestamp: string) => void
 ) {
-    console.log("Hello");
     try {
         const res = await fetch(`http://localhost:8080/api/${collection}/get-since/${lastSync}`, {
             method: "GET",

@@ -22,7 +22,7 @@ mark {
     border-radius: 2px;
 }
 /* Make all buttons bigger padding and fully rounded */
-.ant-btn {
+.ant-btn:not(.ant-btn-link) {
   padding: 20px 18px !important;
   border-radius: 9999px !important; /* Full rounded */
   font-weight: 600;
@@ -31,6 +31,9 @@ mark {
 
 .ant-btn.ant-btn-circle {
     padding: 20px !important;
+}
+.ant-btn.ant-btn-circle.table-button {
+    padding: 10px !important;
 }
 
 /* Primary button */
