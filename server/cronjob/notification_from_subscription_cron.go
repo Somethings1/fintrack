@@ -26,7 +26,6 @@ func CreateSubscriptionNotificationsCron() {
         ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
         now := time.Now()
-        fmt.Printf(">>>>>>>>>>Hello I'm checking to create notification\n")
 
         filter := bson.M{
             "is_active": true,
@@ -47,7 +46,6 @@ func CreateSubscriptionNotificationsCron() {
                 log.Println("Error decoding subscription:", err)
                 continue
             }
-            fmt.Printf("Hello I found something\n");
 
             ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
             ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
@@ -85,7 +83,6 @@ func CreateSubscriptionTransactionCron() {
         ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
         now := time.Now()
-        fmt.Printf(">>>>>>>>>>Hello I'm checking to create transaction\n")
 
         filter := bson.M{
             "is_active": true,
