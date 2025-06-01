@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { saveToDB } from "@/utils/db";
 import { socketService } from "@/services/socketService";
-import { useRefresh } from "@/context/RefreshProvider";
+import { triggerRefresh } from "@/context/RefreshBus";
 
 type LastSyncMap = Record<string, string>;
 
@@ -82,9 +82,6 @@ export const PollingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         return map;
     });
-
-    const { triggerRefresh } = useRefresh();
-
 
     const updateLastSync = (collection: string, timestamp: string) => {
         setLastSyncMap(prev => {

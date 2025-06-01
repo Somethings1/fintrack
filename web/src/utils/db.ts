@@ -93,9 +93,9 @@ export async function deleteFromDB(storeName: string, id: string) {
         }
 
         existing.isDeleted = true;
-        existing.lastUpdate = new Date().toISOString(); // Optional for syncing
+        existing.lastUpdate = new Date().toISOString();
 
-        await updateDB(storeName, existing); // Reuse your updateDB here
+        await updateDB(storeName, existing);
     } catch (error) {
         console.error(`[deleteFromDB] Failed to soft delete from ${storeName}:`, error);
         throw new Error("Error caching data. Contact our customer service for help");

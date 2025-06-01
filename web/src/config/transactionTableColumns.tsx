@@ -97,6 +97,7 @@ export const getEditColumn = (
     title: "Actions",
     key: "actions",
     width: 80, // Adjust width as needed
+    align: "center",
     render: (_: any, transaction: ResolvedTransaction) => (
         <Button
             icon={<EditOutlined />}
@@ -126,11 +127,13 @@ const getReminderColumn = (
         );
 
         if (!reminder) return (
-            <Button className="table-button" shape="circle" icon={<BellOutlined />} onClick={(e) => {
-                e.stopPropagation();
-                handleUpsertReminder(transaction);
-            }}
-            />
+            <Tooltip title="Add reminder to this transaction">
+                <Button className="table-button" shape="circle" icon={<BellOutlined />} onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpsertReminder(transaction);
+                }}
+                />
+            </Tooltip>
         );
 
         const date = dayjs(reminder.scheduledAt);
@@ -139,7 +142,6 @@ const getReminderColumn = (
 
         const tooltipContent = (
             <>
-                <div><strong>Title:</strong> {reminder.title || "No title"}</div>
                 <div><strong>Message:</strong> {reminder.message || "No message"}</div>
                 <div><strong>Scheduled At:</strong> {fullDate}</div>
             </>

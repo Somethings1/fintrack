@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { registerRefreshCallback } from "./RefreshBus";
 
 const RefreshContext = createContext({
     refreshToken: 0,
@@ -8,7 +9,13 @@ const RefreshContext = createContext({
 export const RefreshProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [refreshToken, setRefreshToken] = useState(0);
 
-    const triggerRefresh = () => setRefreshToken((prev) => prev + 1);
+    const triggerRefresh = () => {
+        setRefreshToken((prev) => prev + 1);
+    }
+
+    useEffect(() => {
+        registerRefreshCallback(triggerRefresh);
+    }, []);
 
     return (
         <RefreshContext.Provider value={{ refreshToken, triggerRefresh }}>

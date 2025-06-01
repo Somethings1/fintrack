@@ -28,6 +28,7 @@ interface SubscriptionFormProps {
 }
 
 const intervalOptions = [
+    ...(import.meta.env.DEV ? [{ label: "Test", value: "test" }] : []),
     { label: "Week", value: "week" },
     { label: "Month", value: "month" },
     { label: "Year", value: "year" },
@@ -79,6 +80,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             creator: localStorage.getItem("username") ?? "",
             remindBefore: values.remindBefore ?? 1,
             startDate: values.startDate?.toISOString() ?? subscription.startDate,
+            isActive: true,
             isDeleted: false,
         };
 

@@ -24,7 +24,6 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
     const [data, setData] = useState<{ income: any[], expense: any[] }>({ income: [], expense: [] });
     const [loading, setLoading] = useState(true);
     const refreshToken = useRefresh();
-    const lastSync = usePollingContext();
     const primaryColors = [...Object.values(colors.primary), ...(Object.values(colors.neutral))];
 
     useEffect(() => {
@@ -71,7 +70,7 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
         };
 
         fetchData();
-    }, [refreshToken, lastSync]);
+    }, [refreshToken]);
 
 
     const renderChart = (chartData: any[]) => (

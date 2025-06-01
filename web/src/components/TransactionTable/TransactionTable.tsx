@@ -90,7 +90,6 @@ const TransactionTable: React.FC = () => {
 
     const handleUpsertReminderClick = (transaction: ResolvedTransaction) => {
         setReferenceId(transaction._id);
-        console.log(transaction._id);
         const notification = notifications.find(notif => notif.referenceId === transaction._id);
         if (notification) {
             // Edit mode
