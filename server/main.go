@@ -155,14 +155,14 @@ func startControllers () {
 }
 
 func startCronJobs() {
-    cronjob.CreateSubscriptionNotificationsCron()
-    cronjob.CreateSubscriptionTransactionCron()
+    go cronjob.CreateSubscriptionNotificationsCron()
+    go cronjob.CreateSubscriptionTransactionCron()
 }
 
 func main() {
 	util.InitDB()
     godotenv.Load()
-    startControllers()
     startCronJobs()
+    startControllers()
 }
 
