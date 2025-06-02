@@ -3,14 +3,11 @@ import { Tabs, Typography, Spin, Empty, Button } from "antd";
 import { LinkOutlined } from "@ant-design/icons";
 import { Label, PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import RoundedBox from "@/components/RoundedBox";
-import { getStoredCategories } from "@/services/categoryService";
-import { getStoredTransactions } from "@/services/transactionService";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import { colors } from "@/theme/color";
+import { useCategories } from "@/hooks/useCategories";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const { Title } = Typography;
-const COLORS = ["#FF6384", "#36A2EB", "#FFCE56", "#8E44AD", "#1ABC9C", "#E67E22", "#2ECC71"];
 
 const formatMoney = (n: number) => "$" + n.toLocaleString();
 
@@ -23,17 +20,12 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
 }) => {
     const [data, setData] = useState<{ income: any[], expense: any[] }>({ income: [], expense: [] });
     const [loading, setLoading] = useState(true);
-    const refreshToken = useRefresh();
     const primaryColors = [...Object.values(colors.primary), ...(Object.values(colors.neutral))];
+    const categories = useCategories();
+    const { transactions } = useTransactions();
 
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
-            const [categories, transactions] = await Promise.all([
-                getStoredCategories(),
-                getStoredTransactions(),
-            ]);
-
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
 
@@ -70,7 +62,7 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
         };
 
         fetchData();
-    }, [refreshToken]);
+    }, [transactions, categories]);
 
 
     const renderChart = (chartData: any[]) => (

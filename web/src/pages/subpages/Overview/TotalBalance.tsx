@@ -1,15 +1,15 @@
 import React from "react";
 import TotalBox from "./TotalBox";
-import { getStoredAccounts } from "@/services/accountService";
-import { getStoredSavings } from "@/services/savingService";
-import { getStoredTransactions } from "@/services/transactionService";
 import dayjs from "dayjs";
+import { useTransactions } from "@/hooks/useTransactions";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useSavings } from "@/hooks/useSavings";
 
 const TotalBalance: React.FC = () => {
+    const { transactions } = useTransactions();
+    const savings = useSavings();
+    const accounts = useAccounts();
     const getCurrent = async () => {
-        const accounts = await getStoredAccounts();
-        const savings = await getStoredSavings();
-
         const accTotal = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
         const savTotal = savings.reduce((sum, s) => sum + (s.balance || 0), 0);
 
@@ -17,12 +17,6 @@ const TotalBalance: React.FC = () => {
     };
 
     const getPrevious = async () => {
-        const [accounts, savings, transactions] = await Promise.all([
-            getStoredAccounts(),
-            getStoredSavings(),
-            getStoredTransactions(),
-        ]);
-
         const now = dayjs();
 
         const txThisMonth = transactions.filter(tx =>

@@ -4,10 +4,8 @@ import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
 import { Button, Input, Tooltip, Spin, Modal, Avatar } from "antd";
 import { UserOutlined, SendOutlined, RobotOutlined } from "@ant-design/icons";
-import { getStoredAccounts } from "@/services/accountService";
-import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
-import "./ChatBot.css"; // Style it like an adult, please
+import "./ChatBot.css";
 import { useTransactions } from "@/hooks/useTransactions";
 import { normalizeTransaction } from "@/utils/transactionUtils";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
@@ -15,6 +13,8 @@ import { talkToGemini } from "@/utils/chatbotUtils";
 import AccountForm from "@/components/forms/AccountForm";
 import CategoryForm from "@/components/forms/CategoryForm";
 import { useRefresh } from "@/context/RefreshProvider";
+import { useSavings } from "@/hooks/useSavings";
+import { useAccounts } from "@/hooks/useAccounts";
 
 interface Message {
     from: "user" | "bot";
@@ -31,7 +31,6 @@ const ChatBot: React.FC = () => {
             text: "Hi! I can understand sentences like “I spent 200k for lunch from wallet” and turn them into transactions. Try me!",
         },
     ]);
-    const refreshToken = useRefresh();
     const [input, setInput] = useState("");
     const [lastInput, setLastInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -48,10 +47,10 @@ const ChatBot: React.FC = () => {
     const [categoryToAdd, setCategoryToAdd] = useState<Category>(null);
 
     let accountOptions, categoryOptions;
+    const accounts = useAccounts();
+    const savings = useSavings();
 
     const fetchNames = async () => {
-        const accounts = await getStoredAccounts();
-        const savings = await getStoredSavings();
         accountOptions = [...accounts, ...savings];
 
         categoryOptions = await getStoredCategories();
@@ -70,7 +69,7 @@ const ChatBot: React.FC = () => {
 
     useEffect(() => {
         fetchNames();
-    }, [refreshToken]);
+    }, [accounts, savings]);
 
     const removeLastMessageButtons = () => {
         setMessages((current) => {
@@ -219,7 +218,7 @@ const ChatBot: React.FC = () => {
     }
 
     if (Object.keys(categoryNames).length === 0) {
-        return <Spin />; // or some loading state until categories are ready
+        return <Spin />;
     }
 
 

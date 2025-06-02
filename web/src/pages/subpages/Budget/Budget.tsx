@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from "react";
-import {
-    getStoredCategories,
-    addCategory
-} from "@/services/categoryService";
+import { addCategory } from "@/services/categoryService";
 import CategoryBox from "./CategoryBox";
 import { Category } from "@/types/Category";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import {
     Button,
     Modal,
@@ -20,29 +15,22 @@ import {
 import { PlusOutlined } from "@ant-design/icons";
 import CategoryForm from "@/components/forms/CategoryForm";
 import Title from "@/components/Title";
-import { getStoredTransactions } from "@/services/transactionService";
-import { Transaction } from "@/models/Transaction";
 import Subtitle from "@/components/Subtitle";
+import { useCategories } from "@/hooks/useCategories";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const { Option } = Select;
 
 const Budget = () => {
-    const [categories, setCategories] = useState<Category[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState<"expense" | "income">("expense");
     const [sortOption, setSortOption] = useState("name-asc");
     const [spentByCategory, setSpentByCategory] = useState<Record<string, number>>({});
-
-    const { triggerRefresh } = useRefresh();
-    const refreshToken = useRefresh();
+    const categories = useCategories();
+    const { txs } = useTransactions();
 
     useEffect(() => {
-        const fetchData = async () => {
-            const [cats, txs] = await Promise.all([
-                getStoredCategories(),
-                getStoredTransactions()
-            ]);
-
+        const calculate = async () => {
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
 
@@ -57,16 +45,15 @@ const Budget = () => {
             });
 
             setSpentByCategory(spentMap);
-            setCategories(cats);
         };
 
-        fetchData();
-    }, [refreshToken]);
+        if (txs)
+            calculate();
+    }, [categories, txs]);
 
     const handleNewCategory = async (category: Category) => {
         await addCategory(category);
         setIsModalOpen(false);
-        triggerRefresh();
     };
 
     const sortCategories = (list: Category[]) => {

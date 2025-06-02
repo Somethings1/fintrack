@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
 import RoundedBox from "@/components/RoundedBox";
-import { getStoredTransactions } from "@/services/transactionService";
-import { usePollingContext } from "@/context/PollingProvider";
-import { useRefresh } from "@/context/RefreshProvider";
 import { Typography, Select, Space, Row, Col } from "antd";
 import {
     BarChart,
@@ -19,6 +16,7 @@ import {
 } from "recharts";
 import dayjs from "dayjs";
 import { colors } from "@/theme/color";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -71,10 +69,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
     const [chartType, setChartType] = useState<ChartType>("bar");
     const [data, setData] = useState<any[]>([]);
-    const { refreshCount } = useRefresh();
+    const { transactions } = useTransactions();
 
     const processData = async () => {
-        const transactions = await getStoredTransactions();
         const days = getDaysInMonth();
 
         const dailyTotals = days.map((day, index) => {
@@ -121,7 +118,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
 
     useEffect(() => {
         processData();
-    }, [refreshCount, account]);
+    }, [transactions, account]);
 
     const renderChart = () => {
         switch (chartType) {

@@ -1,11 +1,6 @@
-import React, { useEffect, useState } from "react";
-import {
-    getStoredSubscriptions,
-    addSubscription
-} from "@/services/subscriptionService";
+import { useEffect, useState } from "react";
+import { addSubscription } from "@/services/subscriptionService";
 import { Subscription } from "@/types/Subscription";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import {
     Button,
     Modal,
@@ -20,30 +15,18 @@ import SubscriptionForm from "@/components/forms/SubscriptionForm";
 import SubscriptionBox from "./SubscriptionBox";
 import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
 
 const { Option } = Select;
 
 const Subscriptions = () => {
-    const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [sortOption, setSortOption] = useState("startDate-desc");
-
-    const { triggerRefresh } = useRefresh();
-    const refreshToken = useRefresh();
-
-    useEffect(() => {
-        const fetchData = async () => {
-            const subs = await getStoredSubscriptions();
-            setSubscriptions(subs);
-        };
-
-        fetchData();
-    }, [refreshToken]);
+    const subscriptions = useSubscriptions();
 
     const handleNewSubscription = async (subscription: Subscription) => {
         await addSubscription(subscription);
         setIsModalOpen(false);
-        triggerRefresh();
     };
 
     const sortSubscriptions = (list: Subscription[]) => {

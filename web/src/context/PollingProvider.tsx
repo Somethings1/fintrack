@@ -90,7 +90,7 @@ export const PollingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             localStorage.setItem(`lastSync_${collection}`, timestamp);
             return newMap;
         });
-        triggerRefresh();
+        triggerRefresh(collection);
     };
 
     const lastSyncMapRef = React.useRef(lastSyncMap);

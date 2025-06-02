@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { getStoredSavings, addSaving } from "@/services/savingService";
+import { useEffect, useState } from "react";
+import { addSaving } from "@/services/savingService";
 import { Saving } from "@/models/Saving";
 import SavingBox from "./SavingBox";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
-import { Button, Modal, Select, Space, Typography, Row, Col, Badge } from "antd";
+import { Button, Modal, Select, Space, Row, Col } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
 import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
 import dayjs from "dayjs";
+import { useSavings } from "@/hooks/useSavings";
 
 const { Option } = Select;
 
@@ -32,29 +31,16 @@ const sortOptions = [
 ];
 
 const Savings = () => {
-    const [savings, setSavings] = useState<Saving[]>([]);
     const [filteredSavings, setFilteredSavings] = useState<Saving[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [sortField, setSortField] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
-
-    const { triggerRefresh } = useRefresh();
-    const refreshToken = useRefresh();
-
-    useEffect(() => {
-        const fetchSavings = async () => {
-            const data = await getStoredSavings();
-            setSavings(data);
-        };
-
-        fetchSavings();
-    }, [refreshToken]);
+    const savings = useSavings();
 
     useEffect(() => {
         const today = dayjs();
 
-        // Calculate counts for status categories
         const counts: Record<string, number> = {
             not_started: 0,
             in_progress: 0,
@@ -132,7 +118,6 @@ const Savings = () => {
     const handleNewSaving = async (saving: Saving) => {
         await addSaving(saving);
         setIsModalOpen(false);
-        triggerRefresh();
     };
 
     return (

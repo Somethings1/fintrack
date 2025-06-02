@@ -1,27 +1,24 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { registerRefreshCallback } from "./RefreshBus";
+import { createContext, useContext } from "react";
+import { registerRefreshCallback, triggerRefresh, unregisterRefreshCallback } from "./RefreshBus";
 
 const RefreshContext = createContext({
-    refreshToken: 0,
-    triggerRefresh: () => {},
+  register: (topic: string, cb: () => void) => {},
+  unregister: (topic: string, cb: () => void) => {},
+  trigger: (topic: string) => {},
 });
 
 export const RefreshProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [refreshToken, setRefreshToken] = useState(0);
-
-    const triggerRefresh = () => {
-        setRefreshToken((prev) => prev + 1);
-    }
-
-    useEffect(() => {
-        registerRefreshCallback(triggerRefresh);
-    }, []);
-
-    return (
-        <RefreshContext.Provider value={{ refreshToken, triggerRefresh }}>
-            {children}
-        </RefreshContext.Provider>
-    );
+  return (
+    <RefreshContext.Provider
+      value={{
+        register: registerRefreshCallback,
+        unregister: unregisterRefreshCallback,
+        trigger: triggerRefresh,
+      }}
+    >
+      {children}
+    </RefreshContext.Provider>
+  );
 };
 
 export const useRefresh = () => useContext(RefreshContext);

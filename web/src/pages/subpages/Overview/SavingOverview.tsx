@@ -3,11 +3,10 @@ import { Typography, Spin, Progress, Empty, Space, Button } from "antd";
 import { LinkOutlined } from "@ant-design/icons";
 import RoundedBox from "@/components/RoundedBox";
 import { getStoredSavings } from "@/services/savingService";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import { Saving } from "@/types/Saving";
 import ProgressBar from "@/components/charts/ProgressBar";
 import Balance from "@/components/Balance";
+import { useSavings } from "@/hooks/useSavings";
 
 const { Title, Text } = Typography;
 
@@ -20,13 +19,11 @@ const SavingOverview: React.FC<SavingOverviewProps> = ({
 }) => {
     const [savings, setSavings] = useState<Saving[]>([]);
     const [loading, setLoading] = useState(true);
-
-    const refreshToken = useRefresh();
+    const allSavings = useSavings();
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            const allSavings = await getStoredSavings();
             const top3 = allSavings
                 .filter(s => !s.isDeleted && s.goal > 0)
                 .sort((a, b) => b.balance - a.balance)
@@ -36,7 +33,7 @@ const SavingOverview: React.FC<SavingOverviewProps> = ({
         };
 
         fetchData();
-    }, [refreshToken]);
+    }, [allSavings]);
 
     return (
         <RoundedBox style={{ padding: 16, height: 290, position: "relative" }}>

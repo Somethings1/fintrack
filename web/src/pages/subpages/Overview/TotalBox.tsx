@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import RoundedBox from "@/components/RoundedBox";
 import { Typography } from "antd";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import { colors } from "@/theme/color";
 import Balance from "@/components/Balance";
+import { useTransactions } from "@/hooks/useTransactions";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useSavings } from "@/hooks/useSavings";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 type Props = {
     title: string;
@@ -25,8 +26,9 @@ const TotalBox: React.FC<Props> = ({
 }) => {
     const [current, setCurrent] = useState(0);
     const [previous, setPrevious] = useState(0);
-    const { refreshCount } = useRefresh();
-    const { transactions, accounts, savings } = usePollingContext();
+    const { transactions } = useTransactions();
+    const accounts = useAccounts();
+    const savings = useSavings();
 
     useEffect(() => {
         const fetch = async () => {
@@ -36,7 +38,7 @@ const TotalBox: React.FC<Props> = ({
             setPrevious(prev);
         };
         fetch();
-    }, [refreshCount, transactions, accounts, savings]);
+    }, [transactions, accounts, savings]);
 
     const diff = current - previous;
     const isHighlight =
@@ -48,7 +50,7 @@ const TotalBox: React.FC<Props> = ({
     return (
         <RoundedBox>
             <Title level={5} style={{ marginTop: 0, marginBottom: "10px" }}>{title}</Title>
-            <Balance amount={current} type="" size="xl" align="left"/>
+            <Balance amount={current} type="" size="xl" align="left" />
             <div style={{ display: "flex", alignItems: "center", marginTop: 18 }}>
                 <span
                     style={{

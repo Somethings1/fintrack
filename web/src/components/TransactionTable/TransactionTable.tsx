@@ -1,25 +1,23 @@
-// TransactionTable.tsx
 import React, { useState, useMemo } from "react";
-import { Table, Spin } from "antd"; // Removed Button
-// Removed icon imports if they are *only* used in the action bar now
-// import { DeleteOutlined, EditOutlined, FilterOutlined, SelectOutlined, PlusOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Table, Spin } from "antd";
 
-import { useTransactions, ResolvedTransaction, AccountOption, CategoryOption } from "@/hooks/useTransactions";
+import { useTransactions, ResolvedTransaction} from "@/hooks/useTransactions";
 import { useTransactionFilters } from "@/hooks/useTransactionFilters";
 import { useTransactionExport } from "@/hooks/useTransactionExport";
 import { useNotifications } from "@/hooks/useNotifications";
 import { getColumns } from "@/config/transactionTableColumns";
 import { Notification } from "@/models/Notification";
+import { addTransaction, updateTransaction, deleteTransactions } from "@/services/transactionService";
 
 import FilterModal from "@/components/modals/FilterModal";
 import ExportModal from "@/components/modals/ExportModal";
 import DeleteConfirmationModal from "@/components/modals/DeleteConfirmationModal";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
-import TransactionActionBar from "./TransactionActionBar"; // Import the action bar
+import TransactionActionBar from "./TransactionActionBar";
 import './TransactionTable.css';
 import { addNotification } from "@/services/notificationService";
-import { updateNotification } from "../../services/notificationService";
-import AddEditNotificationModal from "../modals/AddEditNotificationModal";
+import { updateNotification } from "@/services/notificationService";
+import AddEditNotificationModal from "@/components/modals/AddEditNotificationModal";
 
 const TransactionTable: React.FC = () => {
     // --- Hooks ---
@@ -28,9 +26,6 @@ const TransactionTable: React.FC = () => {
         isLoading,
         accountOptions,
         categoryOptions,
-        addTransaction,
-        updateTransaction,
-        deleteTransactions,
         defaultTransaction
     } = useTransactions();
 
@@ -123,7 +118,11 @@ const TransactionTable: React.FC = () => {
             if (transactionToEdit) {
                 await updateTransaction(transactionToEdit._id, values);
             } else {
-                const finalValues = { ...defaultTransaction, ...values, creator: values.creator || defaultTransaction.creator };
+                const finalValues = {
+                    ...defaultTransaction,
+                    ...values,
+                    creator: values.creator || defaultTransaction.creator
+                };
                 await addTransaction(finalValues as any);
             }
             handleCancelAddEdit();
@@ -132,7 +131,7 @@ const TransactionTable: React.FC = () => {
         }
     };
 
-    const handleBulkDeleteClick = () => { // Renamed from onBulkDelete
+    const handleBulkDeleteClick = () => {
         if (selectedRowKeys.length > 0) {
             setShowDeleteConfirmModal(true);
         }
@@ -150,18 +149,16 @@ const TransactionTable: React.FC = () => {
     };
 
     const handleToggleSelectMode = () => {
-        setSelectMode(prev => !prev); // Use functional update for safety
+        setSelectMode(prev => !prev);
         setSelectedRowKeys([]);
-        // If turning select mode OFF while edit mode is ON, turn edit mode OFF.
-        if (selectMode && editMode) { // Check *previous* state of selectMode
+        if (selectMode && editMode) {
             setEditMode(false);
         }
     };
 
     const handleToggleEditMode = () => {
         setEditMode(prev => !prev);
-        // If turning edit mode OFF while select mode is ON, turn select mode OFF.
-        if (editMode && selectMode) { // Check *previous* state of editMode
+        if (editMode && selectMode) {
             setSelectMode(false);
             setSelectedRowKeys([]);
         }
