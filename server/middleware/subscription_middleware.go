@@ -32,24 +32,23 @@ func SubscriptionOwnershipMiddleware() gin.HandlerFunc {
 func SubscriptionFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Subscription struct {
-            Name            string  `json:"name"`
-            Icon            string  `json:"icon"`
-			Creator         string  `json:"creator"`
-			Amount          float64 `json:"amount"`
-			SourceAccount   string  `json:"sourceAccount"`
-			Category        string  `json:"category"`
+			Name          string  `json:"name"`
+			Icon          string  `json:"icon"`
+			Creator       string  `json:"creator"`
+			Amount        float64 `json:"amount"`
+			SourceAccount string  `json:"sourceAccount"`
+			Category      string  `json:"category"`
 
 			StartDate       string `json:"startDate"`
 			Interval        string `json:"interval"`
 			MaxInterval     int    `json:"maxInterval"`
-            CurrentInterval int    `json:"currentInterval"`
+			CurrentInterval int    `json:"currentInterval"`
 			RemindBefore    int    `json:"remindBefore"`
 
 			IsDeleted bool `json:"isDeleted"`
 		}
 		var _subscription Subscription
 
-		// Overall format
 		if err := c.ShouldBindJSON(&_subscription); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -70,7 +69,6 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Source account
 		getOwner := func(id string) (string, error) {
 			account, accErr := service.GetAccountByID(id)
 			if accErr == nil {
@@ -97,7 +95,6 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Category
 		var category model.Category
 		category, err = service.GetCategoryByID(_subscription.Category)
 		if err != nil {
@@ -113,7 +110,6 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// StartDate
 		StartDate, err := time.Parse(time.RFC3339, _subscription.StartDate)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -122,11 +118,10 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Interval
 		if _subscription.Interval != "week" &&
 			_subscription.Interval != "month" &&
 			_subscription.Interval != "year" &&
-            _subscription.Interval != "test"{
+			_subscription.Interval != "test" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid interval type: expected " +
 					"{week|month|year}, but got `" +
@@ -135,29 +130,27 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 
-        // RemindBefore
-        if _subscription.RemindBefore < 0 {
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "RemindBefore should be a positive number",
-            })
-            return
-        }
+		if _subscription.RemindBefore < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "RemindBefore should be a positive number",
+			})
+			return
+		}
 
 		subscription := model.Subscription{
-            Name:           _subscription.Name,
-            Icon:           _subscription.Icon,
-			Creator:        _subscription.Creator,
-			Amount:         _subscription.Amount,
-			SourceAccount:  srcID,
-			Category:       category.ID,
+			Name:            _subscription.Name,
+			Icon:            _subscription.Icon,
+			Creator:         _subscription.Creator,
+			Amount:          _subscription.Amount,
+			SourceAccount:   srcID,
+			Category:        category.ID,
+			StartDate:       StartDate,
+			Interval:        _subscription.Interval,
+			MaxInterval:     _subscription.MaxInterval,
+			CurrentInterval: _subscription.CurrentInterval,
+			RemindBefore:    _subscription.RemindBefore,
 
-			StartDate:      StartDate,
-			Interval:       _subscription.Interval,
-			MaxInterval:    _subscription.MaxInterval,
-            CurrentInterval: _subscription.CurrentInterval,
-            RemindBefore: _subscription.RemindBefore,
-
-            IsActive: true,
+			IsActive: true,
 		}
 
 		c.Set("subscription", subscription)

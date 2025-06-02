@@ -61,6 +61,14 @@ func AddSubscription(ctx context.Context, subscription model.Subscription) (inte
 		return nil, err
 	}
 
+	insertedID, ok := res.InsertedID.(primitive.ObjectID)
+	if !ok {
+		return nil, fmt.Errorf("Failed to convert inserted ID to ObjectID")
+	}
+
+	subscription.ID = insertedID
+    CatchUpSubscription(ctx, subscription)
+
 	socket.BroadcastFromContext(ctx, map[string]interface{}{
 		"collection": "subscriptions",
 		"action":     "create",
@@ -89,6 +97,89 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, subscription
 	return nil
 }
 
+func CatchUpSubscription(ctx context.Context, sub model.Subscription) error {
+	now := time.Now()
+	transactions := []model.Transaction{}
+	newInterval := sub.CurrentInterval
+	nextActive := sub.StartDate
+
+	for !nextActive.After(now) {
+		txn := model.Transaction{
+			Creator:       sub.Creator,
+			Amount:        sub.Amount,
+			SourceAccount: sub.SourceAccount,
+			Category:      sub.Category,
+			DateTime:      nextActive,
+			Type:          "expense",
+			Note:          "Subscription payment for " + sub.Name,
+			IsDeleted:     false,
+		}
+		transactions = append(transactions, txn)
+
+		newInterval++
+		switch sub.Interval {
+		case "week":
+			nextActive = nextActive.AddDate(0, 0, 7)
+		case "month":
+			nextActive = nextActive.AddDate(0, 1, 0)
+		case "year":
+			nextActive = nextActive.AddDate(1, 0, 0)
+		case "test":
+			nextActive = nextActive.Add(1 * time.Minute)
+		default:
+			return fmt.Errorf("invalid interval")
+		}
+
+		if sub.MaxInterval > 0 && newInterval > sub.MaxInterval {
+			break
+		}
+	}
+
+
+	for _, txn := range transactions {
+		_, err := AddTransactionSilent(ctx, txn)
+		if err != nil {
+			return fmt.Errorf("failed to add transaction: %w", err)
+		}
+	}
+
+	if len(transactions) > 0 {
+		sub.CurrentInterval = newInterval
+		sub.NextActive = nextActive
+		sub.IsActive = sub.MaxInterval <= 0 || newInterval < sub.MaxInterval
+		sub.NotifyAt = nextActive.AddDate(0, 0, -sub.RemindBefore)
+
+		update := bson.M{
+			"$set": bson.M{
+				"current_interval": sub.CurrentInterval,
+				"next_active":      sub.NextActive,
+				"notify_at":        sub.NotifyAt,
+				"is_active":        sub.IsActive,
+				"last_update":      time.Now().Add(1 * time.Second),
+			},
+		}
+
+		_, err := util.SubscriptionCollection.UpdateByID(ctx, sub.ID, update)
+		if err != nil {
+			return fmt.Errorf("failed to update subscription: %w", err)
+		}
+
+		socket.BroadcastFromContext(ctx, map[string]interface{}{
+			"collection": "transactions",
+			"action":     "create",
+			"detail":     "bulk",
+		})
+
+		socket.BroadcastFromContext(ctx, map[string]interface{}{
+			"collection": "subscriptions",
+			"action":     "renew",
+			"detail":     "",
+		})
+	}
+
+	return nil
+}
+
 func OnNotificationCreated(ctx context.Context, id primitive.ObjectID) error {
 	update := bson.M{
 		"$set": bson.M{
@@ -113,7 +204,7 @@ func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
 	newInterval := sub.CurrentInterval + 1
 
 	isActive := true
-	if sub.MaxInterval > 0 && newInterval > sub.MaxInterval {
+	if sub.MaxInterval > 0 && newInterval >= sub.MaxInterval {
 		isActive = false
 	}
 

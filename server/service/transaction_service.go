@@ -53,29 +53,27 @@ func FetchTransactionsSince(ctx context.Context, username string, since time.Tim
 	return util.TransactionCollection.Find(ctx, filter, opts)
 }
 
-func AddTransaction(ctx context.Context, transaction model.Transaction) (interface{}, error) {
+func addTransactionInternal(ctx context.Context, transaction model.Transaction) (interface{}, error) {
 	session, err := util.MongoClient.StartSession()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start session: %w", err)
 	}
 	defer session.EndSession(ctx)
+
 	transaction.LastUpdate = time.Now()
 
 	result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		// Insert transaction
 		res, err := util.TransactionCollection.InsertOne(sc, transaction)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to insert transaction: %w", err)
 		}
 
-		// Adjust source balance
 		if transaction.SourceAccount != primitive.NilObjectID {
 			if _, err := util.AdjustBalance(sc, transaction.SourceAccount, -transaction.Amount); err != nil {
 				return nil, fmt.Errorf("Failed to adjust source account balance: %w", err)
 			}
 		}
 
-		// Adjust destination balance
 		if transaction.DestinationAccount != primitive.NilObjectID {
 			if _, err := util.AdjustBalance(sc, transaction.DestinationAccount, transaction.Amount); err != nil {
 				return nil, fmt.Errorf("Failed to adjust destination account balance: %w", err)
@@ -85,6 +83,15 @@ func AddTransaction(ctx context.Context, transaction model.Transaction) (interfa
 		return res.InsertedID, nil
 	})
 
+	return result, err
+}
+
+func AddTransactionSilent(ctx context.Context, transaction model.Transaction) (interface{}, error) {
+	return addTransactionInternal(ctx, transaction)
+}
+
+func AddTransaction(ctx context.Context, transaction model.Transaction) (interface{}, error) {
+	result, err := addTransactionInternal(ctx, transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +104,7 @@ func AddTransaction(ctx context.Context, transaction model.Transaction) (interfa
 
 	return result, nil
 }
+
 
 func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.Transaction) error {
 	newTx.LastUpdate = time.Now()

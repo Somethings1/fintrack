@@ -2,7 +2,6 @@ package cronjob
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"time"
