@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Spin, Progress, Empty, Space } from "antd";
+import { Typography, Spin, Progress, Empty, Space, Button } from "antd";
+import { LinkOutlined } from "@ant-design/icons";
 import RoundedBox from "@/components/RoundedBox";
 import { getStoredSavings } from "@/services/savingService";
 import { useRefresh } from "@/context/RefreshProvider";
@@ -10,12 +11,17 @@ import Balance from "@/components/Balance";
 
 const { Title, Text } = Typography;
 
-const SavingOverview: React.FC = () => {
+interface SavingOverviewProps {
+    linkToSavings: () => void;
+}
+
+const SavingOverview: React.FC<SavingOverviewProps> = ({
+    linkToSavings,
+}) => {
     const [savings, setSavings] = useState<Saving[]>([]);
     const [loading, setLoading] = useState(true);
 
     const refreshToken = useRefresh();
-    const lastSync = usePollingContext();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -30,10 +36,22 @@ const SavingOverview: React.FC = () => {
         };
 
         fetchData();
-    }, [refreshToken, lastSync]);
+    }, [refreshToken]);
 
     return (
-        <RoundedBox style={{ padding: 16, height: 290 }}>
+        <RoundedBox style={{ padding: 16, height: 290, position: "relative" }}>
+            <Button
+                shape="circle"
+                icon={<LinkOutlined />}
+                size="large"
+                onClick={linkToSavings}
+                style={{
+                    position: "absolute",
+                    top: 5,
+                    right: 5,
+                    zIndex: 10,
+                }}
+            />
             <Title level={5} style={{ marginBottom: 16, marginTop: 0 }}>Savings Goals</Title>
             {loading ? (
                 <Spin tip="Crunching numbers... slowly.">

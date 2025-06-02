@@ -13,8 +13,19 @@ import Title from "@/components/Title";
 import { getCurrentUser } from "@/services/authService";
 import Subtitle from "@/components/Subtitle";
 
+interface OverviewProps {
+    linkToTransactions: () => void;
+    linkToBudget: () => void;
+    linkToSavings: () => void;
+    linkToAccounts: () => void;
+}
 
-const Overview = () => {
+const Overview: React.FC<OverviewProps> = ({
+    linkToTransactions,
+    linkToBudget,
+    linkToSavings,
+    linkToAccounts,
+}) => {
     const [name, setName] = useState("");
 
     useEffect(() => {
@@ -58,15 +69,15 @@ const Overview = () => {
                     <MoneyFlow />
                 </Col>
                 <Col xs={24} lg={8}>
-                    <BudgetOverview />
+                    <BudgetOverview linkToBudget={linkToBudget}/>
                 </Col>
             </Row>
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={24} lg={16}>
-                    <RecentTransactions />
+                    <RecentTransactions linkToTransactions={linkToTransactions}/>
                 </Col>
                 <Col xs={24} lg={8}>
-                    <SavingOverview />
+                    <SavingOverview linkToSavings={linkToSavings}/>
                 </Col>
             </Row>
         </>

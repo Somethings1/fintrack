@@ -6,11 +6,11 @@
 }
 
 .chatbot-icon {
-  background-color: #1890ff;
   color: white;
   position: fixed;
   left: 24px;
   bottom: 24px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
 }
 
 .chatbot-icon-active.ant-btn-default {

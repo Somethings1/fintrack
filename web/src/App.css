@@ -1,3 +1,37 @@
+/* === Global Scrollbar Styling === */
+
+* {
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Universal list item hover */
+li.ant-list-item:hover {
+  background-color: #f5f5f5!important; /* Light grey — customizable */
+  cursor: pointer;
+}
+
+
 .ant-table-column-sorter-up,
 .ant-table-column-sorter-down {
     visibility: hidden;
@@ -22,7 +56,7 @@ mark {
     border-radius: 2px;
 }
 /* Make all buttons bigger padding and fully rounded */
-.ant-btn {
+.ant-btn:not(.ant-btn-link) {
   padding: 20px 18px !important;
   border-radius: 9999px !important; /* Full rounded */
   font-weight: 600;
@@ -31,6 +65,9 @@ mark {
 
 .ant-btn.ant-btn-circle {
     padding: 20px !important;
+}
+.ant-btn.ant-btn-circle.table-button {
+    padding: 10px !important;
 }
 
 /* Primary button */

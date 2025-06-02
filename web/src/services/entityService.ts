@@ -1,5 +1,6 @@
 import { getDB, saveToDB, updateDB, deleteFromDB } from "@/utils/db";
-import { getMessageApi } from "../utils/messageProvider";
+import { getMessageApi } from "@/utils/messageProvider";
+import { triggerRefresh } from "@/context/RefreshBus";
 
 const getName = (store: string) => {
     if (store === "categories") return "category";
@@ -7,7 +8,14 @@ const getName = (store: string) => {
 }
 
 export async function fetchStreamedEntities<T>(url: string, store: string) {
-    const response = await fetch(url, { method: "GET", credentials: "include" });
+    const response = await fetch(url,
+        {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                'clientId': localStorage.getItem("clientId") ?? "",
+            }
+        });
     const message = getMessageApi();
 
     if (!response.ok) {
@@ -88,7 +96,10 @@ export async function addEntity<T extends { _id?: string }>(url: string, store: 
     const message = getMessageApi();
     const response = await fetch(url + "/add", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "clientId": localStorage.getItem("clientId") ?? ""
+        },
         body: JSON.stringify(entity),
         credentials: "include",
     });
@@ -108,6 +119,7 @@ export async function addEntity<T extends { _id?: string }>(url: string, store: 
     try {
         await saveToDB(store, [entity]);
         message.success("New " + getName(store) + " added successfully.");
+        triggerRefresh();
     }
     catch (error: any) {
         message.error(error.message);
@@ -118,7 +130,10 @@ export async function updateEntity<T>(url: string, store: string, id: string, up
     const message = getMessageApi();
     const response = await fetch(`${url}/update/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "clientId": localStorage.getItem("clientId") ?? "",
+        },
         body: JSON.stringify(updated),
         credentials: "include",
     });
@@ -135,6 +150,7 @@ export async function updateEntity<T>(url: string, store: string, id: string, up
     try {
         await updateDB(store, updated);
         message.success("The " + getName(store) + " was updated successfully.");
+        triggerRefresh();
     }
     catch (error: any) {
         message.error(error.message);
@@ -146,7 +162,10 @@ export async function deleteEntities(url: string, store: string, ids: string[]) 
     await Promise.all(ids.map(async (id) => {
         const res = await fetch(`${url}/delete/${id}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "clientId": localStorage.getItem("clientId") ?? "",
+            },
             credentials: "include",
         });
 
@@ -162,6 +181,7 @@ export async function deleteEntities(url: string, store: string, ids: string[]) 
     try {
         await Promise.all(ids.map(id => deleteFromDB(store, id)));
         message.success("Successfully deleted " + ids.length + " " + (ids.length > 1 ? store : getName(store)));
+        triggerRefresh();
     }
     catch (error: any) {
         message.error(error.message);

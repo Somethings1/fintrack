@@ -6,14 +6,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// 🔑 Sign in with email/password
 export const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
 };
 
-// 🧑‍💻 Sign up
 export const signUp = async (name: string, email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
         email,
@@ -31,7 +29,6 @@ export const signUp = async (name: string, email: string, password: string) => {
     return data;
 };
 
-// 🚪 Logout
 export const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -43,14 +40,12 @@ export const logout = async () => {
     indexedDB.deleteDatabase("FinanceTracker");
 };
 
-// 🧠 Get current user
 export const getCurrentUser = async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
     return data.user;
 };
 
-// 🧙 Sign in with Google
 export const signInWithGoogle = async () => {
     const redirectUrl = window.location.origin + "/home"; // Or wherever you want to redirect
 

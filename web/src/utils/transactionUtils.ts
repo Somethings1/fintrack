@@ -53,7 +53,6 @@ export const applyFuzzySearch = (data: Transaction[], noteQuery: string): Transa
 
 
 export const normalizeTransaction = (values: any) => {
-
         const updatedTransaction = {
             ...values,
             dateTime: values.dateTime instanceof dayjs ? values.dateTime.toISOString() : values.dateTime,

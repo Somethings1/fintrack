@@ -45,7 +45,6 @@ export const useTransactions = () => {
     const [accountOptions, setAccountOptions] = useState<AccountOption[]>([]);
     const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
 
-    const lastSync = usePollingContext();
     const { triggerRefresh } = useRefresh();
     const refreshToken = useRefresh();
     const message = getMessageApi();
@@ -96,41 +95,22 @@ export const useTransactions = () => {
         } finally {
             setIsLoading(false);
         }
-    }, []); // Empty dependency array, triggered by lastSync effect
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, [lastSync, fetchData, refreshToken]); // Refetch when polling updates
+    }, [fetchData, refreshToken]); // Refetch when polling updates
 
     const addTransaction = useCallback(async (values: Omit<Transaction, '_id'>) => {
-        try {
-            await addTransactionService(values);
-            triggerRefresh(); // Trigger context refresh which updates lastSync
-        } catch (error) {
-            console.error("Error adding transaction:", error);
-            message.error("Failed to add transaction.");
-        }
+        await addTransactionService(values);
     }, [triggerRefresh]);
 
     const updateTransaction = useCallback(async (id: string, values: Partial<Transaction>) => {
-        try {
-            await updateTransactionService(id, values);
-            triggerRefresh();
-        } catch (error) {
-            console.error("Error updating transaction:", error);
-            message.error("Failed to update transaction.");
-        }
+        await updateTransactionService(id, values);
     }, [triggerRefresh]);
 
     const deleteTransactions = useCallback(async (ids: string[]) => {
-        if (ids.length === 0) return;
-        try {
-            await deleteTransactionsService(ids);
-            triggerRefresh();
-        } catch (error) {
-            console.error("Error deleting transactions:", error);
-            message.error("Failed to delete transactions.");
-        }
+        await deleteTransactionsService(ids);
     }, [triggerRefresh]);
 
     return {

@@ -1,128 +1,168 @@
 package main
 
 import (
-	"fintrack/server/handler"
+	"fintrack/server/controller"
+	"fintrack/server/middleware"
+	"fintrack/server/socket"
 	"fintrack/server/util"
+	"fintrack/server/cronjob"
 	"fmt"
 	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
-func main() {
-	util.InitDB()
-    godotenv.Load()
-
+func startControllers () {
 	r := gin.Default()
 	corsConfig := cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Upgrade", "Connection", "Content-Type", "Authorization", "Origin", "Accept", "clientId"},
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
-			return origin == "http://localhost:3000"
+			return origin == "http://localhost:5173"
 		},
 		ExposeHeaders: []string{"Content-Length", "Set-Cookie"},
+        AllowWebSockets: true,
 	}
 
 	r.Use(cors.New(corsConfig))
 
-	r.Use(handler.LoggingMiddleware())
-	r.Use(handler.PrintRequestDetails())
+	r.Use(middleware.LoggingMiddleware())
+	r.Use(middleware.PrintRequestDetails())
 
-	api := r.Group("/api", handler.AuthMiddleware())
+
+	api := r.Group("/api", middleware.AuthMiddleware(), middleware.ContextInjectorMiddleware())
+    api.GET("/ws", socket.HandleWebSocket)
 
 	transactions := api.Group("/transactions")
 	{
 		transactions.POST("/add",
-			handler.TransactionFormatMiddleware(),
-			handler.AddTransaction)
-
-		transactions.GET("/get/:year",
-			handler.GetTransactionsByYear)
+			middleware.TransactionFormatMiddleware(),
+			controller.AddTransaction)
 
 		transactions.GET("/get-since/:time",
-			handler.GetTransactionsSince)
+			controller.GetTransactionsSince)
 
 		transactions.PUT("/update/:id",
-			handler.TransactionOwnershipMiddleware(),
-			handler.TransactionFormatMiddleware(),
-			handler.UpdateTransaction)
+			middleware.TransactionOwnershipMiddleware(),
+			middleware.TransactionFormatMiddleware(),
+			controller.UpdateTransaction)
 
 		transactions.DELETE("/delete/:id",
-			handler.TransactionOwnershipMiddleware(),
-			handler.DeleteTransaction)
+			middleware.TransactionOwnershipMiddleware(),
+			controller.DeleteTransaction)
 	}
 
 	accounts := api.Group("/accounts")
 	{
 		accounts.POST("/add",
-			handler.AccountFormatMiddleware(),
-			handler.AddAccount)
-
-		accounts.GET("/get",
-			handler.GetAccounts)
+			middleware.AccountFormatMiddleware(),
+			controller.AddAccount)
 
 		accounts.GET("/get-since/:time",
-			handler.GetAccountsSince)
+			controller.GetAccountsSince)
 
 		accounts.PUT("/update/:id",
-			handler.AccountOwnershipMiddleware(),
-			handler.AccountFormatMiddleware(),
-			handler.UpdateAccount)
+			middleware.AccountOwnershipMiddleware(),
+			middleware.AccountFormatMiddleware(),
+			controller.UpdateAccount)
 
 		accounts.DELETE("/delete/:id",
-			handler.AccountOwnershipMiddleware(),
-			handler.DeleteAccount)
+			middleware.AccountOwnershipMiddleware(),
+			controller.DeleteAccount)
 	}
 
 	savings := api.Group("/savings")
 	{
 		savings.POST("/add",
-			handler.SavingFormatMiddleware(),
-			handler.AddSaving)
-
-		savings.GET("/get",
-			handler.GetSavings)
+			middleware.SavingFormatMiddleware(),
+			controller.AddSaving)
 
 		savings.GET("/get-since/:time",
-			handler.GetSavingsSince)
+			controller.GetSavingsSince)
 
 		savings.PUT("/update/:id",
-			handler.SavingOwnershipMiddleware(),
-			handler.SavingFormatMiddleware(),
-			handler.UpdateSaving)
+			middleware.SavingOwnershipMiddleware(),
+			middleware.SavingFormatMiddleware(),
+			controller.UpdateSaving)
 
 		savings.DELETE("/delete/:id",
-			handler.SavingOwnershipMiddleware(),
-			handler.DeleteSaving)
+			middleware.SavingOwnershipMiddleware(),
+			controller.DeleteSaving)
 	}
 
 	categories := api.Group("/categories")
 	{
 		categories.POST("/add",
-			handler.CategoryFormatMiddleware(),
-			handler.AddCategory)
-
-		categories.GET("/get",
-			handler.GetCategories)
+			middleware.CategoryFormatMiddleware(),
+			controller.AddCategory)
 
 		categories.GET("/get-since/:time",
-			handler.GetCategoriesSince)
+			controller.GetCategoriesSince)
 
 		categories.PUT("/update/:id",
-			handler.CategoryOwnershipMiddleware(),
-			handler.CategoryFormatMiddleware(),
-			handler.UpdateCategory)
+			middleware.CategoryOwnershipMiddleware(),
+			middleware.CategoryFormatMiddleware(),
+			controller.UpdateCategory)
 
 		categories.DELETE("/delete/:id",
-			handler.CategoryOwnershipMiddleware(),
-			handler.DeleteCategory)
+			middleware.CategoryOwnershipMiddleware(),
+			controller.DeleteCategory)
 	}
+
+	subscriptions := api.Group("/subscriptions")
+	{
+		subscriptions.POST("/add",
+			middleware.SubscriptionFormatMiddleware(),
+			controller.AddSubscription)
+
+		subscriptions.GET("/get-since/:time",
+			controller.GetSubscriptionsSince)
+
+		subscriptions.PUT("/update/:id",
+			middleware.SubscriptionOwnershipMiddleware(),
+			middleware.SubscriptionFormatMiddleware(),
+			controller.UpdateSubscription)
+
+		subscriptions.DELETE("/delete/:id",
+			middleware.SubscriptionOwnershipMiddleware(),
+			controller.DeleteSubscription)
+	}
+
+    notifications := api.Group("/notifications")
+    {
+        notifications.POST("/add",
+            middleware.NotificationFormatMiddleware(),
+            controller.AddNotification)
+        notifications.GET("/get-since/:time",
+            controller.GetNotificationsSince)
+        notifications.PUT("/mark-read",
+            controller.MarkNotificationsRead)
+        notifications.PUT("/update/:id",
+            middleware.NotificationOwnershipMiddleware(),
+            middleware.NotificationFormatMiddleware(),
+            controller.UpdateNotification)
+        notifications.DELETE("/delete/:id",
+            middleware.NotificationOwnershipMiddleware(),
+            controller.DeleteNotification)
+    }
 
 	fmt.Println("Server running on http://localhost:8080")
 	log.Fatal(r.Run(":8080"))
+}
+
+func startCronJobs() {
+    go cronjob.CreateSubscriptionNotificationsCron()
+    go cronjob.CreateSubscriptionTransactionCron()
+}
+
+func main() {
+	util.InitDB()
+    godotenv.Load()
+    startCronJobs()
+    startControllers()
 }
 

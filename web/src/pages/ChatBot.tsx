@@ -334,6 +334,7 @@ const ChatBot: React.FC = () => {
                 <Tooltip title="Ask ChatBot">
                     <Button
                         shape="circle"
+                        type="primary"
                         icon={<RobotOutlined />}
                         size="large"
                         onClick={() => setVisible(true)}
@@ -343,6 +344,7 @@ const ChatBot: React.FC = () => {
             ) : (
                 <Button
                     shape="circle"
+                    type="primary"
                     icon={<RobotOutlined />}
                     size="large"
                     onClick={() => setVisible(false)}

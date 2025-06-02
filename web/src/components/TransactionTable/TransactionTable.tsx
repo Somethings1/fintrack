@@ -7,7 +7,9 @@ import { Table, Spin } from "antd"; // Removed Button
 import { useTransactions, ResolvedTransaction, AccountOption, CategoryOption } from "@/hooks/useTransactions";
 import { useTransactionFilters } from "@/hooks/useTransactionFilters";
 import { useTransactionExport } from "@/hooks/useTransactionExport";
+import { useNotifications } from "@/hooks/useNotifications";
 import { getColumns } from "@/config/transactionTableColumns";
+import { Notification } from "@/models/Notification";
 
 import FilterModal from "@/components/modals/FilterModal";
 import ExportModal from "@/components/modals/ExportModal";
@@ -15,6 +17,9 @@ import DeleteConfirmationModal from "@/components/modals/DeleteConfirmationModal
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
 import TransactionActionBar from "./TransactionActionBar"; // Import the action bar
 import './TransactionTable.css';
+import { addNotification } from "@/services/notificationService";
+import { updateNotification } from "../../services/notificationService";
+import AddEditNotificationModal from "../modals/AddEditNotificationModal";
 
 const TransactionTable: React.FC = () => {
     // --- Hooks ---
@@ -37,7 +42,9 @@ const TransactionTable: React.FC = () => {
         resetFilters
     } = useTransactionFilters(rawTransactions);
 
-    const columnsConfig = useMemo(() => getColumns(false, () => { }), []);
+    const notifications = useNotifications();
+
+    const columnsConfig = useMemo(() => getColumns(false, () => { }, notifications), [notifications]);
     const {
         isExportModalVisible,
         showExportModal,
@@ -57,6 +64,9 @@ const TransactionTable: React.FC = () => {
     const [transactionToEdit, setTransactionToEdit] = useState<ResolvedTransaction | null>(null);
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
+    const [reminderToEdit, setReminderToEdit] = useState<Notification | null>(null);
+    const [showReminderForm, setShowReminderForm] = useState(false);
+    const [referenceId, setReferenceId] = useState("");
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -77,6 +87,36 @@ const TransactionTable: React.FC = () => {
         setShowAddEditModal(false);
         setTransactionToEdit(null);
     };
+
+    const handleUpsertReminderClick = (transaction: ResolvedTransaction) => {
+        setReferenceId(transaction._id);
+        const notification = notifications.find(notif => notif.referenceId === transaction._id);
+        if (notification) {
+            // Edit mode
+            setReminderToEdit(notification);
+        }
+        setShowReminderForm(true);
+    }
+
+    const handleUpsertReminderSubmit = async (notification: Partial<Notification>) => {
+        try {
+            if (notification._id === "") {
+                // Adding
+                await addNotification(notification);
+            }
+            else {
+                await updateNotification(notification._id, notification);
+            }
+            handleUpsertReminderCancel();
+        } catch (error) {
+            console.error("Failed");
+        }
+    }
+
+    const handleUpsertReminderCancel = () => {
+        setReminderToEdit(null);
+        setShowReminderForm(false);
+    }
 
     const handleSubmitTransaction = async (values: any) => {
         try {
@@ -128,7 +168,7 @@ const TransactionTable: React.FC = () => {
     };
 
     // --- Table Configuration ---
-    const columns = useMemo(() => getColumns(editMode, handleEditClick), [editMode]);
+    const columns = useMemo(() => getColumns(editMode, handleEditClick, notifications, handleUpsertReminderClick), [editMode, notifications]);
 
     const rowSelection = useMemo(() => (selectMode
         ? {
@@ -219,6 +259,14 @@ const TransactionTable: React.FC = () => {
                 defaultTransaction={defaultTransaction}
                 accountOptions={accountOptions}
                 categoryOptions={categoryOptions}
+            />
+
+            <AddEditNotificationModal
+                open={showReminderForm}
+                onCancel={handleUpsertReminderCancel}
+                onSubmit={handleUpsertReminderSubmit}
+                notificationToEdit={reminderToEdit}
+                transactionId={referenceId}
             />
         </>
     );
