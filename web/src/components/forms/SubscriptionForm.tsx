@@ -8,7 +8,10 @@ import {
     Space,
     Input,
     message,
-    Popconfirm
+    Popconfirm,
+    Alert,
+    Row,
+    Col,
 } from "antd";
 import dayjs from "dayjs";
 import { Subscription } from "@/models/Subscription";
@@ -80,7 +83,6 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             creator: localStorage.getItem("username") ?? "",
             remindBefore: values.remindBefore ?? 1,
             startDate: values.startDate?.toISOString() ?? subscription.startDate,
-            isActive: true,
             isDeleted: false,
         };
 
@@ -125,22 +127,27 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             requiredMark={false}
             onFinish={handleFinish}
         >
-            <Form.Item
-                name="name"
-                label="Name"
-                rules={[{ required: true, message: "Please give this subscription a name." }]}
-            >
-                <Input />
-            </Form.Item>
-
-            <IconPickerField
-                name="icon"
-                label="Icon"
-                initialValue={subscription?.icon}
-                onIconChange={(emoji: string) => {
-                    form.setFieldValue("icon", emoji); // yes, you're syncing like a champ
-                }}
-            />
+            <Row gutter={16}>
+                <Col span={8}>
+                    <IconPickerField
+                        name="icon"
+                        label="Icon"
+                        initialValue={subscription?.icon ?? "💸"}
+                        onIconChange={(emoji: string) => {
+                            form.setFieldValue("icon", emoji);
+                        }}
+                    />
+                </Col>
+                <Col span={16}>
+                    <Form.Item
+                        name="name"
+                        label="Name"
+                        rules={[{ required: true, message: "Please give this subscription a name." }]}
+                    >
+                        <Input />
+                    </Form.Item>
+                </Col>
+            </Row>
             <Form.Item
                 name="amount"
                 label="Amount"
@@ -209,8 +216,20 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
                 <InputNumber style={{ width: "100%" }} />
             </Form.Item>
 
-            <Form.Item>
-                <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+            {subscription?._id && (
+                <Form.Item wrapperCol={{ span: 24 }}>
+                    <Alert
+                        message="Note"
+                        description="Editing this subscription will not affect any previously generated transactions."
+                        type="info"
+                        showIcon
+                    />
+                </Form.Item>
+            )}
+
+
+            <Form.Item wrapperCol={{ offset: 0, span: 24 }}>
+                <Space style={{ justifyContent: "space-between", width: "100%" }}>
                     <div>
                         {subscription?._id && (
                             <Popconfirm
