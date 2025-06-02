@@ -71,7 +71,7 @@ const SubscriptionBox: React.FC<SubscriptionBoxProps> = ({ subscription }) => {
                 <div style={{ marginTop: 6 }}>
                     <Text type="secondary">
                         {subscription.currentInterval > 1
-                            ? `Renewed ${subscription.currentInterval - 1} ${subscription.currentInterval > 2 ? "times" : "time"}`
+                            ? `Renewed ${subscription.currentInterval - 1}${subscription.maxInterval > 0 ? "/" + subscription.maxInterval : ""} ${subscription.currentInterval > 2 ? "times" : "time"}`
                             : "Not renewed yet"}
                     </Text>
                 </div>
