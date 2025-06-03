@@ -22,7 +22,6 @@ import { getStoredAccounts } from "@/services/accountService";
 import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
 import { addSubscription, updateSubscription, deleteSubscriptions } from "@/services/subscriptionService";
-import { useRefresh } from "@/context/RefreshProvider";
 
 interface SubscriptionFormProps {
     subscription?: Partial<Subscription>;
@@ -43,7 +42,6 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
     const [savings, setSavings] = useState<Account[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
-    const { triggerRefresh } = useRefresh();
 
     const combinedAccounts = [
         ...accounts.map(a => ({ ...a, type: "account" })),
@@ -89,16 +87,12 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
         try {
             if (subscription?._id) {
                 await updateSubscription(subscription._id, formatted);
-                message.success("Subscription updated successfully");
             } else {
                 await addSubscription(formatted);
-                message.success("Subscription created successfully");
             }
-            triggerRefresh();
             onSubmit?.();
         } catch (err) {
             console.error(err);
-            message.error("Failed to save subscription");
         }
     };
 
@@ -106,8 +100,6 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
         try {
             setIsDeleting(true);
             await deleteSubscriptions([subscription!._id]);
-            message.success("Subscription deleted");
-            triggerRefresh();
             onCancel?.();
         } catch (err) {
             console.error(err);

@@ -56,7 +56,7 @@ export const markAsRead = async (ids: string[], silent = false) => {
 
         if (!silent)
             message.success(`${ids.length} notification${ids.length > 1 ? "s" : ""} marked as read.`);
-        triggerRefresh();
+        triggerRefresh(NOTIFICATION_STORE);
     } catch (error) {
         console.error("Network or local error while marking notifications:", error);
         message.error("Failed to mark notifications as read");

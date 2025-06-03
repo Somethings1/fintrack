@@ -6,15 +6,14 @@ import { Button, Input, Tooltip, Spin, Modal, Avatar } from "antd";
 import { UserOutlined, SendOutlined, RobotOutlined } from "@ant-design/icons";
 import { getStoredCategories } from "@/services/categoryService";
 import "./ChatBot.css";
-import { useTransactions } from "@/hooks/useTransactions";
 import { normalizeTransaction } from "@/utils/transactionUtils";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
 import { talkToGemini } from "@/utils/chatbotUtils";
 import AccountForm from "@/components/forms/AccountForm";
 import CategoryForm from "@/components/forms/CategoryForm";
-import { useRefresh } from "@/context/RefreshProvider";
 import { useSavings } from "@/hooks/useSavings";
 import { useAccounts } from "@/hooks/useAccounts";
+import { addTransaction } from "@/services/transactionService";
 
 interface Message {
     from: "user" | "bot";
@@ -36,7 +35,6 @@ const ChatBot: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [accountNames, setAccountNames] = useState<Record<string, string>>({});
     const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
-    const { addTransaction } = useTransactions();
     const [showAddEditModal, setShowAddEditModal] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState(null);
 

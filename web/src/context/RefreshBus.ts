@@ -11,7 +11,6 @@ export function unregisterRefreshCallback(topic: string, cb: Callback) {
 }
 
 export function triggerRefresh(topic: string) {
-    console.log("Hello, triggering refresh from " + topic);
     if (!listeners.has(topic)) return;
     listeners.get(topic)!.forEach(cb => cb());
 }
