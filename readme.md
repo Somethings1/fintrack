@@ -121,6 +121,7 @@ This project uses supabase authentication. Here are detailed steps:
         - On backend, SUPABASE_JWT_SECRET: Jwt secret
         - SUPABASE_URL: project url
         - SUPABASE_ANON_KEY: above
+    - Execute the query in `query.sql`
 2. Create new project on Google Cloud
     - API and Services
     - Credentials

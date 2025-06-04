@@ -7,7 +7,6 @@ import {
   BankOutlined,
   WalletOutlined,
   AppstoreOutlined,
-  SettingOutlined,
 } from "@ant-design/icons";
 import "@fontsource/orbitron";
 import { colors } from "@/theme/color";
@@ -157,14 +156,6 @@ const SideBar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, collapse
           itemKey="subscriptions"
           icon={<AppstoreOutlined />}
           label="Subscriptions"
-          selectedKey={currentPage}
-          setSelectedKey={handleSelection}
-          collapsed={collapsed}
-        />
-        <CustomMenuItem
-          itemKey="settings"
-          icon={<SettingOutlined />}
-          label="Settings"
           selectedKey={currentPage}
           setSelectedKey={handleSelection}
           collapsed={collapsed}

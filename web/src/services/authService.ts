@@ -17,7 +17,7 @@ export const signUp = async (name: string, email: string, password: string) => {
         email,
         password,
         options: {
-            data: { full_name: name }, // This goes into the user's `user_metadata`
+            data: { name: name }, // This goes into the user's `user_metadata`
         },
     });
     if (error) throw error;

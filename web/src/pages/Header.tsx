@@ -1,4 +1,4 @@
-import { Layout, Avatar, Popover, Button } from "antd";
+import { Layout, Avatar, Popover, Button, Tooltip } from "antd";
 import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
@@ -11,6 +11,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/services/authService";
 import NotificationPopover from '@/components/NotificationPopover';
+import { useSettings } from "../context/SettingsContext";
 
 const { Header } = Layout;
 
@@ -54,6 +55,8 @@ const AppHeader: React.FC<HeaderProps> = ({
         setCurrentIndex(newIndex);
         setCurrentPage(history[newIndex]);
     }
+
+    const { settings } = useSettings();
 
     useEffect(() => {
         if (isNavigatingRef.current) {
@@ -105,13 +108,15 @@ const AppHeader: React.FC<HeaderProps> = ({
             {/* Right-side controls: Notifications + Avatar */}
             <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
                 <NotificationPopover />
-
-                <Popover
-                    content={<Button onClick={handleLogout} type="link">Logout</Button>}
-                    trigger="click"
-                >
-                    <Avatar size="large" icon={<UserOutlined />} style={{ cursor: "pointer" }} />
-                </Popover>
+                <Tooltip title="Profile">
+                    <Avatar
+                        size="large"
+                        icon={<UserOutlined />}
+                        style={{ cursor: "pointer" }}
+                        src={settings?.avatar_url || null}
+                        onClick={() => navigate("/profile")}
+                    />
+                </Tooltip>
             </div>
         </Header>
     );

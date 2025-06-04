@@ -11,6 +11,8 @@ import { getCurrentUser, supabase } from "@/services/authService"; // Import the
 import { PollingProvider } from "./context/PollingProvider";
 import { setMessageApi } from "./utils/messageProvider";
 import './App.css';
+import { ProfilePage } from "./pages/Profile";
+import { SettingsProvider } from "./context/SettingsContext";
 
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
@@ -72,25 +74,33 @@ const App = () => {
     return (
         <>
             {contextHolder}
-            <RefreshProvider>
-                <Router>
-                    <Routes>
-                        <Route path="/" element={<WelcomePage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/reset-password" element={<ResetPasswordPage />} />
-                        <Route path="/update-password" element={<UpdatePasswordPage />} />
+            <SettingsProvider>
+                <RefreshProvider>
+                    <Router>
+                        <Routes>
+                            <Route path="/" element={<WelcomePage />} />
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/reset-password" element={<ResetPasswordPage />} />
+                            <Route path="/update-password" element={<UpdatePasswordPage />} />
 
-                        <Route path="/home"
-                            element={
-                                <PrivateRoute>
-                                    <PollingProvider>
-                                        <HomePage />
-                                    </PollingProvider>
-                                </PrivateRoute>
-                            } />
-                    </Routes>
-                </Router>
-            </RefreshProvider>
+                            <Route path="/profile"
+                                element={
+                                    <PrivateRoute>
+                                        <ProfilePage />
+                                    </PrivateRoute>
+                                } />
+                            <Route path="/home"
+                                element={
+                                    <PrivateRoute>
+                                        <PollingProvider>
+                                            <HomePage />
+                                        </PollingProvider>
+                                    </PrivateRoute>
+                                } />
+                        </Routes>
+                    </Router>
+                </RefreshProvider>
+            </SettingsProvider>
         </>
     );
 };
