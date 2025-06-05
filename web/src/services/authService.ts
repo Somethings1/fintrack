@@ -17,7 +17,7 @@ export const signUp = async (name: string, email: string, password: string) => {
         email,
         password,
         options: {
-            data: { name: name }, // This goes into the user's `user_metadata`
+            data: { name: name },
         },
     });
     if (error) throw error;
@@ -33,7 +33,6 @@ export const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
-    // Wipe everything
     localStorage.clear();
     sessionStorage.clear();
 

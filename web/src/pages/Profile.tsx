@@ -92,6 +92,10 @@ export function ProfilePage() {
     };
 
     const navigate = useNavigate();
+    const handleLogout = () => {
+        logout();
+        navigate("/");
+    }
 
     return (
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 16px" }}>
@@ -205,7 +209,7 @@ export function ProfilePage() {
                         </Button>
                     </Col>
                     <Col>
-                        <Button danger icon={<LogoutOutlined />} onClick={logout}>
+                        <Button danger icon={<LogoutOutlined />} onClick={handleLogout}>
                             Logout
                         </Button>
                     </Col>
