@@ -1,9 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Category } from "@/models/Category";
-import { getStoredCategories } from "@/services/categoryService";
-import { getStoredTransactions } from "@/services/transactionService";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import {
     Progress,
     Typography,
@@ -22,15 +18,18 @@ import {
 import RoundedBox from "@/components/RoundedBox";
 import CategoryForm from "@/components/forms/CategoryForm";
 import Balance from "@/components/Balance";
+import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
 
-const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-const daysUntilToday = new Date().getDate();
+interface Props {
+    category: Category;
+    spent: number;
+    month: dayjs.Dayjs;
+}
 
-const CategoryBox: React.FC<{ category: Category, spent: number }> = ({ category, spent }) => {
+const CategoryBox: React.FC<Props> = ({ category, spent, month }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { triggerRefresh } = useRefresh();
 
     if (!category) return null;
 
@@ -39,13 +38,24 @@ const CategoryBox: React.FC<{ category: Category, spent: number }> = ({ category
     const budget = category.budget ?? 0;
     const percent = budget > 0 ? Math.min((total / budget) * 100, 999) : 0;
     const remaining = budget - total;
-    const expected = (budget / daysInMonth) * daysUntilToday;
-    const isAttention = isIncome ? total < expected : total > expected;
+
+    const now = dayjs();
+    const isPastMonth = month.isBefore(now, "month");
+    const daysInMonth = month.daysInMonth();
+    const daysPassed = isPastMonth ? daysInMonth : (month.isSame(now, "month") ? now.date() : 1);
+    const expected = (budget / daysInMonth) * daysPassed;
+
+    const isAttention = isPastMonth
+        ? isIncome
+            ? total < budget
+            : total > budget
+        : isIncome
+            ? total < expected
+            : total > expected;
 
     return (
         <>
             <RoundedBox style={{ position: "relative" }}>
-                {/* Pen Button */}
                 <Button
                     shape="circle"
                     icon={<EditOutlined />}
@@ -132,7 +142,6 @@ const CategoryBox: React.FC<{ category: Category, spent: number }> = ({ category
                 </Space>
             </RoundedBox>
 
-            {/* Modal for Edit */}
             <Modal
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
@@ -145,7 +154,6 @@ const CategoryBox: React.FC<{ category: Category, spent: number }> = ({ category
                     category={category}
                     onSubmit={() => {
                         setIsModalOpen(false);
-                        triggerRefresh();
                     }}
                     onCancel={() => setIsModalOpen(false)}
                 />

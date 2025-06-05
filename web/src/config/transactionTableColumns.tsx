@@ -83,7 +83,7 @@ export const getBaseColumns = (notifications: Notification[]) => [
     },
 ];
 
-const HIDDEN_KEYS = ["type", "note", "reminder"];
+const HIDDEN_KEYS = ["type", "reminder"];
 
 export const getSimpleColumns = () => {
     return getBaseColumns([])
