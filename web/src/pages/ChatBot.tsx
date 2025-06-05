@@ -14,6 +14,9 @@ import CategoryForm from "@/components/forms/CategoryForm";
 import { useSavings } from "@/hooks/useSavings";
 import { useAccounts } from "@/hooks/useAccounts";
 import { addTransaction } from "@/services/transactionService";
+import { useCategories } from "../hooks/useCategories";
+import { getStoredAccounts } from "../services/accountService";
+import { getStoredSavings } from "../services/savingService";
 
 interface Message {
     from: "user" | "bot";
@@ -43,15 +46,17 @@ const ChatBot: React.FC = () => {
 
     const [categoryModalOpen, setCategoryModalOpen] = useState(false);
     const [categoryToAdd, setCategoryToAdd] = useState<Category>(null);
-
-    let accountOptions, categoryOptions;
     const accounts = useAccounts();
     const savings = useSavings();
+    const categories = useCategories();
+
+    let accountOptions;
 
     const fetchNames = async () => {
+        const accounts = await getStoredAccounts();
+        const savings = await getStoredSavings();
+        const categoryOptions = await getStoredCategories();
         accountOptions = [...accounts, ...savings];
-
-        categoryOptions = await getStoredCategories();
 
         const accountMap: Record<string, string> = {};
         const categoryMap: Record<string, string> = {};
@@ -67,7 +72,7 @@ const ChatBot: React.FC = () => {
 
     useEffect(() => {
         fetchNames();
-    }, [accounts, savings]);
+    }, [accounts, savings, categories]);
 
     const removeLastMessageButtons = () => {
         setMessages((current) => {
@@ -188,31 +193,35 @@ const ChatBot: React.FC = () => {
     };
 
     const handleNewAccount = async () => {
-        const { accounts, categories } = await fetchNames();
-        removeLastMessageButtons();
-        setMessages((prev) => [
-            ...prev,
-            {
-                from: "bot",
-                text: "New account added. Now I'm trying to recreate your transaction"
-            }
-        ]);
-        handleSend(lastInput, accounts, categories);
-        setAccountModalOpen(false);
+        setTimeout(async () => {
+            const { accounts, categories } = await fetchNames();
+            removeLastMessageButtons();
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: "bot",
+                    text: "New account added. Now I'm trying to recreate your transaction"
+                }
+            ]);
+            handleSend(lastInput, accounts, categories);
+            setAccountModalOpen(false);
+        }, 500);
     }
 
     const handleNewCategory = async () => {
-        const { accounts, categories } = await fetchNames();
-        removeLastMessageButtons();
-        setMessages((prev) => [
-            ...prev,
-            {
-                from: "bot",
-                text: "New category added. Now I'm trying to recreate your transaction"
-            }
-        ]);
-        handleSend(lastInput, accounts, categories);
-        setCategoryModalOpen(false);
+        setTimeout(async () => {
+            const { accounts, categories } = await fetchNames();
+            removeLastMessageButtons();
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: "bot",
+                    text: "New category added. Now I'm trying to recreate your transaction"
+                }
+            ]);
+            handleSend(lastInput, accounts, categories);
+            setCategoryModalOpen(false);
+        }, 500);
     }
 
     if (Object.keys(categoryNames).length === 0) {
@@ -226,7 +235,7 @@ const ChatBot: React.FC = () => {
 
             {visible && (
                 <div className="chatbot-popup">
-                    <h3 style={{textAlign: "center", padding: "10px", borderBottom: "1px solid #D0D0D4"}}>Fintrack assistant</h3>
+                    <h3 style={{ textAlign: "center", padding: "10px", borderBottom: "1px solid #D0D0D4" }}>Fintrack assistant</h3>
                     <div className="chatbot-messages">
                         {messages.map((msg, idx) => {
                             const isUser = msg.from === "user";
@@ -356,7 +365,7 @@ const ChatBot: React.FC = () => {
                 onSubmit={handleAccept}
                 transactionToEdit={transactionToEdit}
                 accountOptions={accountOptions}
-                categoryOptions={categoryOptions}
+                categoryOptions={categories}
             />
 
             <Modal
