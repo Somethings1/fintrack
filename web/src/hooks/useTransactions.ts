@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Transaction } from "@/models/Transaction";
 import { resolveAccountName, resolveCategoryName } from "@/utils/idResolver";
 import { useRefresh } from "@/context/RefreshProvider";
@@ -46,6 +46,7 @@ const categorySubscribers = new Set<React.Dispatch<React.SetStateAction<Category
 async function refreshData() {
     const message = getMessageApi();
     try {
+        console.log("It should refresh here");
         const all = await getStoredTransactions();
         const sorted = all.sort((a, b) =>
             new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
@@ -81,13 +82,14 @@ async function refreshData() {
             categoryName: tx.category ? categoriesMap[tx.category] : undefined,
         }));
 
+
         cachedTransactions = resolvedTransactions;
         cachedAccountOptions = Object.entries(accountsMap).map(([id, name]) => ({ value: id, label: name }));
         cachedCategoryOptions = Object.entries(categoriesMap).map(([id, name]) => ({ value: id, label: name }));
 
-        subscribers.forEach((cb) => cb(cachedTransactions));
-        accountSubscribers.forEach((cb) => cb(cachedAccountOptions));
-        categorySubscribers.forEach((cb) => cb(cachedCategoryOptions));
+        subscribers.forEach((cb) => cb([...cachedTransactions]));
+        accountSubscribers.forEach((cb) => cb([...cachedAccountOptions]));
+        categorySubscribers.forEach((cb) => cb([...cachedCategoryOptions]));
     } catch (error) {
         console.error("Error fetching transactions:", error);
         message.error("Failed to load transactions.");
@@ -102,36 +104,31 @@ export const useTransactions = () => {
 
     const { register, unregister } = useRefresh();
 
+    const setIsLoadingRef = useRef(setIsLoading);
+    useEffect(() => {
+        setIsLoadingRef.current = setIsLoading;
+    }, [setIsLoading]);
+
     const onRefresh = useCallback(() => {
-        setIsLoading(true);
-        refreshData().finally(() => setIsLoading(false));
+        setIsLoadingRef.current(true);
+        refreshData().finally(() => setIsLoadingRef.current(false));
     }, []);
 
     useEffect(() => {
-        subscribers.add(setTransactions);
-        accountSubscribers.add(setAccountOptions);
-        categorySubscribers.add(setCategoryOptions);
-
-        register("transactions", onRefresh);
-        register("accounts", onRefresh);
-        register("savings", onRefresh);
-        register("categories", onRefresh);
-
         if (!isInitialized) {
             isInitialized = true;
             onRefresh();
+            subscribers.add(setTransactions);
+            accountSubscribers.add(setAccountOptions);
+            categorySubscribers.add(setCategoryOptions);
+
+            register("transactions", onRefresh);
+            register("accounts", onRefresh);
+            register("savings", onRefresh);
+            register("categories", onRefresh);
+
+            console.log("Registering")
         }
-
-        return () => {
-            subscribers.delete(setTransactions);
-            accountSubscribers.delete(setAccountOptions);
-            categorySubscribers.delete(setCategoryOptions);
-
-            unregister("transactions", onRefresh);
-            unregister("accounts", onRefresh);
-            unregister("savings", onRefresh);
-            unregister("categories", onRefresh);
-        };
     }, [onRefresh, register, unregister]);
 
     return {

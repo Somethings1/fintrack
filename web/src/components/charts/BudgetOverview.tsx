@@ -1,50 +1,75 @@
 import React, { useEffect, useState } from "react";
 import { Tabs, Typography, Spin, Empty, Button } from "antd";
 import { LinkOutlined } from "@ant-design/icons";
-import { Label, PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+
 import RoundedBox from "@/components/RoundedBox";
+import Balance from "@/components/Balance";
 import { colors } from "@/theme/color";
 import { useCategories } from "@/hooks/useCategories";
 import { useTransactions } from "@/hooks/useTransactions";
 
 const { Title } = Typography;
 
-const formatMoney = (n: number) => "$" + n.toLocaleString();
+const PIE_COLORS = [
+    colors.primary[900],
+    colors.primary[200],
+    colors.primary[800],
+    colors.primary[300],
+    colors.primary[700],
+    colors.primary[400],
+    colors.primary[600],
+    colors.primary[500],
+    colors.neutral[800],
+    colors.neutral[300],
+    colors.neutral[700],
+    colors.neutral[400],
+    colors.neutral[600],
+    colors.neutral[500],
+];
 
 interface BudgetOverviewProps {
     linkToBudget: () => void;
 }
 
-const BudgetOverview: React.FC<BudgetOverviewProps> = ({
-    linkToBudget,
-}) => {
-    const [data, setData] = useState<{ income: any[], expense: any[] }>({ income: [], expense: [] });
+const BudgetOverview: React.FC<BudgetOverviewProps> = ({ linkToBudget }) => {
+    const [data, setData] = useState<{ income: any[]; expense: any[] }>({ income: [], expense: [] });
     const [loading, setLoading] = useState(true);
-    const primaryColors = [...Object.values(colors.primary), ...(Object.values(colors.neutral))];
     const categories = useCategories();
     const { transactions } = useTransactions();
 
     useEffect(() => {
-        const fetchData = async () => {
+        if (!categories.length || !transactions.length) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchData = () => {
+            setLoading(true);
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
 
-            const filteredTxs = transactions.filter(tx => {
+            const filteredTxs = transactions.filter((tx) => {
                 const date = new Date(tx.dateTime);
                 return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
             });
 
             const groupByCategory = (type: "income" | "expense") => {
-                return categories
-                    .filter(cat => cat.type === type && !cat.isDeleted)
-                    .map(cat => {
-                        const catTxs = filteredTxs.filter(tx => tx.category === cat._id);
+                const relevantCategories = categories.filter((cat) => cat.type === type && !cat.isDeleted);
+
+                return relevantCategories
+                    .map((cat, index) => {
+                        const catTxs = filteredTxs.filter((tx) => tx.category === cat._id);
                         const total = catTxs.reduce((acc, tx) => acc + tx.amount, 0);
                         return {
-                            name: `${cat.icon} ${cat.name}`,
+                            name: cat.name,
+                            icon: cat.icon,
                             value: total,
+                            color: PIE_COLORS[index % PIE_COLORS.length],
                         };
-                    }).filter(entry => entry.value > 0);
+                    })
+                    .filter((entry) => entry.value > 0)
+                    .sort((a, b) => b.value - a.value);
             };
 
             const newData = {
@@ -52,26 +77,53 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
                 expense: groupByCategory("expense"),
             };
 
-            // 💡 Only update if changed
-            const isSame = JSON.stringify(newData) === JSON.stringify(data);
-            if (!isSame) {
-                setData(newData);
-            }
-
+            setData(newData);
             setLoading(false);
         };
 
         fetchData();
     }, [transactions, categories]);
 
+    const renderCustomTooltip = ({ active, payload }: any) => {
+        if (!active || !payload || !payload.length) return null;
+        const { name, value, icon } = payload[0].payload;
 
-    const renderChart = (chartData: any[]) => (
-        <>
-            {chartData.length === 0 ? (
-                <Empty description="No data available" />
-            ) : (
-                <ResponsiveContainer width="100%" height={210}>
+        return (
+            <div
+                style={{
+                    background: "white",
+                    padding: "8px 12px",
+                    border: "1px solid #ccc",
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontSize: 14,
+                }}
+            >
+                <span style={{ fontSize: 20 }}>{icon}</span>
+                <div>
+                    <div>
+                        <strong>{name}</strong>
+                    </div>
+                    <Balance amount={value} type="" size="s" />
+                </div>
+            </div>
+        );
+    };
+
+    const renderChart = (chartData: any[], type: "income" | "expense") => {
+        const totalValue = chartData.reduce((acc, item) => acc + item.value, 0);
+
+        if (chartData.length === 0) {
+            return <Empty description="No data for this month" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+        }
+
+        return (
+            <div style={{ position: "relative", width: "100%", height: 210 }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
+                        <Tooltip content={renderCustomTooltip} />
                         <Pie
                             data={chartData}
                             dataKey="value"
@@ -80,89 +132,35 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
                             cy="50%"
                             outerRadius={100}
                             innerRadius={80}
-                            paddingAngle={3}
-                            cornerRadius={15}
+                            paddingAngle={5}
+                            cornerRadius={5}
                             startAngle={90}
                             endAngle={-270}
                             isAnimationActive={false}
-                            label={false}
-                            labelLine={false}
                         >
                             {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={
-                                    primaryColors[index * 4 % primaryColors.length]
-                                } />
+                                <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
-                            <Label
-                                position="center"
-                                content={({ viewBox }) => {
-                                    const { cx, cy } = viewBox;
-                                    return (
-                                        <g>
-                                            <text
-                                                x={cx}
-                                                y={cy - 10}
-                                                textAnchor="middle"
-                                                style={{ fontSize: 12, fill: "#888" }}
-                                            >
-                                                Total
-                                            </text>
-                                            <text
-                                                x={cx}
-                                                y={cy + 10}
-                                                textAnchor="middle"
-                                                dominantBaseline="middle"
-                                                style={{ fontSize: 20, fontWeight: "bold", fill: "#333" }}
-                                            >
-                                                {chartData
-                                                    .reduce((acc, cur) => acc + cur.value, 0)
-                                                    .toLocaleString("en-US", {
-                                                        minimumFractionDigits: 0,
-                                                        maximumFractionDigits: 2,
-                                                    })} đ
-                                            </text>
-                                        </g>
-                                    );
-                                }}
-                            />
                         </Pie>
-                        <Tooltip formatter={(value: number) => formatMoney(value)} />
-                        <Legend
-                            layout="vertical"
-                            align="left"
-                            verticalAlign="middle"
-                            content={({ payload }) => (
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                    {payload?.map((entry, index) => (
-                                        <li
-                                            key={`item-${index}`}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                marginBottom: 8,
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    width: 10,
-                                                    height: 10,
-                                                    borderRadius: '50%',
-                                                    backgroundColor: entry.color,
-                                                    marginRight: 8,
-                                                }}
-                                            />
-                                            <span style={{ color: '#000' }}>{entry.value}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        />
-
                     </PieChart>
                 </ResponsiveContainer>
-            )}
-        </>
-    );
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        pointerEvents: "none",
+                        textAlign: "center",
+                        color: "#333",
+                    }}
+                >
+                    <div style={{ marginBottom: "5px" }}>Total {type === "income" ? "Gained" : "Spent"}</div>
+                    <Balance amount={totalValue} type="" align="center" size="l" />
+                </div>
+            </div>
+        );
+    };
 
     return (
         <RoundedBox style={{ height: 330, position: "relative" }}>
@@ -178,18 +176,18 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
                     zIndex: 10,
                 }}
             />
-            <Title level={5} style={{ margin: 0 }}>Budget</Title>
+            <Title level={5} style={{ margin: 0, paddingBottom: 8 }}>Budget Overview</Title>
             {loading ? (
-                <Spin tip="Loading... Just like your finances.">
-                    <div style={{ height: 300 }} />
-                </Spin>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 280 }}>
+                    <Spin tip="Loading Overview..." />
+                </div>
             ) : (
                 <Tabs defaultActiveKey="expense" centered>
                     <Tabs.TabPane tab="Expense" key="expense">
-                        {renderChart(data.expense)}
+                        {renderChart(data.expense, "expense")}
                     </Tabs.TabPane>
                     <Tabs.TabPane tab="Income" key="income">
-                        {renderChart(data.income)}
+                        {renderChart(data.income, "income")}
                     </Tabs.TabPane>
                 </Tabs>
             )}
@@ -198,4 +196,3 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
 };
 
 export default BudgetOverview;
-

@@ -2,13 +2,15 @@ package socket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 
-    "fintrack/server/util"
-	"github.com/gorilla/websocket"
+	"context"
+	"fintrack/server/util"
 	"net/http"
-    "context"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -46,6 +48,9 @@ func (m *WebSocketManager) Unregister(clientId string) {
 func (m *WebSocketManager) BroadcastToUserExcept(userId, exceptId string, message interface{}) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+    fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>\n")
+    fmt.Printf("Broadcasting to userId: %s, except clientId: %s\n", userId, exceptId)
+    fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>\n")
 
 	data, _ := json.Marshal(message)
 	for id, client := range m.clients {
@@ -60,7 +65,7 @@ func (m *WebSocketManager) BroadcastToUserExcept(userId, exceptId string, messag
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // hoặc kiểm tra r.Header["Origin"] nếu muốn chặt hơn
+		return true
 	},
 }
 

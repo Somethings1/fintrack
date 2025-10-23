@@ -67,7 +67,7 @@ func AddSubscription(ctx context.Context, subscription model.Subscription) (inte
 	}
 
 	subscription.ID = insertedID
-    CatchUpSubscription(ctx, subscription)
+	CatchUpSubscription(ctx, subscription)
 
 	socket.BroadcastFromContext(ctx, map[string]interface{}{
 		"collection": "subscriptions",
@@ -97,11 +97,12 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, subscription
 	return nil
 }
 
-func CatchUpSubscription(ctx context.Context, sub model.Subscription) error {
+func CatchUpSubscription(_ctx context.Context, sub model.Subscription) error {
 	now := time.Now()
 	transactions := []model.Transaction{}
-	newInterval := sub.CurrentInterval
+	newInterval := 1
 	nextActive := sub.StartDate
+    ctx := context.WithValue(_ctx, util.ClientIdKey, "")
 
 	for !nextActive.After(now) {
 		txn := model.Transaction{
@@ -134,7 +135,6 @@ func CatchUpSubscription(ctx context.Context, sub model.Subscription) error {
 			break
 		}
 	}
-
 
 	for _, txn := range transactions {
 		_, err := AddTransactionSilent(ctx, txn)
@@ -201,10 +201,10 @@ func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
 		return err
 	}
 
-	newInterval := sub.CurrentInterval + 1
+	newInterval := sub.CurrentInterval
 
 	isActive := true
-	if sub.MaxInterval > 0 && newInterval >= sub.MaxInterval {
+	if sub.MaxInterval > 0 && newInterval > sub.MaxInterval {
 		isActive = false
 	}
 
@@ -227,7 +227,7 @@ func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
 
 	update := bson.M{
 		"$set": bson.M{
-			"current_interval": newInterval,
+			"current_interval": newInterval + 1,
 			"next_active":      nextActive,
 			"is_active":        isActive,
 			"notify_at":        notifyAt,

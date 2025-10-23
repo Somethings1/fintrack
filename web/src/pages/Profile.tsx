@@ -150,28 +150,6 @@ export function ProfilePage() {
                     </Row>
                 </Card>
 
-                <Card title="Notification Settings" style={{ marginBottom: 24 }}>
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item
-                                name="notification_income"
-                                valuePropName="checked"
-                                label="Income Notification"
-                            >
-                                <Switch />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item
-                                name="notification_expense"
-                                valuePropName="checked"
-                                label="Expense Notification"
-                            >
-                                <Switch />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                </Card>
 
                 <Card title="Money Display Settings" style={{ marginBottom: 24 }}>
                     <Row gutter={16}>
