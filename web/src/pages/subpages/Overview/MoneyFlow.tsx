@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
 import RoundedBox from "@/components/RoundedBox";
-import { getStoredTransactions } from "@/services/transactionService";
-import { usePollingContext } from "@/context/PollingProvider";
-import { useRefresh } from "@/context/RefreshProvider";
 import { Typography, Select, Space, Row, Col } from "antd";
 import {
     BarChart,
@@ -19,9 +16,11 @@ import {
 } from "recharts";
 import dayjs from "dayjs";
 import { colors } from "@/theme/color";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const { Title } = Typography;
 const { Option } = Select;
+const IS_TESTING = 0;
 
 type ChartType = "bar" | "line" | "area";
 
@@ -38,8 +37,14 @@ const formatYAxis = (value: number) => {
 };
 
 const getDaysInMonth = () => {
-    const start = dayjs().startOf("month");
-    const today = dayjs();
+    let start = dayjs().startOf("month");
+    let today = dayjs();
+    // For DEMO purpose
+    if (IS_TESTING) {
+        start = dayjs().subtract(1, "month").startOf("month");
+        today = dayjs().subtract(1, 'month').endOf('month');
+
+    }
     const days: string[] = [];
 
     for (let date = start; date.isBefore(today) || date.isSame(today, "day"); date = date.add(1, "day")) {
@@ -71,10 +76,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
     const [chartType, setChartType] = useState<ChartType>("bar");
     const [data, setData] = useState<any[]>([]);
-    const { refreshCount } = useRefresh();
+    const {
+        transactions,
+        isLoading,
+        accountOptions,
+        categoryOptions,
+        defaultTransaction
+    } = useTransactions();
 
     const processData = async () => {
-        const transactions = await getStoredTransactions();
         const days = getDaysInMonth();
 
         const dailyTotals = days.map((day, index) => {
@@ -121,7 +131,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
 
     useEffect(() => {
         processData();
-    }, [refreshCount, account]);
+    }, [transactions, account]);
 
     const renderChart = () => {
         switch (chartType) {

@@ -6,12 +6,9 @@ import {
     InputNumber,
     Radio,
     Space,
-    Popover,
     Popconfirm,
     message,
 } from "antd";
-import Picker from "@emoji-mart/react";
-import data from "@emoji-mart/data";
 import { Category } from "@/models/Category";
 import {
     deleteCategories,
@@ -34,7 +31,6 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
 }) => {
     const [form] = Form.useForm();
     const [isDeleting, setIsDeleting] = useState(false);
-    const { triggerRefresh } = useRefresh();
 
     useEffect(() => {
         if (category) {
@@ -76,7 +72,6 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             await deleteCategories([category!._id]);
             message.success("Category deleted successfully");
             onCancel?.();
-            triggerRefresh();
         } catch (err) {
             console.error(err);
             message.error("Failed to delete category");

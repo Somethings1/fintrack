@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from "react";
-import {
-    getStoredCategories,
-    addCategory
-} from "@/services/categoryService";
+import { addCategory } from "@/services/categoryService";
 import CategoryBox from "./CategoryBox";
 import { Category } from "@/types/Category";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import {
     Button,
     Modal,
@@ -15,36 +10,33 @@ import {
     Row,
     Col,
     Radio,
-    Select
+    Select,
+    DatePicker
 } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import CategoryForm from "@/components/forms/CategoryForm";
 import Title from "@/components/Title";
-import { getStoredTransactions } from "@/services/transactionService";
-import { Transaction } from "@/models/Transaction";
 import Subtitle from "@/components/Subtitle";
+import { useCategories } from "@/hooks/useCategories";
+import { useTransactions } from "@/hooks/useTransactions";
+import dayjs from "dayjs";
+import BudgetAnalysis from "./BudgetAnalysis";
 
 const { Option } = Select;
 
 const Budget = () => {
-    const [categories, setCategories] = useState<Category[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [typeFilter, setTypeFilter] = useState<"expense" | "income">("expense");
     const [sortOption, setSortOption] = useState("name-asc");
+    const [selectedMonth, setSelectedMonth] = useState(dayjs()); // month picker value
     const [spentByCategory, setSpentByCategory] = useState<Record<string, number>>({});
-
-    const { triggerRefresh } = useRefresh();
-    const refreshToken = useRefresh();
+    const categories = useCategories();
+    const { transactions: txs } = useTransactions();
 
     useEffect(() => {
-        const fetchData = async () => {
-            const [cats, txs] = await Promise.all([
-                getStoredCategories(),
-                getStoredTransactions()
-            ]);
-
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
+        const calculate = async () => {
+            const currentMonth = selectedMonth.month();
+            const currentYear = selectedMonth.year();
 
             const filteredTxs = txs.filter(tx => {
                 const d = new Date(tx.dateTime);
@@ -57,16 +49,14 @@ const Budget = () => {
             });
 
             setSpentByCategory(spentMap);
-            setCategories(cats);
         };
 
-        fetchData();
-    }, [refreshToken]);
+        calculate();
+    }, [categories, txs, selectedMonth]);
 
     const handleNewCategory = async (category: Category) => {
         await addCategory(category);
         setIsModalOpen(false);
-        triggerRefresh();
     };
 
     const sortCategories = (list: Category[]) => {
@@ -96,7 +86,6 @@ const Budget = () => {
 
     return (
         <>
-
             <Row gutter={[16, 16]} style={{ margin: 0, marginBottom: 20 }}>
                 <Title>Budget</Title>
                 <Subtitle>Where you keep track and manage your budgets</Subtitle>
@@ -110,6 +99,12 @@ const Budget = () => {
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <DatePicker
+                        picker="month"
+                        value={selectedMonth}
+                        onChange={(value) => value && setSelectedMonth(value)}
+                    />
+
                     <Radio.Group
                         optionType="button"
                         buttonStyle="solid"
@@ -130,12 +125,20 @@ const Budget = () => {
                         <Option value="name-desc">Sort by: Name ↓</Option>
                         <Option value="budget-asc">Sort by: Budget ↑</Option>
                         <Option value="budget-desc">Sort by: Budget ↓</Option>
-                        <Option value="spent-asc">Sort by: Spent ↑</Option>
-                        <Option value="spent-desc">Sort by: Spent ↓</Option>
+                        {typeFilter === "expense" ? (
+                            <>
+                                <Option value="spent-asc">Sort by: Spent ↑</Option>
+                                <Option value="spent-desc">Sort by: Spent ↓</Option>
+                            </>
+                        ) : (
+                            <>
+                                <Option value="spent-asc">Sort by: Gained ↑</Option>
+                                <Option value="spent-desc">Sort by: Gained ↓</Option>
+                            </>
+                        )}
                     </Select>
-
-
                 </div>
+
                 <Button
                     icon={<PlusOutlined />}
                     type="primary"
@@ -144,24 +147,41 @@ const Budget = () => {
                 >
                     Add new category
                 </Button>
-
             </Space>
-
             <Row gutter={[16, 16]}>
-                {filteredCategories.length === 0 ? (
-                    <Col span={24}>
-                        <Typography.Text type="secondary">
-                            No {typeFilter} categories yet.
-                        </Typography.Text>
-                    </Col>
-                ) : (
-                    filteredCategories.map((cat) => (
-                        <Col key={cat._id} xs={24} sm={22} md={12} lg={12} xl={8}>
-                            <CategoryBox category={cat} spent={spentByCategory[cat._id] ?? 0} />
-                        </Col>
-                    ))
-                )}
+                <Col xs={24} lg={16}>
+                    <Row gutter={[16, 16]}>
+                        {filteredCategories.length === 0 ? (
+                            <Col span={24}>
+                                <Typography.Text type="secondary">
+                                    No {typeFilter} categories yet.
+                                </Typography.Text>
+                            </Col>
+                        ) : (
+                            filteredCategories.map((cat) => (
+                                <Col key={cat._id} xs={24} sm={12}>
+                                    <CategoryBox
+                                        month={selectedMonth}
+                                        category={cat}
+                                        spent={spentByCategory[cat._id] ?? 0}
+                                    />
+                                </Col>
+                            ))
+                        )}
+                    </Row>
+                </Col>
+
+                <Col xs={24} lg={8}>
+                    <BudgetAnalysis
+                        month={selectedMonth}
+                        type={typeFilter}
+                        categories={filteredCategories}
+                        spentMap={spentByCategory}
+                        transactions={txs}
+                    />
+                </Col>
             </Row>
+
 
             <Modal
                 title="New Category"

@@ -1,11 +1,6 @@
-import React, { useEffect, useState } from "react";
-import {
-    getStoredAccounts,
-    addAccount
-} from "@/services/accountService";
+import { useEffect, useState } from "react";
+import { addAccount } from "@/services/accountService";
 import { Account } from "@/types/Account";
-import { useRefresh } from "@/context/RefreshProvider";
-import { usePollingContext } from "@/context/PollingProvider";
 import {
     Button,
     Modal,
@@ -20,30 +15,18 @@ import AccountForm from "@/components/forms/AccountForm";
 import AccountBox from "./AccountBox";
 import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
+import { useAccounts } from "@/hooks/useAccounts";
 
 const { Option } = Select;
 
 const Accounts = () => {
-    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [sortOption, setSortOption] = useState("name-asc");
-
-    const { triggerRefresh } = useRefresh();
-    const refreshToken = useRefresh();
-
-    useEffect(() => {
-        const fetchData = async () => {
-            const accs = await getStoredAccounts();
-            setAccounts(accs);
-        };
-
-        fetchData();
-    }, [refreshToken]);
+    const accounts = useAccounts();
 
     const handleNewAccount = async (account: Account) => {
         await addAccount(account);
         setIsModalOpen(false);
-        triggerRefresh();
     };
 
     const sortAccounts = (list: Account[]) => {

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { Saving } from "@/types/Saving";
 import { Card, Typography, Space, Progress, Button, Modal } from "antd";
-import { EditOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
+import { EditOutlined, DownOutlined, UpOutlined, LineChartOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
 import RoundedBox from "@/components/RoundedBox"; // Adjust path as needed
 import Balance from "@/components/Balance";
 import ProgressBar from "@/components/charts/ProgressBar";
+import AccountInfoModal from "../../../components/modals/AccountInfoModal";
 
 const { Text, Title } = Typography;
 
@@ -24,7 +25,8 @@ const formatDate = (dateStr: Date) => {
 
 const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
     const [expanded, setExpanded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
     const percentage = Math.min(100, (saving.balance / saving.goal) * 100);
     const remaining = Math.max(0, saving.goal - saving.balance);
@@ -37,7 +39,14 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
                 shape="circle"
                 size="small"
                 style={{ position: "absolute", top: 5, right: 5 }}
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => setIsEditModalOpen(true)}
+            />
+            <Button
+                icon={<LineChartOutlined />}
+                shape="circle"
+                size="small"
+                style={{ position: "absolute", top: 5, right: 55 }}
+                onClick={() => setIsInfoModalOpen(true)}
             />
 
             {/* Title Line: Icon + Name */}
@@ -47,7 +56,7 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
             </Space>
 
             {/* Due Date + Expand Toggle */}
-            <div style={{marginTop: 4 }}>
+            <div style={{ marginTop: 4 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                     Due date: {formatDate(saving.goalDate)}
                 </Text>
@@ -73,33 +82,39 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
 
             {/* Balance / Goal */}
             <div style={{ marginTop: 18, marginBottom: 28 }}>
-            <Balance amount={saving.balance} type="" align="left" size="xl" /> / <Balance amount={saving.goal} type="" align="left" size="xs"/>
+                <Balance amount={saving.balance} type="" align="left" size="xl" /> / <Balance amount={saving.goal} type="" align="left" size="xs" />
             </div>
 
-            <ProgressBar percent={parseFloat(percentage.toFixed(2))}/>
+            <ProgressBar percent={parseFloat(percentage.toFixed(2))} />
 
             {/* Remaining Line */}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                     Left to complete the goal
                 </Text>
-                <Balance amount={remaining} type="" size="s" align="left"/>
+                <Balance amount={remaining} type="" size="s" align="left" />
             </div>
 
             {/* Modal for Editing */}
             <Modal
                 title="Edit Saving"
-                open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                open={isEditModalOpen}
+                onCancel={() => setIsEditModalOpen(false)}
                 footer={null}
                 destroyOnClose
             >
                 <SavingForm
                     saving={saving}
-                    onSubmit={() => setIsModalOpen(false)}
-                    onCancel={() => setIsModalOpen(false)}
+                    onSubmit={() => setIsEditModalOpen(false)}
+                    onCancel={() => setIsEditModalOpen(false)}
                 />
             </Modal>
+
+            <AccountInfoModal
+                account={saving}
+                isOpen={isInfoModalOpen}
+                onClose={() => setIsInfoModalOpen(false)}
+            />
         </RoundedBox>
     );
 };

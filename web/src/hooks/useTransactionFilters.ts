@@ -1,7 +1,7 @@
 // src/hooks/useTransactionFilters.ts
 import { useState, useMemo } from 'react';
-import { Transaction } from '@/models/Transaction'; // Or ResolvedTransaction if needed
-import { applyFuzzySearch } from '@/utils/transactionUtils'; // Import fuzzy search utility
+import { Transaction } from '@/models/Transaction';
+import { applyFuzzySearch } from '@/utils/transactionUtils';
 
 export interface TransactionFilters {
     type: 'income' | 'expense' | 'transfer' | null;

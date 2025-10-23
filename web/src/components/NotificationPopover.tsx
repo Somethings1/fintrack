@@ -17,6 +17,9 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markAsRead } from "@/services/notificationService";
 import { Notification } from "@/models/Notification";
+import { getTransactionById } from "../services/transactionService";
+import { getCategoryById } from "../services/categoryService";
+import { getSubscriptionById } from "../services/subscriptionService";
 
 dayjs.extend(relativeTime);
 
@@ -27,6 +30,7 @@ const NotificationPopover = () => {
     const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
     const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
     const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+    const [referencedData, setReferencedData] = useState<any>(null);
     const listRef = useRef<HTMLDivElement | null>(null);
 
     const processNotifications = () => {
@@ -46,8 +50,34 @@ const NotificationPopover = () => {
     const unreadNotifications = filteredNotifications.filter(n => !n.read);
     const unreadCount = unreadNotifications.length;
 
+    const fetchReferencedObject = async (type: string, id: string) => {
+        switch (type) {
+            case 'transaction':
+                return await getTransactionById(id);
+            case 'over_budget':
+            case 'finish_income':
+                return await getCategoryById(id);
+            case 'subscription':
+                return await getSubscriptionById(id);
+            default:
+                throw new Error(`Unknown reference type: ${type}`);
+        }
+    };
+
     const onNotificationClick = async (notification: Notification) => {
         setSelectedNotification(notification);
+
+        if (notification.referenceId && notification.type) {
+            try {
+                const data = await fetchReferencedObject(notification.type, notification.referenceId);
+                setReferencedData(data);
+            } catch (error) {
+                console.error("Failed to fetch reference:", error);
+                setReferencedData(null);
+            }
+        } else {
+            setReferencedData(null);
+        }
 
         if (!notification.read) {
             await markAsRead([notification._id], true);
@@ -118,6 +148,40 @@ const NotificationPopover = () => {
                         </Button>
                         <Typography.Title level={5}>{selectedNotification.title}</Typography.Title>
                         <Typography.Paragraph>{selectedNotification.message}</Typography.Paragraph>
+                        {referencedData && (
+                            <>
+                                <Divider />
+                                {selectedNotification?.type === 'transaction' && (
+                                    <div>
+                                        <Typography.Text strong>Transaction Details</Typography.Text>
+                                        <div>Amount: {referencedData.amount}</div>
+                                        <div>Type: {referencedData.type}</div>
+                                        <div>Date time: {dayjs(referencedData.dateTime).format("YYYY-MM-DD")}</div>
+                                    </div>
+                                )}
+
+                                {selectedNotification?.type === 'category' && (
+                                    <div>
+                                        <Typography.Text strong>Category Info</Typography.Text>
+                                        <div>Name: {referencedData.name}</div>
+                                        <div>Type: {referencedData.type}</div>
+                                        <div>Budget: {referencedData.budget ?? "No budget set"}</div>
+                                    </div>
+                                )}
+
+                                {selectedNotification?.type === 'subscription' && (
+                                    <div>
+                                        <Typography.Text strong>Subscription Info</Typography.Text>
+                                        <div>Name: {referencedData.name}</div>
+                                        <div>Amount: {referencedData.amount}</div>
+                                        <div>Cycle: {referencedData.interval}</div>
+                                        <div>Next due: {dayjs(referencedData.nextActive).format("YYYY-MM-DD")}</div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        <Divider />
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                             Scheduled: {dayjs(selectedNotification.scheduledAt).format("YYYY-MM-DD HH:mm")}
                         </Typography.Text>

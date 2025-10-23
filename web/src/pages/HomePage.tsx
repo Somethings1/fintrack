@@ -8,7 +8,6 @@ import Budget from "./subpages/Budget/Budget";
 import Accounts from "./subpages/Accounts/Accounts";
 import Savings from "./subpages/Savings/Savings";
 import Subscriptions from "./subpages/Subscriptions/Subscriptions";
-import Settings from "./subpages/Settings/Settings";
 import ChatBot from "./ChatBot";
 
 const { Content } = Layout;
@@ -30,8 +29,6 @@ const HomePage = () => {
                 return <Savings />;
             case "subscriptions":
                 return <Subscriptions />;
-            case "settings":
-                return <Settings />;
             default:
                 return (<Overview
                     linkToTransactions={() => setCurrentPage("transactions")}

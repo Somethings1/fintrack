@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"time"
+    "fmt"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -28,7 +29,10 @@ func CreateSubscriptionNotificationsCron() {
 
         filter := bson.M{
             "is_active": true,
-            "notify_at": bson.M{"$lte": now},
+            "notify_at": bson.M{
+                "$lte": now,
+                "$gt": time.Time{},
+            },
             "is_deleted": false,
         }
 
@@ -54,7 +58,7 @@ func CreateSubscriptionNotificationsCron() {
                 Type: model.TypeSubscription,
                 ReferenceId: sub.ID,
                 Title: "Subscription Alert",
-                Message: "Your subscription " + sub.Name + " is about to due in " + string(sub.RemindBefore) + "days.",
+                Message: fmt.Sprintf("Your subscription %s is about to due in %d days.", sub.Name, sub.RemindBefore),
                 ScheduledAt: time.Now(),
             }
 

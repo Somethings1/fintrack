@@ -119,7 +119,7 @@ export async function addEntity<T extends { _id?: string }>(url: string, store: 
     try {
         await saveToDB(store, [entity]);
         message.success("New " + getName(store) + " added successfully.");
-        triggerRefresh();
+        triggerRefresh(store);
     }
     catch (error: any) {
         message.error(error.message);
@@ -150,7 +150,7 @@ export async function updateEntity<T>(url: string, store: string, id: string, up
     try {
         await updateDB(store, updated);
         message.success("The " + getName(store) + " was updated successfully.");
-        triggerRefresh();
+        triggerRefresh(store);
     }
     catch (error: any) {
         message.error(error.message);
@@ -181,7 +181,7 @@ export async function deleteEntities(url: string, store: string, ids: string[]) 
     try {
         await Promise.all(ids.map(id => deleteFromDB(store, id)));
         message.success("Successfully deleted " + ids.length + " " + (ids.length > 1 ? store : getName(store)));
-        triggerRefresh();
+        triggerRefresh(store);
     }
     catch (error: any) {
         message.error(error.message);

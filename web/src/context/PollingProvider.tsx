@@ -90,7 +90,10 @@ export const PollingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             localStorage.setItem(`lastSync_${collection}`, timestamp);
             return newMap;
         });
-        triggerRefresh();
+        if (collection == "transactions") {
+            console.log("Because we are triggering refresh from here.");
+        }
+        triggerRefresh(collection);
     };
 
     const lastSyncMapRef = React.useRef(lastSyncMap);

@@ -1,11 +1,12 @@
 import React from "react";
 import TotalBox from "./TotalBox";
-import { getStoredTransactions } from "@/services/transactionService";
 import dayjs from "dayjs";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const TotalIncome: React.FC = () => {
+    const { transactions: txs } = useTransactions();
+
     const getCurrent = async () => {
-        const txs = await getStoredTransactions();
         const now = dayjs();
         return txs
             .filter(t => t.type === "income" && dayjs(t.dateTime).isSame(now, "month"))
@@ -13,7 +14,6 @@ const TotalIncome: React.FC = () => {
     };
 
     const getPrevious = async () => {
-        const txs = await getStoredTransactions();
         const prev = dayjs().subtract(1, "month");
         return txs
             .filter(t => t.type === "income" && dayjs(t.dateTime).isSame(prev, "month"))

@@ -4,6 +4,8 @@ import {
     ArrowUpOutlined,
     ArrowDownOutlined,
     EditOutlined,
+    InfoOutlined,
+    LineChartOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -12,6 +14,7 @@ import AccountForm from "@/components/forms/AccountForm";
 import { getStoredTransactions } from "@/services/transactionService";
 import { Account } from "@/models/Account";
 import Balance from "@/components/Balance";
+import AccountInfoModal from "@/components/modals/AccountInfoModal";
 
 const { Title, Text } = Typography;
 
@@ -21,7 +24,8 @@ interface AccountBoxProps {
 
 const AccountBox: React.FC<AccountBoxProps> = ({ account }) => {
     const [percentChange, setPercentChange] = useState<number | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
     useEffect(() => {
         const calculateChange = async () => {
@@ -68,16 +72,36 @@ const AccountBox: React.FC<AccountBoxProps> = ({ account }) => {
 
     return (
         <>
-            <RoundedBox style={{ position: "relative" }}>
+            <RoundedBox
+                style={{ position: "relative" }}
+            >
                 <Button
                     shape="circle"
                     icon={<EditOutlined />}
                     size="small"
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditModalOpen(true)
+                    }}
                     style={{
                         position: "absolute",
                         top: 5,
                         right: 5,
+                        zIndex: 10,
+                    }}
+                />
+                <Button
+                    shape="circle"
+                    icon={<LineChartOutlined style={{fontSize: "16px"}} />}
+                    size="small"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsInfoModalOpen(true)
+                    }}
+                    style={{
+                        position: "absolute",
+                        top: 5,
+                        right: 55,
                         zIndex: 10,
                     }}
                 />
@@ -89,8 +113,8 @@ const AccountBox: React.FC<AccountBoxProps> = ({ account }) => {
             </RoundedBox>
 
             <Modal
-                open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                open={isEditModalOpen}
+                onCancel={() => setIsEditModalOpen(false)}
                 footer={null}
                 title="Edit Account"
                 destroyOnClose
@@ -98,10 +122,16 @@ const AccountBox: React.FC<AccountBoxProps> = ({ account }) => {
             >
                 <AccountForm
                     account={account}
-                    onSubmit={() => setIsModalOpen(false)}
-                    onCancel={() => setIsModalOpen(false)}
+                    onSubmit={() => setIsEditModalOpen(false)}
+                    onCancel={() => setIsEditModalOpen(false)}
                 />
             </Modal>
+
+            <AccountInfoModal
+                account={account}
+                onClose={() => setIsInfoModalOpen(false)}
+                isOpen={isInfoModalOpen}
+            />
         </>
     );
 };

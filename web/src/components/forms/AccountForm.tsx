@@ -3,7 +3,6 @@ import { Form, Input, InputNumber, Button, Space, Popconfirm, message } from "an
 import { Account } from "@/models/Account";
 import { addAccount, updateAccount, deleteAccounts } from "@/services/accountService";
 import IconPickerField from "@/components/IconPickerField";
-import { useRefresh } from "@/context/RefreshProvider";
 
 interface AccountFormProps {
     account?: Partial<Account>;
@@ -14,7 +13,6 @@ interface AccountFormProps {
 const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
     const [isDeleting, setIsDeleting] = useState(false);
-    const { triggerRefresh } = useRefresh();
 
     useEffect(() => {
         if (account) {
@@ -40,7 +38,6 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
                 await addAccount(updated);
             }
             onSubmit?.();
-            triggerRefresh();
         } catch (err) {
             console.error("Failed to save account:", err);
             message.error("Failed to save account");
@@ -53,7 +50,6 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
             await deleteAccounts([account!._id]);
             message.success("Account deleted successfully");
             onCancel?.();
-            triggerRefresh();
         } catch (err) {
             console.error(err);
             message.error("Failed to delete account");

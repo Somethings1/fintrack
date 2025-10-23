@@ -3,16 +3,18 @@ import TotalBox from "./TotalBox";
 import { getStoredSavings } from "@/services/savingService";
 import { getStoredTransactions } from "@/services/transactionService";
 import dayjs from "dayjs";
+import { useSavings } from "@/hooks/useSavings";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const TotalSavings: React.FC = () => {
+    const savings = useSavings()
+    const { transactions } = useTransactions();
+
     const getCurrent = async () => {
-        const savings = await getStoredSavings();
         return savings.reduce((sum, s) => sum + (s.balance || 0), 0);
     };
 
     const getPrevious = async () => {
-        const savings = await getStoredSavings();
-        const transactions = await getStoredTransactions();
         const thisMonth = dayjs();
 
         const savingIds = savings.map(s => s.id);
