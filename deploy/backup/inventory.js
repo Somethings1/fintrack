@@ -14,9 +14,9 @@ for (const entry of entries) {
   if (entry.type !== 'collection' || entry.name.startsWith('system.')) throw new Error('Only application collections are supported');
   const coll = target.getCollection(entry.name);
   const digest = crypto.createHash('sha256'); let count = 0;
-  for (const doc of coll.find().sort({_id:1})) {
+  coll.find().sort({_id:1}).forEach(doc => {
     digest.update(JSON.stringify(canonical(EJSON.serialize(doc,{relaxed:false})))+'\n'); count++;
-  }
+  });
   const indexes = coll.getIndexes().map(({ns,v,...index})=>index).sort((a,b)=>a.name.localeCompare(b.name));
   results.push({collection:entry.name,count,sha256:digest.digest('hex'),indexes:canonical(indexes),options:canonical(entry.options)});
 }

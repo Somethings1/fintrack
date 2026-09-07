@@ -98,14 +98,17 @@ def main():
                 raise ValueError('Public AGE_RECIPIENT and --writers-stopped attestation required')
             if args.archive.exists() or manifest_path.exists():
                 raise ValueError('Refusing to overwrite an archive or manifest')
+            print('Verifying source inventory', flush=True)
             before = inventory(args.database)
             if not before:
                 raise ValueError('Refusing an empty backup')
             try:
+                print('Streaming encrypted snapshot', flush=True)
                 with args.archive.open('xb') as output:
                     pipe([['mongodump','--config='+str(config),'--db='+args.database,'--readPreference=primary','--archive','--gzip','--quiet'],
                           ['age','--encrypt','--recipient',recipient]],output)
                     output.flush();os.fsync(output.fileno())
+                print('Verifying unchanged source', flush=True)
                 if inventory(args.database) != before:
                     raise RuntimeError('Database changed during backup; stop every writer')
                 manifest = {'version':1,'database':args.database,'created_at':time.time(),'sha256':digest(args.archive),'inventory':before}

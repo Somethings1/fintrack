@@ -15,7 +15,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     volumes: ['edge_data:/data']
-    tmpfs: ['/config:rw,nosuid,noexec,uid=65532,gid=65532,size=16m']
+    tmpfs: ['/tmp:rw,nosuid,noexec,size=16m', '/config:rw,nosuid,noexec,uid=65532,gid=65532,size=16m']
     pids_limit: 128
     mem_limit: 256m
     cpus: 0.5

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'docker logs --tail 60 fintrack-edge >&2 || true' ERR
+# The prior API smoke explicitly stops it to verify graceful shutdown.
+docker start fintrack-api >/dev/null
 # Uses localhost's disposable local CA, NOT public ACME or real domains.
 docker run -d --name fintrack-edge --network fintrack-ci --read-only --cap-drop ALL --security-opt no-new-privileges \
- --tmpfs /data:rw,uid=65532,gid=65532,size=32m --tmpfs /config:rw,uid=65532,gid=65532,size=8m \
+ --tmpfs /tmp:rw,nosuid,noexec,size=16m --tmpfs /data:rw,uid=65532,gid=65532,size=32m --tmpfs /config:rw,uid=65532,gid=65532,size=8m \
  -p 127.0.0.1:18443:8443 -p 127.0.0.1:18080:8080 -e APP_DOMAIN=localhost -e ACME_EMAIL=ci@example.test fintrack-edge:ci
 ready=false
 for i in $(seq 1 30);do

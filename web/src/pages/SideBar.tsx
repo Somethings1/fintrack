@@ -61,7 +61,8 @@ const CustomMenuItem: React.FC<MenuItemProps> = ({
   return (
     <Menu.Item
       key={itemKey}
-      icon={icon}
+      aria-label={label}
+      icon={<span aria-hidden="true">{icon}</span>}
       style={style}
       onClick={() => setSelectedKey(itemKey)}
       onMouseEnter={() => setHovered(true)}

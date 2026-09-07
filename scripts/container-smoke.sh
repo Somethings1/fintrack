@@ -6,7 +6,7 @@ for attempt in $(seq 1 60); do
   if docker exec fintrack-api /app/fintrack healthcheck; then break; fi
   sleep 1
 done
-docker run -d --name fintrack-web --network fintrack-ci   --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,size=16m   -p 127.0.0.1:8088:8080 fintrack-web:ci
+docker run -d --name fintrack-web --network fintrack-ci --network-alias web   --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,size=16m   -p 127.0.0.1:8088:8080 fintrack-web:ci
 for attempt in $(seq 1 30); do
   if curl --fail --silent http://127.0.0.1:8088/healthz; then break; fi
   sleep 1
