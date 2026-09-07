@@ -1,7 +1,7 @@
 // src/hooks/useTransactionFilters.ts
-import { useState, useMemo } from 'react';
 import { Transaction } from '@/models/Transaction';
 import { applyFuzzySearch } from '@/utils/transactionUtils';
+import { useMemo,useState } from 'react';
 
 export interface TransactionFilters {
     type: 'income' | 'expense' | 'transfer' | null;
@@ -37,7 +37,7 @@ export const useTransactionFilters = (initialData: Transaction[]) => {
         const { type, dateRange, amountRange, sourceAccount, destinationAccount, category, note } = filters;
 
         // Apply fuzzy search first if note filter is active
-        let dataToFilter = applyFuzzySearch(initialData, note);
+        const dataToFilter = applyFuzzySearch(initialData, note);
 
         // Apply other filters
         return dataToFilter.filter(tx => {

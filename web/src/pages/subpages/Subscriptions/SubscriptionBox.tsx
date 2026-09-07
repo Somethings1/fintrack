@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { Typography, Button, Modal } from "antd";
 import { EditOutlined } from "@ant-design/icons";
+import { Button,Modal,Typography } from "antd";
 import dayjs from "dayjs";
+import React,{ useState } from "react";
 
-import RoundedBox from "@/components/RoundedBox";
 import Balance from "@/components/Balance";
 import SubscriptionForm from "@/components/forms/SubscriptionForm";
+import RoundedBox from "@/components/RoundedBox";
 import { Subscription } from "@/models/Subscription";
 
 const { Title, Text } = Typography;

@@ -1,15 +1,15 @@
-import React, { useState } from "react";
-import { Layout, Menu, Typography } from "antd";
+import { colors } from "@/theme/color";
 import {
-  DashboardOutlined,
-  TransactionOutlined,
-  DollarOutlined,
-  BankOutlined,
-  WalletOutlined,
-  AppstoreOutlined,
+AppstoreOutlined,
+BankOutlined,
+DashboardOutlined,
+DollarOutlined,
+TransactionOutlined,
+WalletOutlined,
 } from "@ant-design/icons";
 import "@fontsource/orbitron";
-import { colors } from "@/theme/color";
+import { Layout,Menu,Typography } from "antd";
+import React,{ useState } from "react";
 
 const { Sider } = Layout;
 const { Title } = Typography;

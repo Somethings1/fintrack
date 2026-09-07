@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { Form, Input, InputNumber, Button, Space, Popconfirm, message } from "antd";
-import { Account } from "@/models/Account";
-import { addAccount, updateAccount, deleteAccounts } from "@/services/accountService";
 import IconPickerField from "@/components/IconPickerField";
+import { Account } from "@/models/Account";
+import { addAccount,deleteAccounts,updateAccount } from "@/services/accountService";
+import { Button,Form,Input,InputNumber,Popconfirm,Space,message } from "antd";
+import React,{ useEffect,useState } from "react";
 
 interface AccountFormProps {
     account?: Partial<Account>;
@@ -18,10 +18,10 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
         if (account) {
             form.setFieldsValue(account);
         }
-    }, [account]);
+    }, [account, form]);
 
-    const handleFinish = async (values: any) => {
-        const updated: Account = {
+    const handleFinish = async (values: Account) => {
+        const updated: Partial<Account> = {
             _id: account?._id,
             owner: localStorage.getItem("username") ?? "",
             name: values.name,
@@ -47,7 +47,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteAccounts([account!._id]);
+            await deleteAccounts([account!._id!]);
             message.success("Account deleted successfully");
             onCancel?.();
         } catch (err) {

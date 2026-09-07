@@ -1,0 +1,52 @@
+name: fintrack
+services:
+  api:
+    image: fintrack-api:${IMAGE_TAG:-local}
+    build: ./server
+    environment:
+      APP_ENV: production
+      PORT: '8080'
+      MONGO_URI: ${MONGO_URI:?Provide an authenticated MongoDB replica-set URI}
+      MONGO_DATABASE: ${MONGO_DATABASE:-finance_db}
+      SUPABASE_URL: ${SUPABASE_URL:?Provide your Supabase project URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Provide the public anon key, never a service-role key}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Provide exact HTTPS frontend origins}
+      AGENT_ENABLED: ${AGENT_ENABLED:-false}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AGENT_MODEL: ${AGENT_MODEL:-}
+      CRON_ENABLED: 'false'
+    user: '65532:65532'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp:rw,noexec,nosuid,size=16m]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+    stop_grace_period: 25s
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+  web:
+    image: fintrack-web:${IMAGE_TAG:-local}
+    build:
+      context: ./web
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_URL:?Provide your Supabase project URL}
+        VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Provide the public anon key}
+    ports: ['${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8088}:8080']
+    depends_on:
+      api: {condition: service_healthy}
+    user: '101:101'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp:rw,noexec,nosuid,size=16m]
+    pids_limit: 128
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}

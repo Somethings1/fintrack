@@ -1,5 +1,5 @@
-import React from "react";
 import { colors } from "@/theme/color";
+import React from "react";
 
 interface ProgressBarProps {
     percent: number;

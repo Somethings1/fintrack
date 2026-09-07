@@ -1,6 +1,6 @@
-import  TransactionTable  from '@/components/TransactionTable';
-import Title from '@/components/Title';
 import Subtitle from '@/components/Subtitle';
+import Title from '@/components/Title';
+import TransactionTable from '@/components/TransactionTable';
 import { Row } from 'antd';
 
 const Transactions = () => {

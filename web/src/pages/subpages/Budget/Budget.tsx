@@ -1,26 +1,25 @@
-import React, { useEffect, useState } from "react";
-import { addCategory } from "@/services/categoryService";
-import CategoryBox from "./CategoryBox";
-import { Category } from "@/types/Category";
-import {
-    Button,
-    Modal,
-    Space,
-    Typography,
-    Row,
-    Col,
-    Radio,
-    Select,
-    DatePicker
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
 import CategoryForm from "@/components/forms/CategoryForm";
-import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
+import Title from "@/components/Title";
 import { useCategories } from "@/hooks/useCategories";
 import { useTransactions } from "@/hooks/useTransactions";
+import { Category } from "@/models/Category";
+import { PlusOutlined } from "@ant-design/icons";
+import {
+Button,
+Col,
+DatePicker,
+Modal,
+Radio,
+Row,
+Select,
+Space,
+Typography
+} from "antd";
 import dayjs from "dayjs";
+import { useEffect,useState } from "react";
 import BudgetAnalysis from "./BudgetAnalysis";
+import CategoryBox from "./CategoryBox";
 
 const { Option } = Select;
 
@@ -45,7 +44,7 @@ const Budget = () => {
 
             const spentMap: Record<string, number> = {};
             filteredTxs.forEach(tx => {
-                spentMap[tx.category] = (spentMap[tx.category] || 0) + tx.amount;
+                spentMap[tx.category ?? ''] = (spentMap[tx.category ?? ''] || 0) + tx.amount;
             });
 
             setSpentByCategory(spentMap);
@@ -54,8 +53,7 @@ const Budget = () => {
         calculate();
     }, [categories, txs, selectedMonth]);
 
-    const handleNewCategory = async (category: Category) => {
-        await addCategory(category);
+    const handleNewCategory = () => {
         setIsModalOpen(false);
     };
 

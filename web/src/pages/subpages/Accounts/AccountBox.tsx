@@ -1,20 +1,19 @@
-import React, { useEffect, useState } from "react";
-import { Typography, Button, Modal } from "antd";
 import {
-    ArrowUpOutlined,
-    ArrowDownOutlined,
-    EditOutlined,
-    InfoOutlined,
-    LineChartOutlined,
+ArrowDownOutlined,
+ArrowUpOutlined,
+EditOutlined,
+LineChartOutlined
 } from "@ant-design/icons";
+import { Button,Modal,Typography } from "antd";
 import dayjs from "dayjs";
+import React,{ useEffect,useState } from "react";
 
+import Balance from "@/components/Balance";
 import RoundedBox from "@/components/RoundedBox";
 import AccountForm from "@/components/forms/AccountForm";
-import { getStoredTransactions } from "@/services/transactionService";
-import { Account } from "@/models/Account";
-import Balance from "@/components/Balance";
 import AccountInfoModal from "@/components/modals/AccountInfoModal";
+import { Account } from "@/models/Account";
+import { getStoredTransactions } from "@/services/transactionService";
 
 const { Title, Text } = Typography;
 

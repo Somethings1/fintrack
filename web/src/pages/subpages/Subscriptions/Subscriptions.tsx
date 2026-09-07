@@ -1,21 +1,21 @@
-import { useEffect, useState } from "react";
-import { addSubscription } from "@/services/subscriptionService";
-import { Subscription } from "@/types/Subscription";
-import {
-    Button,
-    Modal,
-    Space,
-    Typography,
-    Row,
-    Col,
-    Select
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
 import SubscriptionForm from "@/components/forms/SubscriptionForm";
-import SubscriptionBox from "./SubscriptionBox";
-import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
+import Title from "@/components/Title";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
+import { Subscription } from "@/models/Subscription";
+import { PlusOutlined } from "@ant-design/icons";
+import {
+Alert,
+Button,
+Col,
+Modal,
+Row,
+Select,
+Space,
+Typography
+} from "antd";
+import { useState } from "react";
+import SubscriptionBox from "./SubscriptionBox";
 
 const { Option } = Select;
 
@@ -24,8 +24,7 @@ const Subscriptions = () => {
     const [sortOption, setSortOption] = useState("startDate-desc");
     const subscriptions = useSubscriptions();
 
-    const handleNewSubscription = async (subscription: Subscription) => {
-        await addSubscription(subscription);
+    const handleNewSubscription = () => {
         setIsModalOpen(false);
     };
 
@@ -52,6 +51,7 @@ const Subscriptions = () => {
 
     return (
         <>
+            <Alert type="warning" showIcon message="Automatic subscription posting is disabled pending the production scheduler migration. Records remain available; add payments manually." style={{ marginBottom: 16 }} />
             <Row gutter={[16, 16]} style={{ margin: 0, marginBottom: 20 }}>
                 <Title>Subscriptions</Title>
                 <Subtitle>Track your recurring expenses</Subtitle>

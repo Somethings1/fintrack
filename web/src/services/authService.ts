@@ -1,3 +1,4 @@
+import { clearUserCache } from "@/utils/db";
 import { createClient } from "@supabase/supabase-js";
 
 
@@ -30,13 +31,16 @@ export const signUp = async (name: string, email: string, password: string) => {
 };
 
 export const logout = async () => {
+    const previousUser = localStorage.getItem("username");
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
+    await fetch("/api/session", {method:"DELETE", credentials:"same-origin"});
+    await clearUserCache(previousUser);
     localStorage.clear();
     sessionStorage.clear();
 
-    indexedDB.deleteDatabase("FinanceTracker");
+    window.location.replace("/login");
 };
 
 export const getCurrentUser = async () => {
@@ -63,7 +67,7 @@ export const signInWithGoogle = async () => {
 
 export const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "http://localhost:5173/update-password",
+        redirectTo: window.location.origin + "/update-password",
     });
     if (error) throw error;
 };

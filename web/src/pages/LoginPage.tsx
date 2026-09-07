@@ -1,16 +1,16 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { signIn, signUp, signInWithGoogle } from "@/services/authService";
-import {
-    Tabs,
-    Form,
-    Input,
-    Button,
-    Typography,
-    Alert,
-    Divider,
-} from "antd";
+import { signIn,signInWithGoogle,signUp } from "@/services/authService";
 import { GoogleOutlined } from "@ant-design/icons";
+import {
+Alert,
+Button,
+Divider,
+Form,
+Input,
+Tabs,
+Typography,
+} from "antd";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const { Link, Title } = Typography;
 
@@ -21,7 +21,7 @@ const LoginPage = () => {
     const [message, setMessage] = useState<string | null>(null);
     const navigate = useNavigate();
 
-    const handleSubmit = async (values: any) => {
+    const handleSubmit = async (values: { email: string; password: string; name: string; confirmPassword: string }) => {
         setError(null);
         const { email, password, name, confirmPassword } = values;
 
@@ -38,16 +38,16 @@ const LoginPage = () => {
                 setMessage("Sign up successfully. Please check your mail box to find confirmation mail.")
                 setTab("login");
             }
-        } catch (err: any) {
-            setError(err.message || `${tab} failed`);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : `${tab} failed`);
         }
     };
 
     const handleGoogleLogin = async () => {
         try {
             await signInWithGoogle();
-        } catch (err: any) {
-            setError(err.message || "Google login failed");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Google login failed");
         }
     };
 

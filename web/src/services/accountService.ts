@@ -1,24 +1,25 @@
-import {
-    fetchStreamedEntities,
-    getStoredEntities,
-    getEntity,
-    addEntity,
-    updateEntity,
-    deleteEntities,
-} from "./entityService";
-import { deleteTransactionsLocally, getStoredTransactions } from "./transactionService";
+import type { Account } from "@/models/Account";
 import { Transaction } from "@/models/Transaction";
 import { updateDB } from "@/utils/db";
+import {
+addEntity,
+deleteEntities,
+fetchStreamedEntities,
+getEntity,
+getStoredEntities,
+updateEntity,
+} from "./entityService";
+import { deleteTransactionsLocally,getStoredTransactions } from "./transactionService";
 
-const ACCOUNT_URL = "http://localhost:8080/api/accounts";
+const ACCOUNT_URL = "/api/accounts";
 const ACCOUNT_STORE = "accounts";
 
-export const fetchAccounts = () => fetchStreamedEntities(ACCOUNT_URL + "/get", ACCOUNT_STORE);
-export const getStoredAccounts = () => getStoredEntities(ACCOUNT_STORE);
-export const getAccountById = (id: string) => getEntity(ACCOUNT_STORE, id);
-export const addAccount = (account: any) => addEntity(ACCOUNT_URL, ACCOUNT_STORE, account);
-export const updateAccount = (id: string, data: any) => updateEntity(ACCOUNT_URL, ACCOUNT_STORE, id, data);
-export const updateAccountLocally = (id: string, account: any) =>
+export const fetchAccounts = () => fetchStreamedEntities(ACCOUNT_URL + "/get-since/1970-01-01T00:00:00.000Z", ACCOUNT_STORE);
+export const getStoredAccounts = () => getStoredEntities<Account>(ACCOUNT_STORE);
+export const getAccountById = (id: string) => getEntity<Account>(ACCOUNT_STORE, id);
+export const addAccount = (account: Partial<Account>) => addEntity(ACCOUNT_URL, ACCOUNT_STORE, account);
+export const updateAccount = (id: string, data: Partial<Account>) => updateEntity(ACCOUNT_URL, ACCOUNT_STORE, id, data);
+export const updateAccountLocally = (id: string, account: Partial<Account>) =>
     updateDB(ACCOUNT_STORE, { ...account, _id: id });
 
 export const deleteAccounts = async (ids: string[]) => {
@@ -27,7 +28,7 @@ export const deleteAccounts = async (ids: string[]) => {
     const transactions = await getStoredTransactions() as Transaction[];
 
     for (const tx of transactions) {
-        if (ids.includes(tx.sourceAccount) || ids.includes(tx.destinationAccount)) {
+        if (ids.includes(tx.sourceAccount ?? "") || ids.includes(tx.destinationAccount ?? "")) {
             deleteTransactionsLocally([tx._id]);
         }
     }

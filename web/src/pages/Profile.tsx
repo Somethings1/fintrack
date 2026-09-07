@@ -1,23 +1,23 @@
-import {
-    Button,
-    Form,
-    Input,
-    Select,
-    Switch,
-    Upload,
-    Typography,
-    Row,
-    Col,
-    Card,
-    Avatar,
-} from "antd";
-import { ArrowLeftOutlined, UploadOutlined, LogoutOutlined } from "@ant-design/icons";
-import { useEffect, useState, useContext } from "react";
-import { supabase, logout } from "@/services/authService";
-import type { UploadProps } from "antd";
+import type { Settings } from "@/context/settings-context";
+import { logout,supabase } from "@/services/authService";
 import { getMessageApi } from "@/utils/messageProvider";
-import { useSettings } from "../context/SettingsContext";
+import { ArrowLeftOutlined,LogoutOutlined,UploadOutlined } from "@ant-design/icons";
+import type { UploadProps } from "antd";
+import {
+Avatar,
+Button,
+Card,
+Col,
+Form,
+Input,
+Row,
+Select,
+Typography,
+Upload
+} from "antd";
+import { useEffect,useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSettings } from "../context/settings-context";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -38,6 +38,7 @@ export function ProfilePage() {
 
     useEffect(() => {
         refreshSettings().then((profile) => {
+            if (!profile) return;
             form.setFieldsValue({
                 email: profile.email,
                 full_name: profile.full_name,
@@ -49,15 +50,16 @@ export function ProfilePage() {
                 display_floating_points: profile.display_floating_points,
                 currency_position: profile.currency_position,
             });
-            setAvatarUrl(profile.avatar_url);
+            setAvatarUrl(profile.avatar_url ?? null);
         });
-    }, []);
+    }, [form, refreshSettings]);
 
-    const handleUpdate = async (values: any) => {
+    const handleUpdate = async (values: Partial<Settings>) => {
+        if (!settings) return;
         const updated = {
             ...settings,
             ...values,
-            avatar_url: avatarUrl,
+            avatar_url: values.avatar_url ?? avatarUrl ?? "",
         };
 
         const success = await setSettings(updated);
@@ -72,7 +74,7 @@ export function ProfilePage() {
         const { data: { user } } = await supabase.auth.getUser();
         const filePath = `avatars/${user?.id}-${Date.now()}`;
 
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
             .from("avatar")
             .upload(filePath, file as File);
 
@@ -85,7 +87,7 @@ export function ProfilePage() {
                 .getPublicUrl(filePath);
 
             setAvatarUrl(urlData.publicUrl);
-            handleUpdate(form.getFieldsValue);
+            await handleUpdate({ ...form.getFieldsValue(), avatar_url: urlData.publicUrl });
             message.success("Avatar uploaded");
             onSuccess?.(file);
         }

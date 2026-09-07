@@ -12,9 +12,6 @@ export function unregisterRefreshCallback(topic: string, cb: Callback) {
 
 export function triggerRefresh(topic: string) {
     if (!listeners.has(topic)) return;
-    if (topic === "transactions") {
-        console.log("triggering refresh for transactions");
-    }
     listeners.get(topic)!.forEach(cb => cb());
 }
 

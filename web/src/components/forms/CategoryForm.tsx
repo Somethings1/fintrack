@@ -1,22 +1,21 @@
-import React, { useEffect, useState } from "react";
-import {
-    Form,
-    Input,
-    Button,
-    InputNumber,
-    Radio,
-    Space,
-    Popconfirm,
-    message,
-} from "antd";
+import IconPickerField from "@/components/IconPickerField";
 import { Category } from "@/models/Category";
 import {
-    deleteCategories,
-    addCategory,
-    updateCategory,
+addCategory,
+deleteCategories,
+updateCategory,
 } from "@/services/categoryService";
-import { useRefresh } from "@/context/refreshProvider";
-import IconPickerField from "@/components/IconPickerField";
+import {
+Button,
+Form,
+Input,
+InputNumber,
+Popconfirm,
+Radio,
+Space,
+message,
+} from "antd";
+import React,{ useEffect,useState } from "react";
 
 interface CategoryFormProps {
     category?: Partial<Category>;
@@ -39,10 +38,10 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
         else {
             form.setFieldValue("type", "expense" );
         }
-    }, [category]);
+    }, [category, form]);
 
-    const handleFinish = async (values: any) => {
-        const updated: Category = {
+    const handleFinish = async (values: Category) => {
+        const updated: Partial<Category> = {
             _id: category?._id,
             owner: localStorage.getItem("username") ?? "",
             name: values.name,
@@ -69,7 +68,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteCategories([category!._id]);
+            await deleteCategories([category!._id!]);
             message.success("Category deleted successfully");
             onCancel?.();
         } catch (err) {

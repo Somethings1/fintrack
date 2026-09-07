@@ -11,3 +11,17 @@
 /electron/node_modules/
 /web/.env
 
+
+# Runtime secrets and generated artifacts
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+**/.DS_Store
+server/fintrack
+coverage.out
+*.log
+
+coverage.out

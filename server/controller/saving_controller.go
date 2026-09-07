@@ -1,11 +1,9 @@
 package controller
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
+	"errors"
+	"fintrack/server/util"
 	"net/http"
-	"time"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -24,9 +22,12 @@ func AddSaving(c *gin.Context) {
 
 	result, err := service.AddSaving(c.Request.Context(), saving)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error adding saving",
-			"detail": err.Error(),
+			"error": "Error adding saving",
 		})
 		return
 	}
@@ -37,39 +38,7 @@ func AddSaving(c *gin.Context) {
 	})
 }
 
-func GetSavingsSince(c *gin.Context) {
-	sinceStr := c.Param("time")
-	sinceTime, err := time.Parse(time.RFC3339, sinceStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
-		return
-	}
-
-	ctx := c.Request.Context()
-
-	cursor, err := service.FetchSavingsSince(ctx, c.GetString("username"), sinceTime)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching savings"})
-		return
-	}
-	defer cursor.Close(ctx)
-
-	c.Header("Content-Type", "application/json")
-	c.Status(http.StatusOK)
-
-	c.Stream(func(w io.Writer) bool {
-		if cursor.Next(ctx) {
-			var saving model.Saving
-			if err := cursor.Decode(&saving); err != nil {
-				fmt.Println("Error decoding saving:", err)
-				return false
-			}
-			json.NewEncoder(w).Encode(saving)
-			return true
-		}
-		return false
-	})
-}
+func GetSavingsSince(c *gin.Context) { streamSince[model.Saving](c, util.SavingCollection, "owner") }
 
 func UpdateSaving(c *gin.Context) {
 	tmp, _ := c.Get("saving")
@@ -82,9 +51,12 @@ func UpdateSaving(c *gin.Context) {
 
 	err = service.UpdateSaving(c.Request.Context(), id, saving)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error updating saving",
-			"detail": err.Error(),
+			"error": "Error updating saving",
 		})
 		return
 	}
@@ -101,9 +73,12 @@ func DeleteSaving(c *gin.Context) {
 
 	err = service.DeleteSaving(c.Request.Context(), id)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error soft deleting related transactions",
-			"detail": err.Error(),
+			"error": "Error soft deleting related transactions",
 		})
 		return
 	}

@@ -1,27 +1,28 @@
-import React, { useEffect, useState } from "react";
-import {
-    Form,
-    InputNumber,
-    Button,
-    DatePicker,
-    Select,
-    Space,
-    Input,
-    message,
-    Popconfirm,
-    Alert,
-    Row,
-    Col,
-} from "antd";
-import dayjs from "dayjs";
-import { Subscription } from "@/models/Subscription";
 import IconPickerField from "@/components/IconPickerField";
 import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
+import { Saving } from "@/models/Saving";
+import { Subscription } from "@/models/Subscription";
 import { getStoredAccounts } from "@/services/accountService";
-import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
-import { addSubscription, updateSubscription, deleteSubscriptions } from "@/services/subscriptionService";
+import { getStoredSavings } from "@/services/savingService";
+import { addSubscription,deleteSubscriptions,updateSubscription } from "@/services/subscriptionService";
+import {
+Alert,
+Button,
+Col,
+DatePicker,
+Form,
+Input,
+InputNumber,
+message,
+Popconfirm,
+Row,
+Select,
+Space,
+} from "antd";
+import dayjs from "dayjs";
+import React,{ useEffect,useState } from "react";
 
 interface SubscriptionFormProps {
     subscription?: Partial<Subscription>;
@@ -39,7 +40,7 @@ const intervalOptions = [
 const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
     const [accounts, setAccounts] = useState<Account[]>([]);
-    const [savings, setSavings] = useState<Account[]>([]);
+    const [savings, setSavings] = useState<Saving[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -72,15 +73,15 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             startDate: subscription.startDate ? dayjs(subscription.startDate) : undefined,
             nextActive: subscription.nextActive ? dayjs(subscription.nextActive) : undefined,
         });
-    }, [subscription]);
+    }, [subscription, form]);
 
-    const handleFinish = async (values: any) => {
+    const handleFinish = async (values: Omit<Subscription, 'startDate'> & { startDate: dayjs.Dayjs }) => {
         const formatted: Subscription = {
             ...subscription,
             ...values,
             creator: localStorage.getItem("username") ?? "",
             remindBefore: values.remindBefore ?? 1,
-            startDate: values.startDate?.toISOString() ?? subscription.startDate,
+            startDate: values.startDate?.toDate() ?? subscription.startDate,
             isDeleted: false,
         };
 
@@ -99,7 +100,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteSubscriptions([subscription!._id]);
+            await deleteSubscriptions([subscription!._id!]);
             onCancel?.();
         } catch (err) {
             console.error(err);

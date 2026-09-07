@@ -11,7 +11,7 @@ import (
 func SavingOwnershipMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username := c.GetString("username")
-		saving, err := service.GetSavingByID(c.Param("id"))
+		saving, err := service.GetSavingByID(c.Request.Context(), c.Param("id"))
 
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -45,16 +45,17 @@ func SavingFormatMiddleware() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
+		_saving.Owner = c.GetString("username")
 
 		if _saving.Balance < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Balance cannot be negative",
 			})
 			return
 		}
 
 		if _saving.Name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Name cannot be empty",
 			})
 			return
@@ -62,16 +63,18 @@ func SavingFormatMiddleware() gin.HandlerFunc {
 
 		CreatedDate, err := time.Parse(time.RFC3339, _saving.CreatedDate)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid date format on `lastUpdate`",
 			})
+			return
 		}
 
 		GoalDate, err := time.Parse(time.RFC3339, _saving.GoalDate)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid date format on `lastUpdate`",
 			})
+			return
 		}
 
 		saving := model.Saving{

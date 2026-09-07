@@ -1,11 +1,9 @@
 package controller
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
+	"errors"
+	"fintrack/server/util"
 	"net/http"
-	"time"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -20,9 +18,12 @@ func AddNotification(c *gin.Context) {
 
 	result, err := service.AddNotification(c.Request.Context(), notif)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Failed to add notification",
-			"detail": err.Error(),
+			"error": "Failed to add notification",
 		})
 		return
 	}
@@ -34,40 +35,7 @@ func AddNotification(c *gin.Context) {
 }
 
 func GetNotificationsSince(c *gin.Context) {
-	sinceStr := c.Param("time")
-	sinceTime, err := time.Parse(time.RFC3339, sinceStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
-		return
-	}
-
-	ctx := c.Request.Context()
-
-	cursor, err := service.FetchNotificationSince(ctx, c.GetString("username"), sinceTime)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error fetching notifications",
-			"detail": err.Error(),
-		})
-		return
-	}
-	defer cursor.Close(ctx)
-
-	c.Header("Content-Type", "application/json")
-	c.Status(http.StatusOK)
-
-	c.Stream(func(w io.Writer) bool {
-		if cursor.Next(ctx) {
-			var notification model.Notification
-			if err := cursor.Decode(&notification); err != nil {
-				fmt.Println("Error decoding notification:", err)
-				return false
-			}
-			json.NewEncoder(w).Encode(notification)
-			return true
-		}
-		return false
-	})
+	streamSince[model.Notification](c, util.NotificationCollection, "owner")
 }
 
 func MarkNotificationsRead(c *gin.Context) {
@@ -80,6 +48,10 @@ func MarkNotificationsRead(c *gin.Context) {
 		return
 	}
 
+	if len(body.IDs) == 0 || len(body.IDs) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "provide 1 to 100 notification IDs"})
+		return
+	}
 	var notifIDs []primitive.ObjectID
 	for _, idStr := range body.IDs {
 		id, err := primitive.ObjectIDFromHex(idStr)
@@ -88,19 +60,6 @@ func MarkNotificationsRead(c *gin.Context) {
 			return
 		}
 		notifIDs = append(notifIDs, id)
-	}
-
-	username := c.GetString("username")
-	for _, id := range notifIDs {
-		notif, err := service.GetNotificationById(id.Hex())
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Notification not found: " + id.Hex()})
-			return
-		}
-		if string(notif.Owner) != username {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You are not the creator of notification " + id.Hex()})
-			return
-		}
 	}
 
 	if err := service.MarkAsRead(c.Request.Context(), notifIDs); err != nil {
@@ -122,9 +81,12 @@ func UpdateNotification(c *gin.Context) {
 
 	err = service.UpdateNotification(c.Request.Context(), id, notification)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error updating notification",
-			"detail": err.Error(),
+			"error": "Error updating notification",
 		})
 		return
 	}
@@ -141,9 +103,12 @@ func DeleteNotification(c *gin.Context) {
 
 	err = service.DeleteNotification(c.Request.Context(), id)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error deleting notification",
-			"detail": err.Error(),
+			"error": "Error deleting notification",
 		})
 		return
 	}

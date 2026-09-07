@@ -1,16 +1,15 @@
 // src/config/transactionTableColumns.tsx
-import React from 'react';
-import { Button, Tooltip, Tag, Space } from 'antd';
-import { EditOutlined, BellOutlined } from '@ant-design/icons';
-import { ResolvedTransaction } from '@/hooks/useTransactions'; // Import type
-import { highlightMatches } from '@/utils/transactionUtils'; // Import utility
 import Balance from '@/components/Balance';
+import { ResolvedTransaction } from '@/hooks/useTransactions'; // Import type
 import { Notification } from '@/models/Notification';
+import { highlightMatches } from '@/utils/highlight'; // Import utility
+import { BellOutlined,EditOutlined } from '@ant-design/icons';
+import { Button,Tag,Tooltip } from 'antd';
 import dayjs from 'dayjs';
 
 type HandleEditFunction = (transaction: ResolvedTransaction) => void;
 
-export const getBaseColumns = (notifications: Notification[]) => [
+export const getBaseColumns = () => [
     {
         title: "Date",
         dataIndex: "dateTime",
@@ -66,12 +65,11 @@ export const getBaseColumns = (notifications: Notification[]) => [
         dataIndex: "note",
         key: "note",
         render: (note: string, record: ResolvedTransaction) => {
-            const match = record._searchMatches?.find((m: any) => m.key === "_normalized_note");
+            const match = record._searchMatches?.find((m) => m.key === "_normalized_note");
             const noteHtml = match?.indices?.length
                 ? <span dangerouslySetInnerHTML={{ __html: highlightMatches(note, match.indices) }} />
                 : <span>{note ?? ''}</span>;
 
-            const notif = notifications.find(n => n.referenceId === record._id);
 
             return (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -79,14 +77,14 @@ export const getBaseColumns = (notifications: Notification[]) => [
                 </span>
             );
         },
-        sorter: (a, b) => (a.note ?? "").localeCompare(b.note ?? ""),
+        sorter: (a: ResolvedTransaction, b: ResolvedTransaction) => (a.note ?? "").localeCompare(b.note ?? ""),
     },
 ];
 
 const HIDDEN_KEYS = ["type", "reminder"];
 
 export const getSimpleColumns = () => {
-    return getBaseColumns([])
+    return getBaseColumns()
         .filter(col => !HIDDEN_KEYS.includes(col.key))
         .map(col => ({ ...col, sorter: false }));
 };
@@ -97,8 +95,8 @@ export const getEditColumn = (
     title: "Actions",
     key: "actions",
     width: 80, // Adjust width as needed
-    align: "center",
-    render: (_: any, transaction: ResolvedTransaction) => (
+    align: "center" as const,
+    render: (_: unknown, transaction: ResolvedTransaction) => (
         <Button
             icon={<EditOutlined />}
             onClick={(e) => {
@@ -120,8 +118,8 @@ const getReminderColumn = (
     key: "reminder",
     dataIndex: "reminder",
     width: 120,
-    align: "center",
-    render: (_: any, transaction: ResolvedTransaction) => {
+    align: "center" as const,
+    render: (_: unknown, transaction: ResolvedTransaction) => {
         const reminder = notifications.find(
             (n) => n.referenceId === transaction._id
         );
@@ -170,7 +168,7 @@ export const getColumns = (
     notifications: Notification[],
     handleUpsertReminder: (transaction: ResolvedTransaction) => void
 ) => {
-    const base = getBaseColumns(notifications);
+    const base = getBaseColumns();
     const reminderColumn = getReminderColumn(notifications, handleUpsertReminder);
     const editColumn = getEditColumn(handleEdit);
     return [...base, reminderColumn, ...(editMode ? [editColumn] : [])];

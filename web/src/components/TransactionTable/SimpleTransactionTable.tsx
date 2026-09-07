@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
-import { Table, Spin } from "antd";
+import { Spin,Table } from "antd";
+import React,{ useMemo } from "react";
 
-import { useTransactions } from "@/hooks/useTransactions";
 import { getSimpleColumns } from "@/config/transactionTableColumns";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const SimpleTransactionTable: React.FC = () => {
     const {
@@ -10,7 +10,7 @@ const SimpleTransactionTable: React.FC = () => {
         isLoading,
     } = useTransactions();
 
-    const columns = useMemo(() => getSimpleColumns(false, () => {}), []);
+    const columns = useMemo(() => getSimpleColumns(), []);
 
     const data = useMemo(() => rawTransactions.slice(0, 3), [rawTransactions]);
 

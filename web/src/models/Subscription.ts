@@ -8,7 +8,7 @@ export interface Subscription {
     category: string;
 
     startDate: Date;
-    interval: number;
+    interval: "week" | "month" | "year" | "test";
     maxInterval: number;
     currentInterval: number;
     remindBefore: number;

@@ -1,3 +1,8 @@
+> **Production-readiness work:** see [the deployment/security runbook](docs/production-readiness.md)
+> for CI commands, containers, the consent-based assistant, and explicit launch blockers. This is a
+> hardening foundation, not yet a production financial-ledger certification. Automatic subscription
+> posting is disabled in production pending an atomic scheduler migration.
+
 Your AI finance tracker
 ---
 

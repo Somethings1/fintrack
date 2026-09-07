@@ -1,8 +1,9 @@
+import dayjs from "dayjs";
 // src/components/modals/FilterModal.tsx
-import React from 'react';
-import { Modal, Form, Select, DatePicker, Slider, Input, Button } from 'antd';
 import { TransactionFilters } from '@/hooks/useTransactionFilters'; // Import type
-import { AccountOption, CategoryOption } from '@/hooks/useTransactions'; // Import types
+import { AccountOption,CategoryOption } from '@/hooks/useTransactions'; // Import types
+import { Button,DatePicker,Form,Input,Modal,Select,Slider } from 'antd';
+import React from 'react';
 
 interface FilterModalProps {
     open: boolean;
@@ -31,9 +32,9 @@ const FilterModal: React.FC<FilterModalProps> = ({
         onCancel(); // Close modal after reset
     };
 
-    const handleApply = (values: any) => {
+    const handleApply = (values: Omit<TransactionFilters, 'dateRange'> & { dateRange?: [dayjs.Dayjs, dayjs.Dayjs] | null }) => {
         // Potentially transform values if needed before applying
-        onApply(values as TransactionFilters);
+        onApply({ ...initialValues, ...values, dateRange: values.dateRange ? [values.dateRange[0].startOf('day').toDate(), values.dateRange[1].endOf('day').toDate()] : null });
         onCancel(); // Close modal after applying
     };
 
@@ -49,7 +50,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
                 form={form}
                 layout="vertical"
                 onFinish={handleApply}
-                initialValues={initialValues}
+                initialValues={{ ...initialValues, dateRange: initialValues.dateRange?.map(date => dayjs(date)) ?? null }}
             >
                 <Form.Item name="type" label="Type">
                     <Select allowClear placeholder="Any Type">

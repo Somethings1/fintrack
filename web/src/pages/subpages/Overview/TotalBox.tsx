@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from "react";
-import RoundedBox from "@/components/RoundedBox";
-import { Typography } from "antd";
-import { colors } from "@/theme/color";
 import Balance from "@/components/Balance";
-import { useTransactions } from "@/hooks/useTransactions";
-import { useAccounts } from "@/hooks/useAccounts";
-import { useSavings } from "@/hooks/useSavings";
+import RoundedBox from "@/components/RoundedBox";
+import { colors } from "@/theme/color";
+import { Typography } from "antd";
+import React,{ useEffect,useState } from "react";
 
 const { Title } = Typography;
 
@@ -22,23 +19,23 @@ const TotalBox: React.FC<Props> = ({
     calculateCurrent,
     calculatePrevious,
     highlightDirection = "increase",
-    type,
 }) => {
     const [current, setCurrent] = useState(0);
     const [previous, setPrevious] = useState(0);
-    const { transactions } = useTransactions();
-    const accounts = useAccounts();
-    const savings = useSavings();
+
 
     useEffect(() => {
+        let active = true;
         const fetch = async () => {
             const cur = await calculateCurrent();
             const prev = await calculatePrevious();
+            if (!active) return;
             setCurrent(cur);
             setPrevious(prev);
         };
-        fetch();
-    }, [transactions, accounts, savings]);
+        void fetch();
+        return () => { active = false; };
+    }, [calculateCurrent, calculatePrevious]);
 
     const diff = current - previous;
     const isHighlight =

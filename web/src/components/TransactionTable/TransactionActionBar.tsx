@@ -1,13 +1,13 @@
-import React from 'react';
-import { Button, Space } from 'antd';
 import {
-    DeleteOutlined,
-    EditOutlined,
-    FilterOutlined,
-    SelectOutlined,
-    PlusOutlined,
-    DownloadOutlined
+DeleteOutlined,
+DownloadOutlined,
+EditOutlined,
+FilterOutlined,
+PlusOutlined,
+SelectOutlined
 } from '@ant-design/icons';
+import { Button,Space } from 'antd';
+import React from 'react';
 
 interface TransactionActionBarProps {
     // Filter props

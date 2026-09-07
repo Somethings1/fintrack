@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { Saving } from "@/types/Saving";
-import { Card, Typography, Space, Progress, Button, Modal } from "antd";
-import { EditOutlined, DownOutlined, UpOutlined, LineChartOutlined } from "@ant-design/icons";
-import SavingForm from "@/components/forms/SavingForm";
-import RoundedBox from "@/components/RoundedBox"; // Adjust path as needed
 import Balance from "@/components/Balance";
 import ProgressBar from "@/components/charts/ProgressBar";
+import SavingForm from "@/components/forms/SavingForm";
+import RoundedBox from "@/components/RoundedBox"; // Adjust path as needed
+import { Saving } from "@/models/Saving";
+import { DownOutlined,EditOutlined,LineChartOutlined,UpOutlined } from "@ant-design/icons";
+import { Button,Modal,Space,Typography } from "antd";
+import React,{ useState } from "react";
 import AccountInfoModal from "../../../components/modals/AccountInfoModal";
 
 const { Text, Title } = Typography;

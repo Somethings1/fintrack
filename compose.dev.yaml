@@ -1,0 +1,44 @@
+# LOCAL DEVELOPMENT ONLY: unauthenticated disposable MongoDB, never Internet-facing.
+name: fintrack-dev
+services:
+  mongo:
+    image: mongo:7.0
+    command: [mongod, --replSet, rs0, --bind_ip_all]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  mongo-init:
+    image: mongo:7.0
+    depends_on:
+      mongo: {condition: service_healthy}
+    entrypoint: [mongosh, --host, mongo, --quiet, --eval]
+    command: ['try { rs.status(); } catch (e) { if (e.codeName !== "NotYetInitialized") throw e; rs.initiate({_id:"rs0", members:[{_id:0,host:"mongo:27017"}]}); }']
+    restart: 'no'
+  api:
+    build: ./server
+    environment:
+      APP_ENV: development
+      MONGO_URI: mongodb://mongo:27017/?replicaSet=rs0
+      MONGO_DATABASE: finance_dev
+      SUPABASE_URL: ${SUPABASE_URL:?Provide a development Supabase project URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Provide a public development anon key}
+      ALLOWED_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
+      AGENT_ENABLED: 'false'
+      CRON_ENABLED: 'false'
+    depends_on:
+      mongo-init: {condition: service_completed_successfully}
+    restart: on-failure
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    ports: ['127.0.0.1:8088:8080']
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  mongo-data:

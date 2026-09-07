@@ -1,49 +1,38 @@
 package middleware
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"io"
+	"github.com/google/uuid"
+	"log/slog"
+	"net/http"
 	"time"
 )
 
+// LoggingMiddleware deliberately excludes URLs, query strings, user IDs, credentials,
+// request/response bodies, and panic values. Route templates have bounded cardinality.
 func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		start := time.Now()
-		method := c.Request.Method
-		path := c.Request.URL.Path
-
+		started := time.Now()
+		requestID := uuid.NewString()
+		c.Header("X-Request-ID", requestID)
 		c.Next()
-
-		duration := time.Since(start)
-		fmt.Printf("[%s at %s] %s\n", method, path, duration)
+		route := c.FullPath()
+		if route == "" {
+			route = "unmatched"
+		}
+		slog.Info("http_request", "request_id", requestID, "method", c.Request.Method,
+			"route", route, "status", c.Writer.Status(), "duration_ms", time.Since(started).Milliseconds())
 	}
 }
 
-func PrintRequestDetails() gin.HandlerFunc {
+func Recovery() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		fmt.Println("------------------------------------------")
-		fmt.Println("HTTP Method:", c.Request.Method)
-
-		fmt.Println("Request Headers:")
-		for key, value := range c.Request.Header {
-			fmt.Printf("%s: %s\n", key, value)
-		}
-
-		fmt.Println("Query Parameters:")
-		for key, value := range c.Request.URL.Query() {
-			fmt.Printf("%s: %s\n", key, value)
-		}
-
-		var body []byte
-		if c.Request.Body != nil {
-			body, _ = io.ReadAll(c.Request.Body)
-			fmt.Println("Request Body:", string(body))
-
-			c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
-		}
-
+		defer func() {
+			if recover() != nil {
+				slog.Error("request_panic", "request_id", c.Writer.Header().Get("X-Request-ID"))
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			}
+		}()
 		c.Next()
 	}
 }

@@ -12,15 +12,15 @@ import (
 func NotificationOwnershipMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username := c.GetString("username")
-		notif, err := service.GetNotificationById(c.Param("id"))
+		notif, err := service.GetNotificationById(c.Request.Context(), c.Param("id"))
 
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Notification not found"})
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "Notification not found"})
 			return
 		}
 
 		if string(notif.Owner) != username {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You are not the creator of this Notification"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "You are not the creator of this Notification"})
 			return
 		}
 
@@ -42,12 +42,13 @@ func NotificationFormatMiddleware() gin.HandlerFunc {
 
 		// Overall format
 		if err := c.ShouldBindJSON(&_notification); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		_notification.Owner = c.GetString("username")
 
 		if _notification.Type != model.TypeTransaction {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "New notification insertion via http can only be transactional",
 			})
 			return
@@ -55,23 +56,23 @@ func NotificationFormatMiddleware() gin.HandlerFunc {
 
 		referenceId, err := primitive.ObjectIDFromHex(_notification.ReferenceId)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error":  "Invalid referenceId",
 				"detail": err.Error(),
 			})
 			return
 		}
 
-		transaction, err := service.GetTransactionByID(_notification.ReferenceId)
+		transaction, err := service.GetTransactionByID(c.Request.Context(), _notification.ReferenceId)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error":  "Transaction not found",
 				"detail": err.Error(),
 			})
 			return
 		}
 		if transaction.Creator != _notification.Owner {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Youare not the owner of the transaction",
 			})
 			return
@@ -80,7 +81,7 @@ func NotificationFormatMiddleware() gin.HandlerFunc {
 		// StartDate
 		ScheduledAt, err := time.Parse(time.RFC3339, _notification.ScheduledAt)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid date format on `scheduledAt`",
 			})
 			return

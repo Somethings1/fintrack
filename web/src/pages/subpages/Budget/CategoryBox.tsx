@@ -1,24 +1,24 @@
-import React, { useState } from "react";
-import { Category } from "@/models/Category";
-import {
-    Progress,
-    Typography,
-    Space,
-    Row,
-    Col,
-    Tag,
-    Modal,
-    Button,
-} from "antd";
-import {
-    CheckCircleOutlined,
-    ExclamationCircleOutlined,
-    EditOutlined,
-} from "@ant-design/icons";
+import Balance from "@/components/Balance";
 import RoundedBox from "@/components/RoundedBox";
 import CategoryForm from "@/components/forms/CategoryForm";
-import Balance from "@/components/Balance";
+import { Category } from "@/models/Category";
+import {
+CheckCircleOutlined,
+EditOutlined,
+ExclamationCircleOutlined,
+} from "@ant-design/icons";
+import {
+Button,
+Col,
+Modal,
+Progress,
+Row,
+Space,
+Tag,
+Typography,
+} from "antd";
 import dayjs from "dayjs";
+import React,{ useState } from "react";
 
 const { Text, Title } = Typography;
 

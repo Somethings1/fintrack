@@ -6,6 +6,8 @@ import (
 )
 
 type Transaction struct {
+	RequestKey         string             `bson:"request_key,omitempty" json:"-"`
+	RequestHash        string             `bson:"request_hash,omitempty" json:"-"`
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Creator            string             `bson:"creator" json:"creator"`
 	Amount             float64            `bson:"amount" json:"amount"`

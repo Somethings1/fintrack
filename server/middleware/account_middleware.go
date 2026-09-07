@@ -10,7 +10,7 @@ import (
 func AccountOwnershipMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username := c.GetString("username")
-		account, err := service.GetAccountByID(c.Param("id"))
+		account, err := service.GetAccountByID(c.Request.Context(), c.Param("id"))
 
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -41,16 +41,17 @@ func AccountFormatMiddleware() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
+		_account.Owner = c.GetString("username")
 
 		if _account.Balance < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Balance cannot be negative",
 			})
 			return
 		}
 
 		if _account.Name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Name cannot be empty",
 			})
 			return

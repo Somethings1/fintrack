@@ -1,142 +1,50 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { Transaction } from "@/models/Transaction";
-import { resolveAccountName, resolveCategoryName } from "@/utils/idResolver";
-import { useRefresh } from "@/context/RefreshProvider";
-import { getMessageApi } from '@/utils/messageProvider';
+import { registerRefreshCallback,unregisterRefreshCallback } from '@/context/RefreshBus';
+import type { Transaction } from '@/models/Transaction';
+import { getStoredAccounts } from '@/services/accountService';
+import { getStoredCategories } from '@/services/categoryService';
+import { getStoredSavings } from '@/services/savingService';
 import { getStoredTransactions } from '@/services/transactionService';
-
+import type { FuseResultMatch } from 'fuse.js';
+import { useEffect,useState } from 'react';
 export interface ResolvedTransaction extends Transaction {
     sourceAccountName?: string;
     destinationAccountName?: string;
     categoryName?: string;
-    _searchMatches?: any;
+    _searchMatches?: readonly FuseResultMatch[];
 }
-
-export interface AccountOption {
-    value: string;
-    label: string;
-}
-
-export interface CategoryOption {
-    value: string;
-    label: string;
-}
-
-const defaultTransaction: Partial<Transaction> = {
-    type: "income",
-    dateTime: new Date(),
-    amount: 0,
-    sourceAccount: null,
-    destinationAccount: null,
-    category: null,
-    note: "",
-    creator: typeof window !== 'undefined' ? localStorage.getItem("username") ?? "" : "",
-    isDeleted: false,
-};
-
-let cachedTransactions: ResolvedTransaction[] = [];
-let cachedAccountOptions: AccountOption[] = [];
-let cachedCategoryOptions: CategoryOption[] = [];
-let isInitialized = false;
-
-const subscribers = new Set<React.Dispatch<React.SetStateAction<ResolvedTransaction[]>>>();
-const accountSubscribers = new Set<React.Dispatch<React.SetStateAction<AccountOption[]>>>();
-const categorySubscribers = new Set<React.Dispatch<React.SetStateAction<CategoryOption[]>>>();
-
-async function refreshData() {
-    const message = getMessageApi();
-    try {
-        console.log("It should refresh here");
-        const all = await getStoredTransactions();
-        const sorted = all.sort((a, b) =>
-            new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
-        );
-
-        const accountsSet = new Set<string>();
-        const categoriesSet = new Set<string>();
-        const accountsMap: Record<string, string> = {};
-        const categoriesMap: Record<string, string> = {};
-
-        for (const tx of sorted) {
-            if (tx.sourceAccount) accountsSet.add(tx.sourceAccount);
-            if (tx.destinationAccount) accountsSet.add(tx.destinationAccount);
-            if (tx.category) categoriesSet.add(tx.category);
-        }
-
-        await Promise.all(
-            Array.from(accountsSet).map(async id => {
-                accountsMap[id] = await resolveAccountName(id);
-            })
-        );
-
-        await Promise.all(
-            Array.from(categoriesSet).map(async id => {
-                categoriesMap[id] = await resolveCategoryName(id);
-            })
-        );
-
-        const resolvedTransactions = sorted.map((tx) => ({
-            ...tx,
-            sourceAccountName: tx.sourceAccount ? accountsMap[tx.sourceAccount] : undefined,
-            destinationAccountName: tx.destinationAccount ? accountsMap[tx.destinationAccount] : undefined,
-            categoryName: tx.category ? categoriesMap[tx.category] : undefined,
-        }));
-
-
-        cachedTransactions = resolvedTransactions;
-        cachedAccountOptions = Object.entries(accountsMap).map(([id, name]) => ({ value: id, label: name }));
-        cachedCategoryOptions = Object.entries(categoriesMap).map(([id, name]) => ({ value: id, label: name }));
-
-        subscribers.forEach((cb) => cb([...cachedTransactions]));
-        accountSubscribers.forEach((cb) => cb([...cachedAccountOptions]));
-        categorySubscribers.forEach((cb) => cb([...cachedCategoryOptions]));
-    } catch (error) {
-        console.error("Error fetching transactions:", error);
-        message.error("Failed to load transactions.");
-    }
-}
-
-export const useTransactions = () => {
-    const [transactions, setTransactions] = useState<ResolvedTransaction[]>(cachedTransactions);
-    const [accountOptions, setAccountOptions] = useState<AccountOption[]>(cachedAccountOptions);
-    const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>(cachedCategoryOptions);
-    const [isLoading, setIsLoading] = useState(false);
-
-    const { register, unregister } = useRefresh();
-
-    const setIsLoadingRef = useRef(setIsLoading);
+export interface AccountOption { value: string; label: string }
+export interface CategoryOption { value: string; label: string }
+const topics = ['transactions', 'accounts', 'savings', 'categories'];
+export function useTransactions() {
+    const [transactions, setTransactions] = useState<ResolvedTransaction[]>([]);
+    const [accountOptions, setAccountOptions] = useState<AccountOption[]>([]);
+    const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+    const [isLoading, setLoading] = useState(true);
+    const [defaultTransaction] = useState<Partial<Transaction>>(() => ({ type: 'income', dateTime: new Date(), amount: 0, note: '', isDeleted: false }));
     useEffect(() => {
-        setIsLoadingRef.current = setIsLoading;
-    }, [setIsLoading]);
-
-    const onRefresh = useCallback(() => {
-        setIsLoadingRef.current(true);
-        refreshData().finally(() => setIsLoadingRef.current(false));
+        let active = true;
+        let revision = 0;
+        const refresh = async () => {
+            const current = ++revision;
+            try {
+                const [rows, accounts, savings, categories] = await Promise.all([getStoredTransactions(), getStoredAccounts(), getStoredSavings(), getStoredCategories()]);
+                if (!active || current !== revision) return;
+                const accountMap = new Map([...accounts, ...savings].map(a => [a._id, a.name]));
+                const categoryMap = new Map(categories.map(c => [c._id, c.name]));
+                setTransactions(rows.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(tx => ({
+                    ...tx, sourceAccountName: accountMap.get(tx.sourceAccount ?? '') ?? 'External',
+                    destinationAccountName: accountMap.get(tx.destinationAccount ?? '') ?? 'External',
+                    categoryName: categoryMap.get(tx.category ?? '') ?? 'Transfer',
+                })));
+                setAccountOptions([...accountMap].map(([value, label]) => ({ value, label })));
+                setCategoryOptions([...categoryMap].map(([value, label]) => ({ value, label })));
+            } catch { if (active) setTransactions([]); }
+            finally { if (active && current === revision) setLoading(false); }
+        };
+        const callback = () => { void refresh(); };
+        for (const topic of topics) registerRefreshCallback(topic, callback);
+        callback();
+        return () => { active = false; for (const topic of topics) unregisterRefreshCallback(topic, callback); };
     }, []);
-
-    useEffect(() => {
-        if (!isInitialized) {
-            isInitialized = true;
-            onRefresh();
-            subscribers.add(setTransactions);
-            accountSubscribers.add(setAccountOptions);
-            categorySubscribers.add(setCategoryOptions);
-
-            register("transactions", onRefresh);
-            register("accounts", onRefresh);
-            register("savings", onRefresh);
-            register("categories", onRefresh);
-
-            console.log("Registering")
-        }
-    }, [onRefresh, register, unregister]);
-
-    return {
-        transactions,
-        isLoading,
-        accountOptions,
-        categoryOptions,
-        defaultTransaction,
-    };
-};
-
+    return { transactions, isLoading, accountOptions, categoryOptions, defaultTransaction };
+}

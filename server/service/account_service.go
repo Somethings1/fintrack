@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"fintrack/server/model"
@@ -16,8 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetAccountByID(id string) (model.Account, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func GetAccountByID(parent context.Context, id string) (model.Account, error) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -27,7 +26,7 @@ func GetAccountByID(id string) (model.Account, error) {
 
 	var account model.Account
 
-	err = util.AccountCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&account)
+	err = util.AccountCollection.FindOne(ctx, util.TenantFilter(ctx, "owner", objectID)).Decode(&account)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return model.Account{}, errors.New("transaction not found")
@@ -41,13 +40,13 @@ func GetAccountByID(id string) (model.Account, error) {
 func FetchAccountsSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
 	filter := bson.M{
 		"last_update": bson.M{
-			"$gt": since,
+			"$gte": since,
 		},
 		"owner": username,
 	}
 
 	opts := options.Find().SetSort(bson.D{
-		{Key: "last_update", Value: -1},
+		{Key: "last_update", Value: 1}, {Key: "_id", Value: 1},
 	})
 
 	return util.AccountCollection.Find(ctx, filter, opts)
@@ -71,7 +70,7 @@ func AddAccount(ctx context.Context, account model.Account) (interface{}, error)
 }
 
 func UpdateAccount(ctx context.Context, id primitive.ObjectID, account model.Account) error {
-	filter := bson.M{"_id": id}
+	filter := util.TenantFilter(ctx, "owner", id)
 	account.LastUpdate = time.Now()
 	updateAccount := bson.M{"$set": account}
 
@@ -90,39 +89,5 @@ func UpdateAccount(ctx context.Context, id primitive.ObjectID, account model.Acc
 }
 
 func DeleteAccount(ctx context.Context, id primitive.ObjectID) error {
-	accountUpdate := bson.M{
-		"$set": bson.M{
-			"is_deleted":  true,
-			"last_update": time.Now(),
-		},
-	}
-	_, err := util.AccountCollection.UpdateOne(ctx, bson.M{"_id": id}, accountUpdate)
-	if err != nil {
-		return fmt.Errorf("Error deleting account: %w", err)
-	}
-
-	transactionUpdate := bson.M{
-		"$set": bson.M{
-			"is_deleted":  true,
-			"last_update": time.Now(),
-		},
-	}
-	filter := bson.M{
-		"$or": []bson.M{
-			{"source_account": id},
-			{"destination_account": id},
-		},
-	}
-	_, err = util.TransactionCollection.UpdateMany(ctx, filter, transactionUpdate)
-	if err != nil {
-		return fmt.Errorf("Error deleting related transactions: %w", err)
-	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "accounts",
-		"action":     "delete",
-		"detail":     id,
-	})
-
-	return nil
+	return archiveUnreferenced(ctx, util.AccountCollection, "accounts", id)
 }

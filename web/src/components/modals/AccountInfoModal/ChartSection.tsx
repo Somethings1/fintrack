@@ -1,16 +1,17 @@
-import React, { useMemo } from "react";
-import {
-    AreaChart,
-    XAxis,
-    YAxis,
-    Tooltip,
-    CartesianGrid,
-    Area,
-    ResponsiveContainer,
-} from "recharts";
-import { Transaction } from "@/models/Transaction";
 import { Account } from "@/models/Account";
+import { Transaction } from "@/models/Transaction";
 import dayjs from "dayjs";
+import React,{ useMemo } from "react";
+import type { TooltipProps } from "recharts";
+import {
+Area,
+AreaChart,
+CartesianGrid,
+ResponsiveContainer,
+Tooltip,
+XAxis,
+YAxis,
+} from "recharts";
 import Subtitle from "../../Subtitle";
 
 interface ChartSectionProps {
@@ -98,7 +99,7 @@ const ChartSection: React.FC<ChartSectionProps> = ({ account, transactions, mode
         return backtracked.reverse();
     }, [chartData, lastBalance]);
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
+    const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
         if (!active || !payload?.length) return null;
 
         const data = payload[0].payload;
@@ -106,20 +107,20 @@ const ChartSection: React.FC<ChartSectionProps> = ({ account, transactions, mode
         return (
             <div style={{ background: "#fff", padding: 10, border: "1px solid #ccc" }}>
                 <strong>{mode === "month" ? `Day ${label}` : `Month ${label}`}</strong>
-                {payload.some((p: any) => p.dataKey === "income") && (
+                {payload.some((p) => p.dataKey === "income") && (
                     <div>Income: ${data.income.toLocaleString()}</div>
                 )}
-                {payload.some((p: any) => p.dataKey === "expense") && (
+                {payload.some((p) => p.dataKey === "expense") && (
                     <div>Expense: ${data.expense.toLocaleString()}</div>
                 )}
-                {payload.some((p: any) => p.dataKey === "computedBalance") && (
+                {payload.some((p) => p.dataKey === "computedBalance") && (
                     <div>Balance: ${data.computedBalance.toLocaleString()}</div>
                 )}
             </div>
         );
     };
 
-    const renderAreaChart = (dataKey: string, data: any[]) => (
+    const renderAreaChart = (dataKey: string, data: { label: string; income: number; expense: number; computedBalance?: number }[]) => (
         <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={data}>
                 <XAxis dataKey="label" />

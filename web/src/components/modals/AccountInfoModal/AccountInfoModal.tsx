@@ -1,13 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { Modal, Radio, Button, Row, Col, Typography, Divider } from 'antd';
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { Account } from '@/models/Account';
 import { useTransactions } from '@/hooks/useTransactions';
-import ChartSection from './ChartSection';
+import { Account } from '@/models/Account';
+import { LeftOutlined,RightOutlined } from '@ant-design/icons';
+import { Button,Modal,Radio } from 'antd';
+import React,{ useMemo,useState } from 'react';
 import Balance from '../../Balance';
 import Subtitle from '../../Subtitle';
+import ChartSection from './ChartSection';
 
-const { Text } = Typography;
 
 interface AccountInfoModalProps {
     isOpen: boolean;
@@ -43,9 +42,7 @@ const AccountInfoModal: React.FC<AccountInfoModalProps> = ({ isOpen, account, on
     const handlePrev = () => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
-            mode === 'month'
-                ? newDate.setMonth(prev.getMonth() - 1)
-                : newDate.setFullYear(prev.getFullYear() - 1);
+            if (mode === 'month') newDate.setMonth(prev.getMonth() - 1); else newDate.setFullYear(prev.getFullYear() - 1);
             return newDate;
         });
     };
@@ -53,9 +50,7 @@ const AccountInfoModal: React.FC<AccountInfoModalProps> = ({ isOpen, account, on
     const handleNext = () => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
-            mode === 'month'
-                ? newDate.setMonth(prev.getMonth() + 1)
-                : newDate.setFullYear(prev.getFullYear() + 1);
+            if (mode === 'month') newDate.setMonth(prev.getMonth() + 1); else newDate.setFullYear(prev.getFullYear() + 1);
             return newDate;
         });
     };

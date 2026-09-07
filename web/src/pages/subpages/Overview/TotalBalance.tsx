@@ -1,9 +1,9 @@
-import React from "react";
-import TotalBox from "./TotalBox";
-import dayjs from "dayjs";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useSavings } from "@/hooks/useSavings";
+import { useTransactions } from "@/hooks/useTransactions";
+import dayjs from "dayjs";
+import React from "react";
+import TotalBox from "./TotalBox";
 
 const TotalBalance: React.FC = () => {
     const { transactions } = useTransactions();

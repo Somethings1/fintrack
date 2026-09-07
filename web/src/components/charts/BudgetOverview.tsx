@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { Tabs, Typography, Spin, Empty, Button } from "antd";
 import { LinkOutlined } from "@ant-design/icons";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { Button,Empty,Spin,Tabs,Typography } from "antd";
+import React,{ useEffect,useState } from "react";
+import type { TooltipProps } from "recharts";
+import { Cell,Pie,PieChart,ResponsiveContainer,Tooltip } from "recharts";
+type BudgetSlice = { name: string; icon: string; value: number; color: string };
 
-import RoundedBox from "@/components/RoundedBox";
 import Balance from "@/components/Balance";
-import { colors } from "@/theme/color";
+import RoundedBox from "@/components/RoundedBox";
 import { useCategories } from "@/hooks/useCategories";
 import { useTransactions } from "@/hooks/useTransactions";
+import { colors } from "@/theme/color";
 
 const { Title } = Typography;
 
@@ -33,13 +35,14 @@ interface BudgetOverviewProps {
 }
 
 const BudgetOverview: React.FC<BudgetOverviewProps> = ({ linkToBudget }) => {
-    const [data, setData] = useState<{ income: any[]; expense: any[] }>({ income: [], expense: [] });
+    const [data, setData] = useState<{ income: BudgetSlice[]; expense: BudgetSlice[] }>({ income: [], expense: [] });
     const [loading, setLoading] = useState(true);
     const categories = useCategories();
     const { transactions } = useTransactions();
 
     useEffect(() => {
         if (!categories.length || !transactions.length) {
+            setData({ income: [], expense: [] });
             setLoading(false);
             return;
         }
@@ -84,7 +87,7 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({ linkToBudget }) => {
         fetchData();
     }, [transactions, categories]);
 
-    const renderCustomTooltip = ({ active, payload }: any) => {
+    const renderCustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
         if (!active || !payload || !payload.length) return null;
         const { name, value, icon } = payload[0].payload;
 
@@ -112,7 +115,7 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({ linkToBudget }) => {
         );
     };
 
-    const renderChart = (chartData: any[], type: "income" | "expense") => {
+    const renderChart = (chartData: BudgetSlice[], type: "income" | "expense") => {
         const totalValue = chartData.reduce((acc, item) => acc + item.value, 0);
 
         if (chartData.length === 0) {

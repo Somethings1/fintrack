@@ -10,7 +10,7 @@ import (
 func CategoryOwnershipMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		username := c.GetString("username")
-		category, err := service.GetCategoryByID(c.Param("id"))
+		category, err := service.GetCategoryByID(c.Request.Context(), c.Param("id"))
 
 		if err != nil {
 			c.AbortWithStatus(http.StatusNotFound)
@@ -42,22 +42,24 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
+		_category.Owner = c.GetString("username")
 
 		if _category.Type != "income" && _category.Type != "expense" {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid category type",
 			})
+			return
 		}
 
 		if _category.Name == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Name cannot be empty",
 			})
 			return
 		}
 
 		if _category.Budget < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Budget cannot be negative",
 			})
 			return

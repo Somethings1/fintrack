@@ -16,8 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetSubscriptionById(id string) (model.Subscription, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func GetSubscriptionById(parent context.Context, id string) (model.Subscription, error) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -27,7 +27,7 @@ func GetSubscriptionById(id string) (model.Subscription, error) {
 
 	var subscription model.Subscription
 
-	err = util.SubscriptionCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&subscription)
+	err = util.SubscriptionCollection.FindOne(ctx, util.TenantFilter(ctx, "creator", objectID)).Decode(&subscription)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return model.Subscription{}, errors.New("Subscription not found")
@@ -41,13 +41,13 @@ func GetSubscriptionById(id string) (model.Subscription, error) {
 func FetchSubscriptionsSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
 	filter := bson.M{
 		"last_update": bson.M{
-			"$gt": since,
+			"$gte": since,
 		},
 		"creator": username,
 	}
 
 	opts := options.Find().SetSort(bson.D{
-		{Key: "last_update", Value: -1},
+		{Key: "last_update", Value: 1}, {Key: "_id", Value: 1},
 	})
 
 	return util.SubscriptionCollection.Find(ctx, filter, opts)
@@ -67,7 +67,7 @@ func AddSubscription(ctx context.Context, subscription model.Subscription) (inte
 	}
 
 	subscription.ID = insertedID
-	CatchUpSubscription(ctx, subscription)
+	// Recurrence posting is disabled by default; legacy catch-up is never run from HTTP.
 
 	socket.BroadcastFromContext(ctx, map[string]interface{}{
 		"collection": "subscriptions",
@@ -79,9 +79,9 @@ func AddSubscription(ctx context.Context, subscription model.Subscription) (inte
 }
 
 func UpdateSubscription(ctx context.Context, id primitive.ObjectID, subscription model.Subscription) error {
-	filter := bson.M{"_id": id}
-	newSubscription := bson.M{"$set": subscription}
+	filter := util.TenantFilter(ctx, "creator", id)
 	subscription.LastUpdate = time.Now()
+	newSubscription := bson.M{"$set": subscription}
 
 	_, err := util.SubscriptionCollection.UpdateOne(ctx, filter, newSubscription)
 	if err != nil {
@@ -257,9 +257,7 @@ func DeleteSubscription(ctx context.Context, id primitive.ObjectID) error {
 		},
 	}
 
-	filter := bson.M{
-		"_id": id,
-	}
+	filter := util.TenantFilter(ctx, "creator", id)
 
 	_, err := util.SubscriptionCollection.UpdateOne(ctx, filter, subscriptionUpdate)
 	if err != nil {

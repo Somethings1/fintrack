@@ -1,34 +1,14 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/services/authService";
-
-export interface Settings {
-    id?: string;
-    email: string;
-    full_name?: string;
-    avatar_url?: string;
-    notification_income: boolean;
-    notification_expense: boolean;
-    display_locale: string;
-    display_currency: string;
-    display_floating_points: number;
-    currency_position: "before" | "after";
-    updated_at?: Date;
-}
-
-interface SettingsContextType {
-    settings: Settings | null;
-    setSettings: (settings: Settings) => Promise<Boolean>;
-    refreshSettings: () => Promise<void>;
-    loading: boolean;
-}
-
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+import { ReactNode,useCallback,useEffect,useRef,useState } from "react";
+import { Settings,SettingsContext } from "./settings-context";
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const [settings, setSettings] = useState<Settings | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchSettings = async (): Promise<Settings | null> => {
+    const revision = useRef(0);
+    const fetchSettings = useCallback(async (): Promise<Settings | null> => {
+        const current = ++revision.current;
         setLoading(true);
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError || !userData?.user) {
@@ -36,6 +16,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             return null;
         }
         const user = userData.user;
+        if (current !== revision.current) return null;
 
         if (!user) {
             setLoading(false);
@@ -48,6 +29,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             .eq("id", user.id)
             .single();
 
+        if (current !== revision.current) return null;
         if (error && error.code === "PGRST116") {
             // No profile found, create default
             const defaultSettings: Settings = {
@@ -64,7 +46,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
                 updated_at: new Date(),
             };
 
-            const insertRes = await supabase.from("profiles").insert(defaultSettings);
+            const profile = { ...defaultSettings };
+            delete (profile as Partial<Settings>).email;
+            const insertRes = await supabase.from("profiles").insert(profile);
+            if (current !== revision.current) return null;
 
             if (insertRes.error) {
                 setLoading(false);
@@ -96,13 +81,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
         setLoading(false);
         return null;
-    };
+    }, []);
     const updateSettingsOnServer = async (newSettings: Settings): Promise<Settings | null> => {
         if (!newSettings.id) return null;
-        console.log("Updating avt url");
-        console.log(newSettings.avatar_url);
 
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from("profiles")
             .update({
                 full_name: newSettings.full_name,
@@ -148,8 +131,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
 
     useEffect(() => {
-        fetchSettings();
-    }, []);
+        void fetchSettings();
+        const { data } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_OUT') { ++revision.current; setSettings(null); setLoading(false); }
+            else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') queueMicrotask(() => { void fetchSettings(); });
+        });
+        const stateRevision = revision;
+        return () => { ++stateRevision.current; data.subscription.unsubscribe(); };
+    }, [fetchSettings]);
 
     return (
         <SettingsContext.Provider
@@ -163,13 +152,5 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             {children}
         </SettingsContext.Provider>
     );
-};
-
-export const useSettings = () => {
-    const context = useContext(SettingsContext);
-    if (!context) {
-        throw new Error("useSettings must be used within a SettingsProvider");
-    }
-    return context;
 };
 

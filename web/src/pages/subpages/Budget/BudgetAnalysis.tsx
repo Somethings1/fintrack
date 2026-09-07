@@ -1,11 +1,14 @@
-import React, { useMemo } from "react";
-import { Label, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { Tag, Typography, Space, Divider } from "antd";
-import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
+import type { Category } from "@/models/Category";
+import type { Transaction } from "@/models/Transaction";
 import { colors } from "@/theme/color";
-import RoundedBox from "../../../components/RoundedBox";
+import { ArrowDownOutlined,ArrowUpOutlined } from "@ant-design/icons";
+import { Space,Tag,Typography } from "antd";
+import dayjs from "dayjs";
+import { useMemo } from "react";
+import type { TooltipProps } from "recharts";
+import { Cell,Pie,PieChart,Tooltip } from "recharts";
 import Balance from "../../../components/Balance";
+import RoundedBox from "../../../components/RoundedBox";
 
 const PIE_COLORS = [
     colors.primary[900],
@@ -26,11 +29,11 @@ const PIE_COLORS = [
     colors.neutral[500],
 ];
 
-const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }) => {
-    const previousMonth = dayjs(month).subtract(1, "month");
+const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }: { month: dayjs.Dayjs; type: string; categories: Category[]; spentMap: Record<string, number>; transactions: Transaction[] }) => {
+    const previousMonth = useMemo(() => dayjs(month).subtract(1, "month"), [month]);
 
     const previousMonthSpent = useMemo(() => {
-        const prevSpentMap = {};
+        const prevSpentMap: Record<string, number> = {};
         transactions.forEach((tx) => {
             const d = new Date(tx.dateTime);
             const cat = categories.find((c) => c._id === tx.category);
@@ -40,7 +43,7 @@ const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }) => 
                 d.getMonth() === previousMonth.month() &&
                 d.getFullYear() === previousMonth.year()
             ) {
-                prevSpentMap[tx.category] = (prevSpentMap[tx.category] || 0) + tx.amount;
+                prevSpentMap[tx.category ?? ''] = (prevSpentMap[tx.category ?? ''] || 0) + tx.amount;
             }
         });
         return prevSpentMap;
@@ -70,10 +73,10 @@ const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }) => 
         }))
         .sort((a, b) => b.spent - a.spent);
 
-    const renderTooltip = ({ active, payload }) => {
+    const renderTooltip = ({ active, payload }: TooltipProps<number, string>) => {
         if (!active || !payload || !payload.length) return null;
 
-        const { name, spent, percent, icon } = payload[0].payload;
+        const { name, percent, icon } = payload[0].payload as { name: string; percent: number; icon?: string };
 
         return (
             <div
@@ -143,7 +146,7 @@ const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }) => 
                     <div style={{ marginBottom: "5px" }}>{type == 'income' ? "Gained" : "Spent"}</div>
                     <Balance amount={totalSpent} type="" align="left" size="l" />
                     <div style={{ borderBottom: "0.5px solid grey", width: "100%", margin: "5px 0" }}></div>
-                    <Balance amount={categories.reduce((sum, cat) => sum + cat.budget, 0)} type="" align="left" size="l" />
+                    <Balance amount={categories.reduce((sum, cat) => sum + (cat.budget ?? 0), 0)} type="" align="left" size="l" />
                     <div style={{ marginTop: "5px" }}>{type == 'income' ? "Expected" : "Allowed"}</div>
                 </div>
             </div>

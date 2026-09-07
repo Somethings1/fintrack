@@ -1,22 +1,23 @@
-import React, { useEffect, useState } from "react";
 import RoundedBox from "@/components/RoundedBox";
-import { Typography, Select, Space, Row, Col } from "antd";
-import {
-    BarChart,
-    Bar,
-    LineChart,
-    Line,
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-} from "recharts";
-import dayjs from "dayjs";
-import { colors } from "@/theme/color";
 import { useTransactions } from "@/hooks/useTransactions";
+import { colors } from "@/theme/color";
+import { Col,Row,Select,Space,Typography } from "antd";
+import dayjs from "dayjs";
+import React,{ useMemo,useState } from "react";
+import type { TooltipProps } from "recharts";
+import {
+Area,
+AreaChart,
+Bar,
+BarChart,
+CartesianGrid,
+Line,
+LineChart,
+ResponsiveContainer,
+Tooltip,
+XAxis,
+YAxis,
+} from "recharts";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -54,7 +55,7 @@ const getDaysInMonth = () => {
     return days;
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
         const fullDate = dayjs().startOf("month").add(Number(label) - 1, "day").format("MMM D, YYYY");
         return (
@@ -75,19 +76,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
     const [chartType, setChartType] = useState<ChartType>("bar");
-    const [data, setData] = useState<any[]>([]);
     const {
         transactions,
-        isLoading,
-        accountOptions,
-        categoryOptions,
-        defaultTransaction
     } = useTransactions();
 
-    const processData = async () => {
+    const data = useMemo(() => {
         const days = getDaysInMonth();
 
-        const dailyTotals = days.map((day, index) => {
+        const dailyTotals = days.map((day) => {
             const incomeExpense = transactions
                 .filter((t) => {
                     const dateMatch = dayjs(t.dateTime).format("YYYY-MM-DD") === day;
@@ -126,11 +122,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
             };
         });
 
-        setData(dailyTotals);
-    };
-
-    useEffect(() => {
-        processData();
+        return dailyTotals;
     }, [transactions, account]);
 
     const renderChart = () => {
@@ -223,7 +215,7 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                 </Col>
             </Row>
             <ResponsiveContainer width="100%" height="90%">
-                {renderChart()}
+                {renderChart() ?? <div />}
             </ResponsiveContainer>
         </RoundedBox>
     );

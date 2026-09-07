@@ -1,11 +1,9 @@
-import React from 'react';
-import { Modal } from 'antd';
 import NotificationForm from '@/components/forms/NotificationForm';
 import { Notification } from '@/models/Notification';
+import { Modal } from 'antd';
+import React from 'react';
 
-type NotificationFormSubmitValues = Partial<Omit<Notification, '_id'>> & {
-    transactionId: string;
-};
+type NotificationFormSubmitValues = Partial<Notification>;
 
 interface AddEditNotificationModalProps {
     open: boolean;
@@ -41,7 +39,7 @@ const AddEditNotificationModal: React.FC<AddEditNotificationModalProps> = ({
             {open && (
                 <NotificationForm
                     transactionId={transactionId}
-                    notification={initialFormValues}
+                    initialData={initialFormValues}
                     onSubmit={onSubmit}
                     onCancel={onCancel}
                 />

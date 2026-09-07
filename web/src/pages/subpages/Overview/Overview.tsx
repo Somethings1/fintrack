@@ -1,18 +1,15 @@
-import { Row, Col, DatePicker, Spin } from "antd";
+import BudgetOverview from "@/components/charts/BudgetOverview";
+import Subtitle from "@/components/Subtitle";
+import Title from "@/components/Title";
+import { Col,Row,Spin } from "antd";
+import { useSettings } from "../../../context/settings-context";
 import MoneyFlow from "./MoneyFlow";
 import RecentTransactions from "./RecentTransactions";
+import SavingOverview from "./SavingOverview";
 import TotalBalance from "./TotalBalance";
 import TotalExpense from "./TotalExpense";
 import TotalIncome from "./TotalIncome";
 import TotalSavings from "./TotalSavings";
-import BudgetOverview from "@/components/charts/BudgetOverview";
-import SavingOverview from "./SavingOverview";
-import dayjs, { Dayjs } from 'dayjs';
-import { useState, useEffect, useContext } from 'react';
-import Title from "@/components/Title";
-import { getCurrentUser } from "@/services/authService";
-import Subtitle from "@/components/Subtitle";
-import { useSettings } from "../../../context/SettingsContext";
 
 interface OverviewProps {
     linkToTransactions: () => void;
@@ -25,7 +22,6 @@ const Overview: React.FC<OverviewProps> = ({
     linkToTransactions,
     linkToBudget,
     linkToSavings,
-    linkToAccounts,
 }) => {
     const { settings, loading } = useSettings();
     if (loading) {
@@ -39,7 +35,7 @@ const Overview: React.FC<OverviewProps> = ({
         <>
 
             <Row gutter={[16, 16]} style={{ margin: 0, marginBottom: 20 }}>
-                <Title>Welcome back, {settings.full_name}</Title>
+                <Title>Welcome back, {settings?.full_name}</Title>
                 <br />
                 <Subtitle>Let's look at your finances this month</Subtitle>
             </Row>

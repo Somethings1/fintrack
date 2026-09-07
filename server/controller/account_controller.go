@@ -1,11 +1,9 @@
 package controller
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
+	"errors"
+	"fintrack/server/util"
 	"net/http"
-	"time"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -24,9 +22,12 @@ func AddAccount(c *gin.Context) {
 
 	result, err := service.AddAccount(c.Request.Context(), account)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error adding account",
-			"detail": err.Error(),
+			"error": "Error adding account",
 		})
 		return
 	}
@@ -37,42 +38,7 @@ func AddAccount(c *gin.Context) {
 	})
 }
 
-func GetAccountsSince(c *gin.Context) {
-	sinceStr := c.Param("time")
-	sinceTime, err := time.Parse(time.RFC3339, sinceStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
-		return
-	}
-
-	ctx := c.Request.Context()
-
-	cursor, err := service.FetchAccountsSince(ctx, c.GetString("username"), sinceTime)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error fetching accounts",
-			"detail": err.Error(),
-		})
-		return
-	}
-	defer cursor.Close(ctx)
-
-	c.Header("Content-Type", "application/json")
-	c.Status(http.StatusOK)
-
-	c.Stream(func(w io.Writer) bool {
-		if cursor.Next(ctx) {
-			var account model.Account
-			if err := cursor.Decode(&account); err != nil {
-				fmt.Println("Error decoding account:", err)
-				return false
-			}
-			json.NewEncoder(w).Encode(account)
-			return true
-		}
-		return false
-	})
-}
+func GetAccountsSince(c *gin.Context) { streamSince[model.Account](c, util.AccountCollection, "owner") }
 
 func UpdateAccount(c *gin.Context) {
 	tmp, _ := c.Get("account")
@@ -85,9 +51,12 @@ func UpdateAccount(c *gin.Context) {
 
 	err = service.UpdateAccount(c.Request.Context(), id, account)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error updating account",
-			"detail": err.Error(),
+			"error": "Error updating account",
 		})
 		return
 	}
@@ -104,9 +73,12 @@ func DeleteAccount(c *gin.Context) {
 
 	err = service.DeleteAccount(c.Request.Context(), id)
 	if err != nil {
+		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error deleting account",
-			"detail": err.Error(),
+			"error": "Error deleting account",
 		})
 		return
 	}

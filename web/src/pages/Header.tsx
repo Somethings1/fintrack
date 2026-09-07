@@ -1,17 +1,15 @@
-import { Layout, Avatar, Popover, Button, Tooltip } from "antd";
-import {
-    MenuFoldOutlined,
-    MenuUnfoldOutlined,
-    LeftOutlined,
-    RightOutlined,
-    BellOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
-import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { logout } from "@/services/authService";
 import NotificationPopover from '@/components/NotificationPopover';
-import { useSettings } from "../context/SettingsContext";
+import {
+LeftOutlined,
+MenuFoldOutlined,
+MenuUnfoldOutlined,
+RightOutlined,
+UserOutlined
+} from "@ant-design/icons";
+import { Avatar,Button,Layout,Tooltip } from "antd";
+import { useEffect,useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSettings } from "../context/settings-context";
 
 const { Header } = Layout;
 
@@ -30,42 +28,30 @@ const AppHeader: React.FC<HeaderProps> = ({
 }) => {
     const navigate = useNavigate();
 
-    const handleLogout = async () => {
-        await logout();
-        navigate("/");
-    };
 
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [history, setHistory] = useState<string[]>(["overview"]);
-    const isNavigatingRef = useRef(false);
 
-    const canGoBack = () => currentIndex > 0;
-    const canGoForward = () => currentIndex < history.length - 1;
-
+    const [navigation, setNavigation] = useState({ index: 0, entries: [currentPage] });
+    const canGoBack = () => navigation.index > 0;
+    const canGoForward = () => navigation.index < navigation.entries.length - 1;
     const goBack = () => {
-        const newIndex = currentIndex - 1;
-        isNavigatingRef.current = true;
-        setCurrentIndex(newIndex);
-        setCurrentPage(history[newIndex]);
-    }
-
+        if (!canGoBack()) return;
+        const index = navigation.index - 1;
+        setNavigation({ ...navigation, index });
+        setCurrentPage(navigation.entries[index]);
+    };
     const goForward = () => {
-        const newIndex = currentIndex + 1;
-        isNavigatingRef.current = true;
-        setCurrentIndex(newIndex);
-        setCurrentPage(history[newIndex]);
-    }
-
+        if (!canGoForward()) return;
+        const index = navigation.index + 1;
+        setNavigation({ ...navigation, index });
+        setCurrentPage(navigation.entries[index]);
+    };
     const { settings } = useSettings();
-
     useEffect(() => {
-        if (isNavigatingRef.current) {
-            isNavigatingRef.current = false;
-            return;
-        }
-        const updatedHistory = [...history.slice(0, currentIndex + 1), currentPage];
-        setHistory(updatedHistory);
-        setCurrentIndex(updatedHistory.length - 1);
+        setNavigation(previous => {
+            if (previous.entries[previous.index] === currentPage) return previous;
+            const entries = [...previous.entries.slice(0, previous.index + 1), currentPage];
+            return { entries, index: entries.length - 1 };
+        });
     }, [currentPage]);
 
     return (

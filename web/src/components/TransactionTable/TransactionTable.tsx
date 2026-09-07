@@ -1,23 +1,23 @@
-import React, { useState, useMemo } from "react";
-import { Table, Spin } from "antd";
+import type { Transaction } from "@/models/Transaction";
+import { Spin,Table } from "antd";
+import React,{ useMemo,useState } from "react";
 
-import { useTransactions, ResolvedTransaction} from "@/hooks/useTransactions";
-import { useTransactionFilters } from "@/hooks/useTransactionFilters";
-import { useTransactionExport } from "@/hooks/useTransactionExport";
-import { useNotifications } from "@/hooks/useNotifications";
 import { getColumns } from "@/config/transactionTableColumns";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useTransactionExport } from "@/hooks/useTransactionExport";
+import { useTransactionFilters } from "@/hooks/useTransactionFilters";
+import { ResolvedTransaction,useTransactions } from "@/hooks/useTransactions";
 import { Notification } from "@/models/Notification";
-import { addTransaction, updateTransaction, deleteTransactions } from "@/services/transactionService";
+import { addTransaction,deleteTransactions,updateTransaction } from "@/services/transactionService";
 
-import FilterModal from "@/components/modals/FilterModal";
-import ExportModal from "@/components/modals/ExportModal";
-import DeleteConfirmationModal from "@/components/modals/DeleteConfirmationModal";
+import AddEditNotificationModal from "@/components/modals/AddEditNotificationModal";
 import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
+import DeleteConfirmationModal from "@/components/modals/DeleteConfirmationModal";
+import ExportModal from "@/components/modals/ExportModal";
+import FilterModal from "@/components/modals/FilterModal";
+import { addNotification,updateNotification } from "@/services/notificationService";
 import TransactionActionBar from "./TransactionActionBar";
 import './TransactionTable.css';
-import { addNotification } from "@/services/notificationService";
-import { updateNotification } from "@/services/notificationService";
-import AddEditNotificationModal from "@/components/modals/AddEditNotificationModal";
 
 const TransactionTable: React.FC = () => {
     // --- Hooks ---
@@ -39,7 +39,7 @@ const TransactionTable: React.FC = () => {
 
     const notifications = useNotifications();
 
-    const columnsConfig = useMemo(() => getColumns(false, () => { }, notifications), [notifications]);
+    const columnsConfig = useMemo(() => getColumns(false, () => { }, notifications, () => {}), [notifications]);
     const {
         isExportModalVisible,
         showExportModal,
@@ -95,7 +95,7 @@ const TransactionTable: React.FC = () => {
 
     const handleUpsertReminderSubmit = async (notification: Partial<Notification>) => {
         try {
-            if (notification._id === "") {
+            if (!notification._id) {
                 // Adding
                 await addNotification(notification);
             }
@@ -103,8 +103,8 @@ const TransactionTable: React.FC = () => {
                 await updateNotification(notification._id, notification);
             }
             handleUpsertReminderCancel();
-        } catch (error) {
-            console.error("Failed");
+        } catch {
+            console.error("Reminder update failed");
         }
     }
 
@@ -113,7 +113,7 @@ const TransactionTable: React.FC = () => {
         setShowReminderForm(false);
     }
 
-    const handleSubmitTransaction = async (values: any) => {
+    const handleSubmitTransaction = async (values: Partial<Transaction>) => {
         try {
             if (transactionToEdit) {
                 await updateTransaction(transactionToEdit._id, values);
@@ -123,7 +123,7 @@ const TransactionTable: React.FC = () => {
                     ...values,
                     creator: values.creator || defaultTransaction.creator
                 };
-                await addTransaction(finalValues as any);
+                await addTransaction(finalValues);
             }
             handleCancelAddEdit();
         } catch (error) {
@@ -165,7 +165,7 @@ const TransactionTable: React.FC = () => {
     };
 
     // --- Table Configuration ---
-    const columns = useMemo(() => getColumns(editMode, handleEditClick, notifications, handleUpsertReminderClick), [editMode, notifications]);
+    const columns = getColumns(editMode, handleEditClick, notifications, handleUpsertReminderClick);
 
     const rowSelection = useMemo(() => (selectMode
         ? {
@@ -200,7 +200,7 @@ const TransactionTable: React.FC = () => {
 
             {/* Table */}
             <Spin spinning={isLoading}>
-                <Table
+                <Table<ResolvedTransaction>
                     rowKey="_id"
                     dataSource={filteredTransactions}
                     columns={columns}

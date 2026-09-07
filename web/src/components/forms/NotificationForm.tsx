@@ -1,12 +1,12 @@
-import React from "react";
-import { Form, Input, DatePicker, Button, Space } from "antd";
+import { Notification } from "@/models/Notification";
+import { Button,DatePicker,Form,Input,Space } from "antd";
 import dayjs from "dayjs";
-import { Notification } from "@/types";
+import React from "react";
 
 interface NotificationFormProps {
     transactionId: string;
     initialData?: Partial<Notification>;
-    onSubmit: (data: Partial<Notification> & { transactionId: string }) => void;
+    onSubmit: (data: Partial<Notification>) => void;
     onCancel?: () => void;
 }
 
@@ -29,15 +29,15 @@ const NotificationForm: React.FC<NotificationFormProps> = ({
         }
     }, [initialData, form]);
 
-    const handleFinish = (values: any) => {
+    const handleFinish = (values: {message: string; scheduledAt: dayjs.Dayjs}) => {
         onSubmit({
             referenceId: transactionId,
-            owner: localStorage.getItem("username"),
+            owner: localStorage.getItem("username") ?? "",
             type: "transaction",
             read: false,
             title: "Reminder: check your transaction out",
             message: values.message,
-            scheduledAt: values.scheduledAt.toISOString(),
+            scheduledAt: values.scheduledAt.toDate(),
             _id: initialData?._id ?? "",
         });
     };

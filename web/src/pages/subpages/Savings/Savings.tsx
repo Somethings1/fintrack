@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
-import { addSaving } from "@/services/savingService";
-import { Saving } from "@/models/Saving";
-import SavingBox from "./SavingBox";
-import { Button, Modal, Select, Space, Row, Col } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
 import SavingForm from "@/components/forms/SavingForm";
-import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
-import dayjs from "dayjs";
+import Title from "@/components/Title";
 import { useSavings } from "@/hooks/useSavings";
+import { Saving } from "@/models/Saving";
+import { PlusOutlined } from "@ant-design/icons";
+import { Button,Col,Modal,Row,Select,Space } from "antd";
+import dayjs from "dayjs";
+import { useEffect,useState } from "react";
+import SavingBox from "./SavingBox";
 
 const { Option } = Select;
 
@@ -97,15 +96,16 @@ const Savings = () => {
 
         // Sorting
         if (sortField) {
-            const [field, direction] = sortField.split("_");
+            const [rawField, direction] = sortField.split("_");
+            const field = rawField as "balance" | "goal" | "createdDate" | "goalDate";
             updated.sort((a, b) => {
-                let aVal = a[field];
-                let bVal = b[field];
+                let aVal = Number(a[field]);
+                let bVal = Number(b[field]);
 
                 // Date sorting
                 if (field.includes("Date")) {
-                    aVal = new Date(aVal).getTime();
-                    bVal = new Date(bVal).getTime();
+                    aVal = new Date(a[field]).getTime();
+                    bVal = new Date(b[field]).getTime();
                 }
 
                 return direction === "asc" ? aVal - bVal : bVal - aVal;
@@ -115,8 +115,7 @@ const Savings = () => {
         setFilteredSavings(updated);
     }, [savings, sortField, statusFilter]);
 
-    const handleNewSaving = async (saving: Saving) => {
-        await addSaving(saving);
+    const handleNewSaving = () => {
         setIsModalOpen(false);
     };
 
