@@ -1,0 +1,46 @@
+name: DB migration diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.26.7'
+          cache-dependency-path: server/go.sum
+      - name: Capture diagnostics
+        working-directory: server
+        shell: bash
+        run: |
+          set +e
+          {
+            echo '=== GOFMT ==='
+            gofmt -w .
+            echo "gofmt_exit=$?"
+            echo '=== VET ==='
+            go vet ./...
+            echo "vet_exit=$?"
+            echo '=== TEST ==='
+            go test -count=1 ./...
+            echo "test_exit=$?"
+            echo '=== BUILD ==='
+            go build ./...
+            echo "build_exit=$?"
+          } > ../db-migration-diagnostics.txt 2>&1
+          exit 0
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: db-migration-diagnostics
+          path: db-migration-diagnostics.txt
+          retention-days: 1
