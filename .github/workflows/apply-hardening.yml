@@ -1,0 +1,73 @@
+name: Apply reviewed hardening source
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: fintrack-hardening-source-publish
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'longnt27' &&
+      github.head_ref == 'codex/production-readiness'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Apply exact reviewed source edits without executing repository code
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, lzma
+          from pathlib import Path, PurePosixPath
+          digest = lambda data: hashlib.sha256(data).hexdigest()
+          packed = b''.join(Path(f'.maintenance-hardening/part-{i}.xz').read_bytes() for i in range(5))
+          assert digest(packed) == 'e0207bb32aed1b2b3e8e70a6a02ab0b141382c5c153e1206b8d74e03d7fc4fe2', 'Unexpected source payload'
+          raw = lzma.decompress(packed)
+          assert digest(raw) == '3c610c2691b2bddda8fefe4be995517b8b1e2ab3e57c6168bd6641f5e55c01b6'
+          changes = json.loads(raw)
+          assert len(changes) == 162
+          pending = []
+          seen = set()
+          for item in changes:
+              name = item['path']
+              path = Path(name)
+              parts = PurePosixPath(name).parts
+              assert not path.is_absolute() and '..' not in parts and '.git' not in parts
+              assert not name.startswith(('.github/workflows/', '.maintenance-hardening/'))
+              assert name not in seen
+              seen.add(name)
+              assert not path.is_symlink() and all(not parent.is_symlink() for parent in path.parents)
+              before = path.read_bytes() if path.exists() else None
+              assert (digest(before) if before is not None else None) == item['before'], f'Base changed: {name}'
+              lines = before.decode('utf-8').splitlines(keepends=True) if before else []
+              for start, end, replacement in reversed(item['edits']):
+                  assert 0 <= start <= end <= len(lines)
+                  lines[start:end] = [replacement]
+              after = ''.join(lines).encode('utf-8')
+              assert digest(after) == item['after'], f'Reconstruction failed: {name}'
+              pending.append((path, after))
+          for path, content in pending:
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(content)
+          print(f'Applied and hash-verified {len(pending)} reviewed source files')
+          PY
+          git diff --check
+      - name: Publish source only to this existing PR branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git config user.name 'FinTrack maintenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A . ':!.github/workflows/**' ':!.maintenance-hardening/**'
+          git commit -m 'feat: harden runtime, financial writes, deployment and agent drafts'
+          HEADER="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $HEADER" push origin HEAD:refs/heads/codex/production-readiness

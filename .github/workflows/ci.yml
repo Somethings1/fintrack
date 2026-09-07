@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
 
 permissions:
   contents: read
@@ -16,7 +18,7 @@ concurrency:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: server
@@ -34,12 +36,38 @@ jobs:
       - name: Vet
         if: ${{ !cancelled() }}
         run: go vet ./...
-      - name: Race-tested suite
+      - name: Race-tested unit suite
         if: ${{ !cancelled() }}
-        run: go test -race -shuffle=on -count=1 -timeout=120s ./...
+        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out -timeout=120s ./...
       - name: Build
         if: ${{ !cancelled() }}
         run: go build -trimpath -o /tmp/fintrack .
+      - name: Disposable MongoDB replica set
+        working-directory: .
+        run: bash scripts/start-ci-mongo.sh
+      - name: Financial and isolation integration tests
+        env:
+          MONGO_TEST_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true
+        run: go test -race -tags=integration -count=1 -timeout=120s ./...
+      - name: Reachable Go vulnerabilities
+        if: ${{ !cancelled() }}
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          govulncheck ./...
+      - name: Coverage evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-coverage
+          path: server/coverage.out
+          retention-days: 7
+      - name: Remove disposable database
+        if: ${{ always() }}
+        working-directory: .
+        run: |
+          docker rm -f fintrack-mongo || true
+          docker network rm fintrack-ci || true
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -56,18 +84,83 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci --legacy-peer-deps
-      - name: Lint
+      - name: Zero-warning lint
         run: npm run lint -- --max-warnings=0
-      - name: Typecheck and build
+      - name: Regression tests
+        if: ${{ !cancelled() }}
+        run: npm test
+      - name: Typecheck and production build
         if: ${{ !cancelled() }}
         run: npm run build
+      - name: Bundle size budgets
+        run: npm run check:bundle
       - name: Dependency vulnerabilities
         if: ${{ !cancelled() }}
         run: npm audit --audit-level=high
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build non-root API image
+        run: docker build --pull -t fintrack-api:ci server
+      - name: Build non-root web image with public test configuration
+        run: >-
+          docker build --pull
+          --build-arg VITE_SUPABASE_URL=https://test.supabase.co
+          --build-arg VITE_SUPABASE_ANON_KEY=public-test-only
+          -t fintrack-web:ci web
+      - name: Disposable MongoDB replica set
+        run: bash scripts/start-ci-mongo.sh
+      - name: Read-only container smoke tests
+        run: bash scripts/container-smoke.sh
+      - name: Export images for isolated scanning
+        run: |
+          mkdir -p "$RUNNER_TEMP/scan"
+          docker save fintrack-api:ci -o "$RUNNER_TEMP/scan/api.tar"
+          docker save fintrack-web:ci -o "$RUNNER_TEMP/scan/web.tar"
+      - name: Scan source for exposed secrets
+        run: >-
+          docker run --rm -v "$PWD:/src:ro"
+          aquasec/trivy:0.74.0 fs --scanners secret --exit-code 1
+          --skip-dirs /src/.git /src
+      - name: Fail on high or critical image vulnerabilities
+        run: |
+          for image in api web; do
+            docker run --rm -v "$RUNNER_TEMP/scan:/scan" \
+              aquasec/trivy:0.74.0 image --input "/scan/$image.tar" \
+              --scanners vuln --severity HIGH,CRITICAL --exit-code 1
+          done
+      - name: Generate CycloneDX software inventories
+        if: ${{ !cancelled() }}
+        run: |
+          for image in api web; do
+            if test -f "$RUNNER_TEMP/scan/$image.tar"; then
+              docker run --rm -v "$RUNNER_TEMP/scan:/scan" \
+                aquasec/trivy:0.74.0 image --input "/scan/$image.tar" \
+                --format cyclonedx --output "/scan/$image.cdx.json"
+            fi
+          done
+      - name: Preserve software inventories
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: container-sboms
+          path: ${{ runner.temp }}/scan/*.cdx.json
+          retention-days: 7
+      - name: Clean disposable stack
+        if: ${{ always() }}
+        run: |
+          docker rm -f fintrack-web fintrack-api fintrack-mongo || true
+          docker network rm fintrack-ci || true
+
   required:
     name: Required CI
     if: ${{ always() }}
-    needs: [backend, frontend]
+    needs: [backend, frontend, containers]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -75,4 +168,5 @@ jobs:
         env:
           BACKEND: ${{ needs.backend.result }}
           FRONTEND: ${{ needs.frontend.result }}
-        run: test "$BACKEND" = success && test "$FRONTEND" = success
+          CONTAINERS: ${{ needs.containers.result }}
+        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success
