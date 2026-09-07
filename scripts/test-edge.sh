@@ -9,7 +9,13 @@ docker run -d --name fintrack-edge --network fintrack-ci --read-only --cap-drop 
  -p 127.0.0.1:18443:8443 -p 127.0.0.1:18080:8080 -e APP_DOMAIN=localhost -e ACME_EMAIL=ci@example.test fintrack-edge:ci
 ready=false
 for i in $(seq 1 30);do
- if docker cp fintrack-edge:/data/caddy/pki/authorities/local/root.crt /tmp/fintrack-root.crt >/dev/null 2>&1;then ready=true;break;fi
+ # The edge runs as uid 65532 and owns the tmpfs-backed Caddy storage. Read the
+ # disposable CA through that same process context instead of docker cp, which
+ # cannot traverse this hardened tmpfs layout reliably on hosted runners.
+ if docker exec fintrack-edge cat /data/caddy/pki/authorities/local/root.crt > /tmp/fintrack-root.crt 2>/dev/null && test -s /tmp/fintrack-root.crt;then
+  ready=true
+  break
+ fi
  sleep 1
 done
 $ready
