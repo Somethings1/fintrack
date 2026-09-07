@@ -29,22 +29,16 @@ func TestBrowserHarness(t *testing.T) {
 	if os.Getenv("FINTRACK_CI") != "1" {
 		t.Fatal("browser harness requires FINTRACK_CI=1")
 	}
-	uri := os.Getenv("MONGO_TEST_URI")
-	if uri != "mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true" {
+	databaseURL := os.Getenv("DATABASE_TEST_URL")
+	if databaseURL != "postgres://fintrack:fintrack@127.0.0.1:55432/fintrack?sslmode=disable" {
 		t.Fatal("only the disposable CI database is permitted")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
-	if err := util.InitDB(ctx, uri, "fintrack_browser_"+uuid.NewString()); err != nil {
+	if err := util.InitDB(ctx, databaseURL); err != nil {
 		t.Fatal(err)
 	}
-	db := util.AccountCollection.Database()
-	defer func() {
-		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_ = db.Drop(cleanup)
-		_ = util.MongoClient.Disconnect(cleanup)
-	}()
+	defer util.CloseDB()
 	if err := util.EnsureLedger(ctx, "USD"); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +83,6 @@ func TestBrowserHarness(t *testing.T) {
 			id := ids[input.Email]
 			user := map[string]interface{}{"id": id, "aud": "authenticated", "role": "authenticated", "email": input.Email, "app_metadata": map[string]interface{}{"provider": "email", "providers": []string{"email"}}, "user_metadata": map[string]string{}, "created_at": "2026-01-01T00:00:00Z"}
 			raw, _ := json.Marshal(map[string]interface{}{"sub": id, "aud": "authenticated", "role": "authenticated", "iat": time.Now().Unix(), "exp": time.Now().Add(time.Hour).Unix(), "session_id": uuid.NewString()})
-			// Deliberately not a valid production signature; accepted ONLY by this mock.
 			token := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`)) + "." + base64.RawURLEncoding.EncodeToString(raw) + "." + base64.RawURLEncoding.EncodeToString([]byte(uuid.NewString()))
 			sessions[token] = user
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"access_token": token, "refresh_token": uuid.NewString(), "expires_in": 3600, "expires_at": time.Now().Add(time.Hour).Unix(), "token_type": "bearer", "user": user})

@@ -2,91 +2,57 @@ package controller
 
 import (
 	"errors"
-	"fintrack/server/util"
-	"net/http"
-
 	"fintrack/server/model"
 	"fintrack/server/service"
-
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
 )
 
-//////////////////
-// Transaction Handlers
-//////////////////
-
 func GetTransactionsSince(c *gin.Context) {
-	streamSince[model.Transaction](c, util.TransactionCollection, "creator")
+	streamSince(c, service.SyncTransactions, func(v model.Transaction) (time.Time, primitive.ObjectID) { return v.LastUpdate, v.ID })
 }
-
 func AddTransaction(c *gin.Context) {
-	tx, _ := c.Get("transaction")
-	transaction := tx.(model.Transaction)
-
-	result, err := service.AddTransaction(c.Request.Context(), transaction)
-
+	v, _ := c.Get("transaction")
+	id, err := service.AddTransaction(c.Request.Context(), v.(model.Transaction))
 	if err != nil {
 		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			c.JSON(409, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Transaction failed",
-		})
+		c.JSON(500, gin.H{"error": "Transaction failed"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Transaction added successfully",
-		"id":      result,
-	})
+	c.JSON(200, gin.H{"message": "Transaction added successfully", "id": id})
 }
-
 func UpdateTransaction(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+		c.JSON(400, gin.H{"error": "Invalid transaction ID"})
 		return
 	}
-
-	tx, _ := c.Get("transaction")
-	newTx := tx.(model.Transaction)
-
-	err = service.UpdateTransaction(c.Request.Context(), id, newTx)
-
+	v, _ := c.Get("transaction")
+	err = service.UpdateTransaction(c.Request.Context(), id, v.(model.Transaction))
 	if err != nil {
-		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		if errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(409, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error updating transaction with balance adjustment",
-		})
+		c.JSON(500, gin.H{"error": "Error updating transaction with balance adjustment"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Transaction updated successfully"})
+	c.JSON(200, gin.H{"message": "Transaction updated successfully"})
 }
-
 func DeleteTransaction(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+		c.JSON(400, gin.H{"error": "Invalid transaction ID"})
 		return
 	}
-
 	err = service.DeleteTransaction(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error deleting transaction",
-		})
+		c.JSON(500, gin.H{"error": "Error deleting transaction"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Transaction deleted successfully"})
+	c.JSON(200, gin.H{"message": "Transaction deleted successfully"})
 }

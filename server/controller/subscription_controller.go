@@ -2,90 +2,56 @@ package controller
 
 import (
 	"errors"
-	"fintrack/server/util"
-	"net/http"
-
 	"fintrack/server/model"
 	"fintrack/server/service"
-
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
 )
 
-//////////////////
-// Subscription Handlers
-//////////////////
-
 func GetSubscriptionsSince(c *gin.Context) {
-	streamSince[model.Subscription](c, util.SubscriptionCollection, "creator")
+	streamSince(c, service.SyncSubscriptions, func(v model.Subscription) (time.Time, primitive.ObjectID) { return v.LastUpdate, v.ID })
 }
-
 func AddSubscription(c *gin.Context) {
-	tx, _ := c.Get("subscription")
-	subscription := tx.(model.Subscription)
-
-	result, err := service.AddSubscription(c.Request.Context(), subscription)
-
+	v, _ := c.Get("subscription")
+	id, err := service.AddSubscription(c.Request.Context(), v.(model.Subscription))
 	if err != nil {
-		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		if errors.Is(err, service.ErrScheduleImmutable) {
+			c.JSON(409, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error adding new subscription",
-		})
+		c.JSON(500, gin.H{"error": "Error adding new subscription"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Subscription added successfully",
-		"id":      result,
-	})
+	c.JSON(200, gin.H{"message": "Subscription added successfully", "id": id})
 }
-
 func UpdateSubscription(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription ID"})
+		c.JSON(400, gin.H{"error": "Invalid subscription ID"})
 		return
 	}
-
-	tx, _ := c.Get("subscription")
-	newTx := tx.(model.Subscription)
-
-	err = service.UpdateSubscription(c.Request.Context(), id, newTx)
+	v, _ := c.Get("subscription")
+	err = service.UpdateSubscription(c.Request.Context(), id, v.(model.Subscription))
 	if err != nil {
-		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		if errors.Is(err, service.ErrScheduleImmutable) {
+			c.JSON(409, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error updating subscription",
-		})
+		c.JSON(500, gin.H{"error": "Error updating subscription"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Subscription updated successfully"})
+	c.JSON(200, gin.H{"message": "Subscription updated successfully"})
 }
-
 func DeleteSubscription(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subscription ID"})
+		c.JSON(400, gin.H{"error": "Invalid subscription ID"})
 		return
 	}
-
-	err = service.DeleteSubscription(c.Request.Context(), id)
-	if err != nil {
-		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error deleting subscription",
-		})
+	if err := service.DeleteSubscription(c.Request.Context(), id); err != nil {
+		c.JSON(500, gin.H{"error": "Error deleting subscription"})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Subscription deleted successfully"})
+	c.JSON(200, gin.H{"message": "Subscription deleted successfully"})
 }

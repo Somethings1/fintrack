@@ -11,13 +11,14 @@ import (
 )
 
 type Config struct {
-	LedgerCurrency                             string
-	Environment, Port, MongoURI, MongoDatabase string
-	SupabaseURL, SupabaseKey                   string
-	AllowedOrigins                             []string
-	AgentEnabled                               bool
-	AgentKey, AgentModel                       string
-	CronEnabled                                bool
+	LedgerCurrency           string
+	Environment, Port        string
+	DatabaseURL              string
+	SupabaseURL, SupabaseKey string
+	AllowedOrigins           []string
+	AgentEnabled             bool
+	AgentKey, AgentModel     string
+	CronEnabled              bool
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
@@ -31,7 +32,7 @@ func Parse(env func(string) string) (Config, error) {
 		return fallback
 	}
 	c := Config{LedgerCurrency: value("LEDGER_CURRENCY", ""), Environment: value("APP_ENV", "development"), Port: value("PORT", "8080"),
-		MongoURI: value("MONGO_URI", ""), MongoDatabase: value("MONGO_DATABASE", "finance_db"),
+		DatabaseURL: value("DATABASE_URL", ""),
 		SupabaseURL: strings.TrimRight(value("SUPABASE_URL", ""), "/"), SupabaseKey: value("SUPABASE_ANON_KEY", ""),
 		AgentKey: value("GEMINI_API_KEY", ""), AgentModel: value("AGENT_MODEL", "")}
 	if c.Environment != "development" && c.Environment != "test" && c.Environment != "production" {
@@ -41,14 +42,11 @@ func Parse(env func(string) string) (Config, error) {
 	if err != nil || port < 1 || port > 65535 {
 		return c, fmt.Errorf("PORT must be between 1 and 65535")
 	}
-	if c.MongoURI == "" && c.Environment != "production" {
-		c.MongoURI = "mongodb://localhost:27017/?replicaSet=rs0"
+	if c.DatabaseURL == "" && c.Environment != "production" {
+		c.DatabaseURL = "postgres://fintrack:fintrack@localhost:5432/fintrack?sslmode=disable"
 	}
-	if !strings.HasPrefix(c.MongoURI, "mongodb://") && !strings.HasPrefix(c.MongoURI, "mongodb+srv://") {
-		return c, fmt.Errorf("MONGO_URI is required and must be a MongoDB URI")
-	}
-	if strings.ContainsAny(c.MongoDatabase, "/\\. \"$\x00") {
-		return c, fmt.Errorf("invalid MONGO_DATABASE")
+	if err := validDatabaseURL(c.DatabaseURL, c.Environment); err != nil {
+		return c, err
 	}
 	if _, err := validOrigin(c.SupabaseURL, c.Environment); err != nil || c.SupabaseKey == "" {
 		return c, fmt.Errorf("SUPABASE_URL and SUPABASE_ANON_KEY are required; use an HTTPS project URL")
@@ -90,6 +88,33 @@ func Parse(env func(string) string) (Config, error) {
 		}
 	}
 	return c, nil
+}
+
+func validDatabaseURL(raw, environment string) error {
+	if raw == "" {
+		return fmt.Errorf("DATABASE_URL is required")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" || u.User == nil {
+		return fmt.Errorf("DATABASE_URL must be a PostgreSQL connection URL")
+	}
+	query, err := url.ParseQuery(u.RawQuery)
+	if err != nil || u.Fragment != "" || u.Path == "" || u.Path == "/" || u.User.Username() == "" {
+		return fmt.Errorf("DATABASE_URL must specify a database and user")
+	}
+	if environment == "production" {
+		host := strings.ToLower(u.Hostname())
+		mode := query.Get("sslmode")
+		if host == "localhost" || host == "127.0.0.1" || host == "::1" || (mode != "require" && mode != "verify-ca" && mode != "verify-full") {
+			return fmt.Errorf("production DATABASE_URL requires a remote endpoint and explicit TLS sslmode")
+		}
+		for _, key := range []string{"host", "hostaddr", "port", "service", "servicefile", "sslmode"} {
+			if len(query[key]) > 1 || (key != "sslmode" && len(query[key]) != 0) {
+				return fmt.Errorf("production DATABASE_URL cannot override connection routing")
+			}
+		}
+	}
+	return nil
 }
 
 func validOrigin(raw, environment string) (string, error) {

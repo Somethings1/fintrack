@@ -5,14 +5,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fintrack/server/config"
 	"fintrack/server/util"
-	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -23,65 +25,62 @@ type ledgerContractApp struct {
 	client *http.Client
 }
 
+// Each test owns a fresh database, not the shared public schema. The exact
+// loopback fixture URL is checked before opening any connection or executing DDL.
+func resetTestDatabase(t *testing.T) string {
+	t.Helper()
+	const fixtureURL = "postgres://fintrack:fintrack@127.0.0.1:55432/fintrack?sslmode=disable"
+	if os.Getenv("DATABASE_TEST_URL") != fixtureURL {
+		t.Fatal("DATABASE_TEST_URL must be the disposable loopback PostgreSQL fixture")
+	}
+	_ = util.CloseDB()
+	admin, err := sql.Open("pgx", fixtureURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "fintrack_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if _, err := admin.ExecContext(ctx, `CREATE DATABASE "`+name+`"`); err != nil {
+		admin.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = util.CloseDB()
+		cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stop()
+		if _, err := admin.ExecContext(cleanup, `DROP DATABASE "`+name+`" WITH (FORCE)`); err != nil {
+			t.Errorf("cleanup test database: %v", err)
+		}
+		_ = admin.Close()
+	})
+	url := strings.Replace(fixtureURL, "/fintrack?", "/"+name+"?", 1)
+	if err := util.InitDB(ctx, url); err != nil {
+		t.Fatal(err)
+	}
+	if err := util.EnsureLedger(ctx, "USD"); err != nil {
+		t.Fatal(err)
+	}
+	return url
+}
+
 func newLedgerContractApp(t *testing.T) *ledgerContractApp {
 	t.Helper()
-	uri := os.Getenv("MONGO_TEST_URI")
-	if uri == "" {
-		t.Fatal("MONGO_TEST_URI is required for database contract tests")
-	}
-
-	initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	database := fmt.Sprintf("fintrack_contract_%d", time.Now().UnixNano())
-	if err := util.InitDB(initCtx, uri, database); err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-	if err := util.EnsureLedger(initCtx, "USD"); err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-	cancel()
-
+	resetTestDatabase(t)
 	auth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := map[string]string{
-			"Bearer alpha": "owner-a",
-			"Bearer beta":  "owner-b",
-		}[r.Header.Get("Authorization")]
+		user := map[string]string{"Bearer alpha": "owner-a", "Bearer beta": "owner-b"}[r.Header.Get("Authorization")]
 		if user == "" {
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(401)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"id": user})
 	}))
-
-	server := httptest.NewServer(newRouter(config.Config{
-		Environment:    "test",
-		SupabaseURL:    auth.URL,
-		SupabaseKey:    "public-contract-test",
-		AllowedOrigins: []string{"https://app.test"},
-		LedgerCurrency: "USD",
-	}))
-
-	app := &ledgerContractApp{
-		t:      t,
-		server: server,
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
-
-	t.Cleanup(func() {
-		server.Close()
-		auth.Close()
-		cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
-		defer stop()
-		if util.MongoClient != nil {
-			_ = util.MongoClient.Database(database).Drop(cleanup)
-			_ = util.MongoClient.Disconnect(cleanup)
-		}
-	})
+	server := httptest.NewServer(newRouter(config.Config{Environment: "test", SupabaseURL: auth.URL, SupabaseKey: "public-contract-test", AllowedOrigins: []string{"https://app.test"}, LedgerCurrency: "USD"}))
+	app := &ledgerContractApp{t: t, server: server, client: &http.Client{Timeout: 15 * time.Second}}
+	t.Cleanup(func() { server.Close(); auth.Close(); _ = util.CloseDB() })
 	return app
 }
-
-func (a *ledgerContractApp) request(method, path, token string, body interface{}, idempotencyKey string) (int, []byte) {
+func (a *ledgerContractApp) request(method, path, token string, body interface{}, key string) (int, []byte) {
 	a.t.Helper()
 	var raw []byte
 	var err error
@@ -101,8 +100,8 @@ func (a *ledgerContractApp) request(method, path, token string, body interface{}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	if idempotencyKey != "" {
-		req.Header.Set("Idempotency-Key", idempotencyKey)
+	if key != "" {
+		req.Header.Set("Idempotency-Key", key)
 	}
 	resp, err := a.client.Do(req)
 	if err != nil {
@@ -115,19 +114,17 @@ func (a *ledgerContractApp) request(method, path, token string, body interface{}
 	}
 	return resp.StatusCode, data
 }
-
-func (a *ledgerContractApp) requireStatus(method, path, token string, body interface{}, idempotencyKey string, want int) []byte {
+func (a *ledgerContractApp) requireStatus(method, path, token string, body interface{}, key string, want int) []byte {
 	a.t.Helper()
-	status, data := a.request(method, path, token, body, idempotencyKey)
+	status, data := a.request(method, path, token, body, key)
 	if status != want {
 		a.t.Fatalf("%s %s returned %d, want %d: %s", method, path, status, want, data)
 	}
 	return data
 }
-
-func (a *ledgerContractApp) create(path, token string, body interface{}, idempotencyKey string) string {
+func (a *ledgerContractApp) create(path, token string, body interface{}, key string) string {
 	a.t.Helper()
-	data := a.requireStatus(http.MethodPost, path, token, body, idempotencyKey, http.StatusOK)
+	data := a.requireStatus(http.MethodPost, path, token, body, key, 200)
 	var result struct {
 		ID string `json:"id"`
 	}

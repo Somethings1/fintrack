@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p e2e/fixture-logs
-export FINTRACK_CI=1 MONGO_TEST_URI='mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true'
+export FINTRACK_CI=1 DATABASE_TEST_URL='postgres://fintrack:fintrack@127.0.0.1:55432/fintrack?sslmode=disable'
 (cd server && go test -c -tags=browser -o /tmp/fintrack-browser.test .)
 /tmp/fintrack-browser.test -test.run '^TestBrowserHarness$' -test.timeout 12m >e2e/fixture-logs/api.log 2>&1 &
 api=$!

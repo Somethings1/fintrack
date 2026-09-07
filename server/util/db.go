@@ -2,115 +2,178 @@ package util
 
 import (
 	"context"
+	"database/sql"
+	"embed"
 	"errors"
 	"fintrack/server/money"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readconcern"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"io/fs"
+	"strconv"
+	"strings"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var (
-	MongoClient                                                                                                                    *mongo.Client
-	AccountCollection, TransactionCollection, CategoryCollection, SavingCollection, SubscriptionCollection, NotificationCollection *mongo.Collection
-)
+var DB *sql.DB
 
-func InitDB(ctx context.Context, uri, database string) error {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).
-		SetMaxPoolSize(50).SetMinPoolSize(0).SetMaxConnIdleTime(5*time.Minute).
-		SetConnectTimeout(5*time.Second).SetServerSelectionTimeout(5*time.Second))
+// DBTX is the small common surface used by services so financial operations can
+// run either directly or inside a PostgreSQL transaction.
+type DBTX interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
+func InitDB(ctx context.Context, databaseURL string) error {
+	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {
-		return fmt.Errorf("database connection failed")
+		return errors.New("database connection failed")
 	}
-	if err = client.Ping(ctx, readpref.Primary()); err != nil {
-		_ = client.Disconnect(ctx)
-		return fmt.Errorf("database readiness check failed")
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxIdleTime(5 * time.Minute)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return errors.New("database readiness check failed")
 	}
-	MongoClient = client
-	db := client.Database(database)
-	AccountCollection, TransactionCollection = db.Collection("accounts"), db.Collection("transactions")
-	CategoryCollection, SavingCollection = db.Collection("categories"), db.Collection("savings")
-	SubscriptionCollection, NotificationCollection = db.Collection("subscriptions"), db.Collection("notifications")
-	// Align equality + range/sort with actual per-user synchronization queries.
-	// Existing indexes are not dropped; perform an explain-plan review before retiring them.
-	for _, item := range []struct {
-		collection *mongo.Collection
-		tenant     string
-	}{
-		{AccountCollection, "owner"}, {TransactionCollection, "creator"}, {CategoryCollection, "owner"},
-		{SavingCollection, "owner"}, {SubscriptionCollection, "creator"}, {NotificationCollection, "owner"},
-	} {
-		_, err := item.collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-			Keys:    bson.D{{Key: item.tenant, Value: 1}, {Key: "last_update", Value: -1}, {Key: "_id", Value: -1}},
-			Options: options.Index().SetName("tenant_sync_v1"),
-		})
+	if err := applyMigrations(ctx, db); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("database migration failed: %w", err)
+	}
+	DB = db
+	return nil
+}
+
+func CloseDB() error {
+	if DB == nil {
+		return nil
+	}
+	err := DB.Close()
+	DB = nil
+	return err
+}
+
+func applyMigrations(ctx context.Context, db *sql.DB) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// One stable application-specific advisory lock prevents two starting API
+	// replicas from applying the same schema migration concurrently.
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(681946223417)`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		version bigint PRIMARY KEY,
+		name text NOT NULL,
+		applied_at timestamptz NOT NULL DEFAULT now()
+	)`); err != nil {
+		return err
+	}
+	entries, err := fs.ReadDir(migrationFS, "migrations")
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		prefix, _, ok := strings.Cut(entry.Name(), "_")
+		if !ok {
+			return fmt.Errorf("invalid migration filename %q", entry.Name())
+		}
+		version, err := strconv.ParseInt(prefix, 10, 64)
+		if err != nil || version <= 0 {
+			return fmt.Errorf("invalid migration version %q", entry.Name())
+		}
+		var exists bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version=$1)`, version).Scan(&exists); err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		raw, err := migrationFS.ReadFile("migrations/" + entry.Name())
 		if err != nil {
-			return fmt.Errorf("database index creation failed for %s", item.collection.Name())
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, string(raw)); err != nil {
+			return fmt.Errorf("%s: %w", entry.Name(), err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations(version,name) VALUES ($1,$2)`, version, entry.Name()); err != nil {
+			return err
 		}
 	}
-	_, err = TransactionCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "creator", Value: 1}, {Key: "request_key", Value: 1}},
-		Options: options.Index().SetName("transaction_request_key_v1").SetUnique(true).SetPartialFilterExpression(bson.M{"request_key": bson.M{"$exists": true}}),
-	})
-	if err != nil {
-		return errors.New("transaction idempotency index creation failed")
-	}
-	return ledgerIndexes(ctx)
+	return tx.Commit()
 }
 
-// TenantFilter never falls back to an unscoped query, even if the context is missing.
-func TenantFilter(ctx context.Context, field string, id primitive.ObjectID) bson.M {
+func BeginLedgerTx(ctx context.Context) (*sql.Tx, error) {
+	if DB == nil {
+		return nil, errors.New("database is not initialized")
+	}
+	return DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+}
+
+func UserID(ctx context.Context) string {
 	user, _ := ctx.Value(UserIdKey).(string)
-	filter := bson.M{"_id": id, field: user, "is_deleted": bson.M{"$ne": true}}
-	if user == "" {
-		filter["_id"] = bson.M{"$exists": false}
-	}
-	return filter
+	return user
 }
 
-func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount money.Amount) (int64, error) {
+func nullableObjectID(id primitive.ObjectID) any {
+	if id.IsZero() {
+		return nil
+	}
+	return id.Hex()
+}
+
+// AdjustBalance applies one ledger posting against an owned account/saving row.
+// The SQL row update provides the lock needed to serialize concurrent postings.
+func AdjustBalance(ctx context.Context, q DBTX, id primitive.ObjectID, amount money.Amount) (int64, error) {
 	if id.IsZero() {
 		return 0, nil
 	}
-	currency := money.Currency(sc)
+	user := UserID(ctx)
+	currency := money.Currency(ctx)
+	if user == "" {
+		return 0, errors.New("missing authenticated user")
+	}
 	if err := money.Validate(amount, currency); err != nil {
 		return 0, err
 	}
-	filter := TenantFilter(sc, "owner", id)
-	filter["currency"] = currency
-	for _, collection := range []*mongo.Collection{AccountCollection, SavingCollection} {
-		var row struct {
-			Balance money.Amount `bson:"balance"`
-		}
-		err := collection.FindOne(sc, filter).Decode(&row)
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			continue
-		}
-		if err != nil {
-			return 0, err
-		}
-		if _, err := money.Add(row.Balance, amount); err != nil {
-			return 0, err
-		}
-		result, err := collection.UpdateOne(sc, filter, bson.M{"$inc": bson.M{"balance": amount}, "$set": bson.M{"last_update": time.Now().UTC()}})
-		if err != nil {
-			return 0, err
-		}
-		if result.MatchedCount != 1 {
-			return 0, mongo.ErrNoDocuments
-		}
-		return result.ModifiedCount, nil
+	var balance int64
+	err := q.QueryRowContext(ctx, `
+		UPDATE financial_accounts
+		SET balance_micros = balance_micros + $1, last_update = now()
+		WHERE id=$2 AND owner=$3 AND currency=$4 AND is_deleted=false
+		RETURNING balance_micros`, int64(amount), id.Hex(), user, currency).Scan(&balance)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, errors.New("account is missing, deleted, in a different currency, or not owned")
 	}
-	return 0, errors.New("account is missing, deleted, in a different currency, or not owned")
+	if err != nil {
+		return 0, err
+	}
+	if balance < -int64(money.Max) || balance > int64(money.Max) {
+		return 0, money.ErrAmount
+	}
+	return 1, nil
 }
 
-// StartLedgerSession pins financial transactions to durable majority writes and
-// snapshot reads even when an operator supplies a weaker default URI setting.
-func StartLedgerSession() (mongo.Session, error) {
-	return MongoClient.StartSession(options.Session().SetDefaultReadConcern(readconcern.Snapshot()).SetDefaultWriteConcern(writeconcern.Majority()).SetDefaultReadPreference(readpref.Primary()))
+// LockFinancialAccount validates ownership/currency without changing balances.
+// It serializes reference creation against concurrent archival.
+func LockFinancialAccount(ctx context.Context, tx *sql.Tx, id primitive.ObjectID) error {
+	if id.IsZero() {
+		return sql.ErrNoRows
+	}
+	var one int
+	err := tx.QueryRowContext(ctx, `SELECT 1 FROM financial_accounts
+		WHERE id=$1 AND owner=$2 AND currency=$3 AND is_deleted=false FOR UPDATE`,
+		id.Hex(), UserID(ctx), money.Currency(ctx)).Scan(&one)
+	return err
 }

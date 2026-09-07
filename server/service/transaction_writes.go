@@ -3,15 +3,15 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fintrack/server/model"
 	"fintrack/server/money"
 	"fintrack/server/util"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	"sort"
 	"time"
 )
 
@@ -38,8 +38,6 @@ func validateTransaction(tx model.Transaction) error {
 	return nil
 }
 func transactionDigest(tx model.Transaction) string { return TransactionDigest(tx) }
-
-// TransactionDigest hashes only client-visible financial intent.
 func TransactionDigest(tx model.Transaction) string {
 	tx.ID = primitive.NilObjectID
 	tx.LastUpdate = time.Time{}
@@ -47,37 +45,62 @@ func TransactionDigest(tx model.Transaction) string {
 	tx.RequestHash = ""
 	tx.IsDeleted = false
 	raw, _ := json.Marshal(tx)
-	hash := sha256.Sum256(raw)
-	return hex.EncodeToString(hash[:])
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
 }
-func validateCategory(sc mongo.SessionContext, tx model.Transaction) error {
-	if tx.Type == "transfer" {
+
+func validateCategory(ctx context.Context, tx *sql.Tx, v model.Transaction) error {
+	if v.Type == "transfer" {
 		return nil
 	}
-	filter := util.TenantFilter(sc, "owner", tx.Category)
-	filter["type"] = tx.Type
-	filter["currency"] = tx.Currency
-	result, err := util.CategoryCollection.UpdateOne(sc, filter, bson.M{"$inc": bson.M{"reference_version": 1}})
-	if err != nil {
-		return err
-	}
-	if result.MatchedCount != 1 {
+	var one int
+	err := tx.QueryRowContext(ctx, `SELECT 1 FROM categories WHERE id=$1 AND owner=$2 AND currency=$3 AND type=$4 AND is_deleted=false FOR UPDATE`, v.Category.Hex(), util.UserID(ctx), v.Currency, v.Type).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
 		return errors.New("category is missing, deleted or not owned")
 	}
-	return nil
+	return err
 }
+
 func replayTransaction(ctx context.Context, key, hash string) (primitive.ObjectID, error) {
-	var previous model.Transaction
-	user, _ := ctx.Value(util.UserIdKey).(string)
+	var id, stored string
+	user := util.UserID(ctx)
 	if user == "" {
 		return primitive.NilObjectID, errors.New("missing authenticated user")
 	}
-	err := util.TransactionCollection.FindOne(ctx, bson.M{"creator": user, "request_key": key}).Decode(&previous)
+	err := util.DB.QueryRowContext(ctx, `SELECT id,request_hash FROM transactions WHERE creator=$1 AND request_key=$2`, user, key).Scan(&id, &stored)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
-	if previous.RequestHash != hash {
+	if stored != hash {
 		return primitive.NilObjectID, ErrIdempotencyConflict
 	}
-	return previous.ID, nil
+	return primitive.ObjectIDFromHex(id)
+}
+func nullID(id primitive.ObjectID) any {
+	if id.IsZero() {
+		return nil
+	}
+	return id.Hex()
+}
+
+// Call before inserting the transaction (which otherwise takes FK key-share
+// locks), and before changing any balance. Zero and duplicate IDs are ignored.
+func lockTransactionAccounts(ctx context.Context, tx *sql.Tx, ids ...primitive.ObjectID) error {
+	unique := make(map[string]primitive.ObjectID, len(ids))
+	for _, id := range ids {
+		if !id.IsZero() {
+			unique[id.Hex()] = id
+		}
+	}
+	ordered := make([]string, 0, len(unique))
+	for id := range unique {
+		ordered = append(ordered, id)
+	}
+	sort.Strings(ordered)
+	for _, id := range ordered {
+		if err := util.LockFinancialAccount(ctx, tx, unique[id]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
