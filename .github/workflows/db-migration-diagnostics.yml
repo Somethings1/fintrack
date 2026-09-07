@@ -7,46 +7,49 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: migration-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   diagnose:
+    if: github.event.pull_request.number == 27
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: {persist-credentials: false}
+      - name: Capture tracked source for offline repair
+        run: |
+          git rev-parse HEAD > source-commit.txt
+          git archive --format=tar.gz -o migration-source.tar.gz HEAD server scripts tests docs .github compose.yaml compose.dev.yaml compose.edge.yaml .env.example AGENTS.md readme.md
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: '1.26.7'
           cache-dependency-path: server/go.sum
-      - name: Capture diagnostics
+      - name: Capture diagnostics without hiding failure
         working-directory: server
         shell: bash
         run: |
           set +e
+          failed=0
           {
-            echo '=== TIDY ==='
-            go mod tidy
-            echo "tidy_exit=$?"
-            echo '=== GOFMT ==='
-            gofmt -w .
-            echo "gofmt_exit=$?"
-            echo '=== VET ==='
-            go vet ./...
-            echo "vet_exit=$?"
-            echo '=== TEST ==='
-            go test -count=1 ./...
-            echo "test_exit=$?"
-            echo '=== BUILD ==='
-            go build ./...
-            echo "build_exit=$?"
+            go mod tidy; code=$?; echo "tidy_exit=$code"; if [ "$code" != 0 ]; then failed=1; fi
+            gofmt -w .; code=$?; echo "gofmt_exit=$code"; if [ "$code" != 0 ]; then failed=1; fi
+            go vet ./...; code=$?; echo "vet_exit=$code"; if [ "$code" != 0 ]; then failed=1; fi
+            go test -count=1 -timeout=120s ./...; code=$?; echo "test_exit=$code"; if [ "$code" != 0 ]; then failed=1; fi
+            go build ./...; code=$?; echo "build_exit=$code"; if [ "$code" != 0 ]; then failed=1; fi
           } > ../db-migration-diagnostics.txt 2>&1
           git diff -- . > ../db-migration-format.patch
-          exit 0
-      - name: Upload diagnostics
+          exit "$failed"
+      - name: Upload repair evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: db-migration-diagnostics
           path: |
+            migration-source.tar.gz
+            source-commit.txt
             db-migration-diagnostics.txt
             db-migration-format.patch
             server/go.mod
