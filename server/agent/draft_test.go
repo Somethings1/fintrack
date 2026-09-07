@@ -3,8 +3,8 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fintrack/server/money"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +15,7 @@ import (
 var testCatalog = Catalog{Accounts: []Choice{{ID: "a", Name: "Wallet"}, {ID: "b", Name: "Bank"}}, Categories: []Choice{{ID: "food", Type: "expense"}, {ID: "salary", Type: "income"}}}
 
 func validResult() Result {
-	return Result{Transaction: &Draft{Amount: 10, Type: "expense", SourceAccount: "a", Category: "food", Note: "Lunch"}}
+	return Result{Transaction: &Draft{Amount: money.Must("10"), Type: "expense", SourceAccount: "a", Category: "food", Note: "Lunch"}}
 }
 func TestValidateUntrustedDrafts(t *testing.T) {
 	if err := Validate(validResult(), testCatalog); err != nil {
@@ -29,8 +29,8 @@ func TestValidateUntrustedDrafts(t *testing.T) {
 		{"foreign opposite side", func(d *Draft) { d.DestinationAccount = "not-in-catalog" }},
 		{"wrong category type", func(d *Draft) { d.Category = "salary" }},
 		{"negative amount", func(d *Draft) { d.Amount = -1 }}, {"zero amount", func(d *Draft) { d.Amount = 0 }},
-		{"infinite", func(d *Draft) { d.Amount = math.Inf(1) }}, {"nan", func(d *Draft) { d.Amount = math.NaN() }},
-		{"excessive amount", func(d *Draft) { d.Amount = 1e15 }}, {"tool action", func(d *Draft) { d.Type = "execute_sql" }},
+
+		{"excessive amount", func(d *Draft) { d.Amount = money.Max + 1 }}, {"tool action", func(d *Draft) { d.Type = "execute_sql" }},
 		{"same account transfer", func(d *Draft) { d.Type = "transfer"; d.DestinationAccount = "a"; d.Category = "" }},
 		{"oversized note", func(d *Draft) { d.Note = strings.Repeat("x", 501) }},
 	}
@@ -43,7 +43,7 @@ func TestValidateUntrustedDrafts(t *testing.T) {
 			}
 		})
 	}
-	for _, raw := range []string{`{"transaction":null,"clarification":"which account?","tools":[]}`, `{"transaction":null,"clarification":"which account?"}{}`} {
+	for _, raw := range []string{`{"transaction":{"amount":NaN},"clarification":""}`, `{"transaction":{"amount":1e309},"clarification":""}`, `{"transaction":null,"clarification":"which account?","tools":[]}`, `{"transaction":null,"clarification":"which account?"}{}`} {
 		var r Result
 		if decodeStrict([]byte(raw), &r) == nil {
 			t.Fatal("extra fields or trailing JSON accepted")

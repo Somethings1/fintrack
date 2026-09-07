@@ -1,18 +1,21 @@
 package model
 
 import (
+	"fintrack/server/money"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
 
 type Subscription struct {
-	ID            primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	Name          string             `bson:"name" json:"name"`
-	Icon          string             `bson:"icon" json:"icon"`
-	Creator       string             `bson:"creator" json:"creator"`
-	Amount        float64            `bson:"amount" json:"amount"`
-	SourceAccount primitive.ObjectID `bson:"source_account,omitempty" json:"sourceAccount"`
-	Category      primitive.ObjectID `bson:"category,omitempty" json:"category"`
+	ScheduleVersion int                `bson:"schedule_version" json:"-"`
+	Currency        string             `bson:"currency" json:"currency"`
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Name            string             `bson:"name" json:"name"`
+	Icon            string             `bson:"icon" json:"icon"`
+	Creator         string             `bson:"creator" json:"creator"`
+	Amount          money.Amount       `bson:"amount" json:"amount"`
+	SourceAccount   primitive.ObjectID `bson:"source_account,omitempty" json:"sourceAccount"`
+	Category        primitive.ObjectID `bson:"category,omitempty" json:"category"`
 
 	StartDate       time.Time `bson:"start_date" json:"startDate"`
 	Interval        string    `bson:"interval" json:"interval"`                  // day, week, month, year

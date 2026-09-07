@@ -14,7 +14,8 @@ services:
       AGENT_ENABLED: ${AGENT_ENABLED:-false}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       AGENT_MODEL: ${AGENT_MODEL:-}
-      CRON_ENABLED: 'false'
+      CRON_ENABLED: ${CRON_ENABLED:-false}
+      LEDGER_CURRENCY: ${LEDGER_CURRENCY:?Choose an explicit ledger currency}
     user: '65532:65532'
     read_only: true
     cap_drop: [ALL]

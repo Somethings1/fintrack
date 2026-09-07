@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fintrack/server/config"
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 	"fmt"
@@ -112,7 +113,7 @@ func TestIntegrationFinancialIsolationAndSync(t *testing.T) {
 		if err := util.AccountCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&account); err != nil {
 			t.Fatal(err)
 		}
-		return account.Balance
+		return float64(account.Balance) / float64(money.Scale)
 	}
 	expense := map[string]interface{}{"creator": "owner-b", "amount": 10, "dateTime": "2026-09-01T12:00:00Z", "type": "expense", "sourceAccount": accountA, "category": categoryA, "note": "Lunch"}
 	first := create("/api/transactions/add", "alpha", expense, "first-request")

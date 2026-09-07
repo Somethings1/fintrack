@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
+	"fintrack/server/money"
 	"time"
 
 	"fintrack/server/model"
@@ -53,200 +53,86 @@ func FetchSubscriptionsSince(ctx context.Context, username string, since time.Ti
 	return util.SubscriptionCollection.Find(ctx, filter, opts)
 }
 
-func AddSubscription(ctx context.Context, subscription model.Subscription) (interface{}, error) {
-	subscription.LastUpdate = time.Now()
-
-	res, err := util.SubscriptionCollection.InsertOne(ctx, subscription)
+func AddSubscription(ctx context.Context, sub model.Subscription) (interface{}, error) {
+	sub.Creator, _ = ctx.Value(util.UserIdKey).(string)
+	var err error
+	sub.Currency, err = money.Resolve(ctx, sub.Currency)
 	if err != nil {
 		return nil, err
 	}
-
-	insertedID, ok := res.InsertedID.(primitive.ObjectID)
-	if !ok {
-		return nil, fmt.Errorf("Failed to convert inserted ID to ObjectID")
+	if err := validateSubscription(sub); err != nil {
+		return nil, err
 	}
-
-	subscription.ID = insertedID
-	// Recurrence posting is disabled by default; legacy catch-up is never run from HTTP.
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "subscriptions",
-		"action":     "create",
-		"detail":     subscription,
+	sub.ID = primitive.NewObjectID()
+	sub.CurrentInterval = 0
+	sub.ScheduleVersion = 2
+	sub.StartDate = sub.StartDate.UTC().Truncate(time.Millisecond)
+	sub.NextActive = sub.StartDate
+	sub.NotifyAt = sub.StartDate.AddDate(0, 0, -sub.RemindBefore)
+	sub.LastUpdate = time.Now().UTC()
+	sub.IsDeleted = false
+	sub.IsActive = true
+	session, err := util.MongoClient.StartSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.EndSession(ctx)
+	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+		if err := touchSubscriptionReferences(sc, sub); err != nil {
+			return nil, err
+		}
+		return util.SubscriptionCollection.InsertOne(sc, sub)
 	})
-
-	return res.InsertedID, nil
+	if err != nil {
+		return nil, err
+	}
+	socket.BroadcastFromContext(ctx, map[string]interface{}{"collection": "subscriptions", "action": "create"})
+	return sub.ID, nil
 }
 
-func UpdateSubscription(ctx context.Context, id primitive.ObjectID, subscription model.Subscription) error {
-	filter := util.TenantFilter(ctx, "creator", id)
-	subscription.LastUpdate = time.Now()
-	newSubscription := bson.M{"$set": subscription}
-
-	_, err := util.SubscriptionCollection.UpdateOne(ctx, filter, newSubscription)
+func UpdateSubscription(ctx context.Context, id primitive.ObjectID, sub model.Subscription) error {
+	sub.Creator, _ = ctx.Value(util.UserIdKey).(string)
+	var err error
+	sub.Currency, err = money.Resolve(ctx, sub.Currency)
 	if err != nil {
 		return err
 	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "subscriptions",
-		"action":     "update",
-		"detail":     subscription,
-	})
-
-	return nil
-}
-
-func CatchUpSubscription(_ctx context.Context, sub model.Subscription) error {
-	now := time.Now()
-	transactions := []model.Transaction{}
-	newInterval := 1
-	nextActive := sub.StartDate
-	ctx := context.WithValue(_ctx, util.ClientIdKey, "")
-
-	for !nextActive.After(now) {
-		txn := model.Transaction{
-			Creator:       sub.Creator,
-			Amount:        sub.Amount,
-			SourceAccount: sub.SourceAccount,
-			Category:      sub.Category,
-			DateTime:      nextActive,
-			Type:          "expense",
-			Note:          "Subscription payment for " + sub.Name,
-			IsDeleted:     false,
-		}
-		transactions = append(transactions, txn)
-
-		newInterval++
-		switch sub.Interval {
-		case "week":
-			nextActive = nextActive.AddDate(0, 0, 7)
-		case "month":
-			nextActive = nextActive.AddDate(0, 1, 0)
-		case "year":
-			nextActive = nextActive.AddDate(1, 0, 0)
-		case "test":
-			nextActive = nextActive.Add(1 * time.Minute)
-		default:
-			return fmt.Errorf("invalid interval")
-		}
-
-		if sub.MaxInterval > 0 && newInterval > sub.MaxInterval {
-			break
-		}
+	if err := validateSubscription(sub); err != nil {
+		return err
 	}
-
-	for _, txn := range transactions {
-		_, err := AddTransactionSilent(ctx, txn)
-		if err != nil {
-			return fmt.Errorf("failed to add transaction: %w", err)
-		}
-	}
-
-	if len(transactions) > 0 {
-		sub.CurrentInterval = newInterval
-		sub.NextActive = nextActive
-		sub.IsActive = sub.MaxInterval <= 0 || newInterval < sub.MaxInterval
-		sub.NotifyAt = nextActive.AddDate(0, 0, -sub.RemindBefore)
-
-		update := bson.M{
-			"$set": bson.M{
-				"current_interval": sub.CurrentInterval,
-				"next_active":      sub.NextActive,
-				"notify_at":        sub.NotifyAt,
-				"is_active":        sub.IsActive,
-				"last_update":      time.Now().Add(1 * time.Second),
-			},
-		}
-
-		_, err := util.SubscriptionCollection.UpdateByID(ctx, sub.ID, update)
-		if err != nil {
-			return fmt.Errorf("failed to update subscription: %w", err)
-		}
-
-		socket.BroadcastFromContext(ctx, map[string]interface{}{
-			"collection": "transactions",
-			"action":     "create",
-			"detail":     "bulk",
-		})
-
-		socket.BroadcastFromContext(ctx, map[string]interface{}{
-			"collection": "subscriptions",
-			"action":     "renew",
-			"detail":     "",
-		})
-	}
-
-	return nil
-}
-
-func OnNotificationCreated(ctx context.Context, id primitive.ObjectID) error {
-	update := bson.M{
-		"$set": bson.M{
-			"notify_at": time.Time{},
-		},
-	}
-
-	_, err := util.SubscriptionCollection.UpdateByID(ctx, id, update)
-	if err != nil {
-		return fmt.Errorf("failed to clear notify_at after notification: %w", err)
-	}
-
-	return nil
-}
-
-func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
-	sub, err := GetSubscriptionById(ctx, id.Hex())
+	session, err := util.MongoClient.StartSession()
 	if err != nil {
 		return err
 	}
-
-	newInterval := sub.CurrentInterval
-
-	isActive := true
-	if sub.MaxInterval > 0 && newInterval > sub.MaxInterval {
-		isActive = false
-	}
-
-	var nextActive time.Time
-	switch sub.Interval {
-	case "test":
-		nextActive = sub.StartDate.Add(time.Duration(newInterval) * time.Minute)
-	case "week":
-		nextActive = sub.StartDate.AddDate(0, 0, newInterval*7)
-	case "month":
-		nextActive = sub.StartDate.AddDate(0, newInterval, 0)
-	case "year":
-		nextActive = sub.StartDate.AddDate(newInterval, 0, 0)
-	default:
-		return fmt.Errorf("unknown interval type: %s", sub.Interval)
-	}
-
-	notifyAt := nextActive.AddDate(0, 0, -sub.RemindBefore)
-	now := time.Now()
-
-	update := bson.M{
-		"$set": bson.M{
-			"current_interval": newInterval + 1,
-			"next_active":      nextActive,
-			"is_active":        isActive,
-			"notify_at":        notifyAt,
-			"last_update":      now,
-		},
-	}
-
-	_, err = util.SubscriptionCollection.UpdateByID(ctx, id, update)
-	if err != nil {
-		return fmt.Errorf("failed to update subscription: %w", err)
-	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "subscriptions",
-		"action":     "renew",
-		"detail":     "",
+	defer session.EndSession(ctx)
+	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+		filter := util.TenantFilter(sc, "creator", id)
+		var old model.Subscription
+		if err := util.SubscriptionCollection.FindOne(sc, filter).Decode(&old); err != nil {
+			return nil, err
+		}
+		if old.ScheduleVersion != 2 || (old.CurrentInterval > 0 && (!old.StartDate.Equal(sub.StartDate) || old.Interval != sub.Interval)) {
+			return nil, ErrScheduleImmutable
+		}
+		if sub.MaxInterval > 0 && sub.MaxInterval < old.CurrentInterval {
+			return nil, ErrScheduleImmutable
+		}
+		if err := touchSubscriptionReferences(sc, sub); err != nil {
+			return nil, err
+		}
+		next, err := OccurrenceAt(sub.StartDate, sub.Interval, old.CurrentInterval)
+		if err != nil {
+			return nil, err
+		}
+		active := sub.MaxInterval == 0 || old.CurrentInterval < sub.MaxInterval
+		// Never reset the processed count or mutate previously posted occurrences.
+		set := bson.M{"name": sub.Name, "icon": sub.Icon, "amount": sub.Amount, "source_account": sub.SourceAccount, "category": sub.Category, "start_date": sub.StartDate.UTC(), "interval": sub.Interval, "max_interval": sub.MaxInterval, "remind_before": sub.RemindBefore, "next_active": next, "notify_at": next.AddDate(0, 0, -sub.RemindBefore), "is_active": active, "last_update": time.Now().UTC()}
+		return util.SubscriptionCollection.UpdateOne(sc, filter, bson.M{"$set": set})
 	})
-
-	return nil
+	if err == nil {
+		socket.BroadcastFromContext(ctx, map[string]interface{}{"collection": "subscriptions", "action": "update"})
+	}
+	return err
 }
 
 func DeleteSubscription(ctx context.Context, id primitive.ObjectID) error {

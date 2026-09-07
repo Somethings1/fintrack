@@ -27,7 +27,8 @@ services:
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Provide a public development anon key}
       ALLOWED_ORIGINS: http://localhost:8088,http://127.0.0.1:8088
       AGENT_ENABLED: 'false'
-      CRON_ENABLED: 'false'
+      CRON_ENABLED: ${CRON_ENABLED:-false}
+      LEDGER_CURRENCY: ${LEDGER_CURRENCY:-USD}
     depends_on:
       mongo-init: {condition: service_completed_successfully}
     restart: on-failure

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 
@@ -52,6 +53,19 @@ func FetchCategoriesSince(ctx context.Context, username string, since time.Time)
 }
 
 func AddCategory(ctx context.Context, category model.Category) (interface{}, error) {
+	category.Owner, _ = ctx.Value(util.UserIdKey).(string)
+	if category.Owner == "" {
+		return nil, errors.New("missing authenticated owner")
+	}
+	currency, err := money.Resolve(ctx, category.Currency)
+	if err != nil {
+		return nil, err
+	}
+	category.Currency = currency
+	if err := money.Validate(category.Budget, currency); err != nil {
+		return nil, err
+	}
+
 	category.LastUpdate = time.Now()
 
 	result, err := util.CategoryCollection.InsertOne(ctx, category)
@@ -69,10 +83,17 @@ func AddCategory(ctx context.Context, category model.Category) (interface{}, err
 }
 
 func UpdateCategory(ctx context.Context, id primitive.ObjectID, category model.Category) error {
+	if _, err := money.Resolve(ctx, category.Currency); err != nil {
+		return err
+	}
+	if err := money.Validate(category.Budget, money.Currency(ctx)); err != nil {
+		return err
+	}
+
 	category.LastUpdate = time.Now()
 
 	filter := util.TenantFilter(ctx, "owner", id)
-	_, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
+	_, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"name": category.Name, "icon": category.Icon, "budget": category.Budget, "last_update": category.LastUpdate}})
 
 	if err != nil {
 		return err

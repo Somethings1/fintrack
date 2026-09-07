@@ -7,16 +7,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"math"
 	"time"
 )
 
 func validateTransaction(tx model.Transaction) error {
-	if tx.Creator == "" || tx.DateTime.IsZero() || tx.Amount <= 0 || tx.Amount > 1e12 || math.IsNaN(tx.Amount) || math.IsInf(tx.Amount, 0) || len(tx.Note) > 500 {
+	if tx.Creator == "" || tx.DateTime.IsZero() || tx.Amount <= 0 || money.Validate(tx.Amount, tx.Currency) != nil || len(tx.Note) > 500 {
 		return errors.New("invalid transaction")
 	}
 	switch tx.Type {
@@ -37,7 +37,10 @@ func validateTransaction(tx model.Transaction) error {
 	}
 	return nil
 }
-func transactionDigest(tx model.Transaction) string {
+func transactionDigest(tx model.Transaction) string { return TransactionDigest(tx) }
+
+// TransactionDigest hashes only client-visible financial intent.
+func TransactionDigest(tx model.Transaction) string {
 	tx.ID = primitive.NilObjectID
 	tx.LastUpdate = time.Time{}
 	tx.RequestKey = ""
@@ -53,6 +56,7 @@ func validateCategory(sc mongo.SessionContext, tx model.Transaction) error {
 	}
 	filter := util.TenantFilter(sc, "owner", tx.Category)
 	filter["type"] = tx.Type
+	filter["currency"] = tx.Currency
 	result, err := util.CategoryCollection.UpdateOne(sc, filter, bson.M{"$inc": bson.M{"reference_version": 1}})
 	if err != nil {
 		return err

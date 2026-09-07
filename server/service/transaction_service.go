@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fintrack/server/money"
 	"fmt"
 	"time"
 
@@ -56,6 +57,11 @@ func FetchTransactionsSince(ctx context.Context, username string, since time.Tim
 func addTransactionInternal(ctx context.Context, transaction model.Transaction) (interface{}, error) {
 	transaction.Creator, _ = ctx.Value(util.UserIdKey).(string)
 	transaction.IsDeleted = false
+	var currencyErr error
+	transaction.Currency, currencyErr = money.Resolve(ctx, transaction.Currency)
+	if currencyErr != nil {
+		return nil, currencyErr
+	}
 	if err := validateTransaction(transaction); err != nil {
 		return nil, err
 	}
@@ -132,6 +138,11 @@ func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.T
 	newTx.Creator, _ = ctx.Value(util.UserIdKey).(string)
 	newTx.ID = id
 	newTx.IsDeleted = false
+	var currencyErr error
+	newTx.Currency, currencyErr = money.Resolve(ctx, newTx.Currency)
+	if currencyErr != nil {
+		return currencyErr
+	}
 	if err := validateTransaction(newTx); err != nil {
 		return err
 	}
@@ -150,7 +161,7 @@ func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.T
 		}
 		for _, change := range []struct {
 			id     primitive.ObjectID
-			amount float64
+			amount money.Amount
 		}{{old.SourceAccount, old.Amount}, {old.DestinationAccount, -old.Amount}, {newTx.SourceAccount, -newTx.Amount}, {newTx.DestinationAccount, newTx.Amount}} {
 			if _, err := util.AdjustBalance(sc, change.id, change.amount); err != nil {
 				return nil, err
@@ -198,7 +209,7 @@ func DeleteTransaction(ctx context.Context, id primitive.ObjectID) error {
 		}
 		for _, change := range []struct {
 			id     primitive.ObjectID
-			amount float64
+			amount money.Amount
 		}{{tx.SourceAccount, tx.Amount}, {tx.DestinationAccount, -tx.Amount}} {
 			if _, err := util.AdjustBalance(sc, change.id, change.amount); err != nil {
 				return nil, err

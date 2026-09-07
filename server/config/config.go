@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fintrack/server/money"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 type Config struct {
+	LedgerCurrency                             string
 	Environment, Port, MongoURI, MongoDatabase string
 	SupabaseURL, SupabaseKey                   string
 	AllowedOrigins                             []string
@@ -28,7 +30,7 @@ func Parse(env func(string) string) (Config, error) {
 		}
 		return fallback
 	}
-	c := Config{Environment: value("APP_ENV", "development"), Port: value("PORT", "8080"),
+	c := Config{LedgerCurrency: value("LEDGER_CURRENCY", ""), Environment: value("APP_ENV", "development"), Port: value("PORT", "8080"),
 		MongoURI: value("MONGO_URI", ""), MongoDatabase: value("MONGO_DATABASE", "finance_db"),
 		SupabaseURL: strings.TrimRight(value("SUPABASE_URL", ""), "/"), SupabaseKey: value("SUPABASE_ANON_KEY", ""),
 		AgentKey: value("GEMINI_API_KEY", ""), AgentModel: value("AGENT_MODEL", "")}
@@ -73,10 +75,11 @@ func Parse(env func(string) string) (Config, error) {
 	if err != nil {
 		return c, fmt.Errorf("CRON_ENABLED must be a boolean")
 	}
-	// Existing subscription scheduling has no distributed idempotency guarantee.
-	// Fail closed rather than allowing duplicate financial writes in production.
-	if c.Environment == "production" && c.CronEnabled {
-		return c, fmt.Errorf("production scheduling is disabled until atomic occurrence processing is implemented")
+	if c.LedgerCurrency == "" && c.Environment != "production" {
+		c.LedgerCurrency = "USD"
+	}
+	if _, err := money.Precision(c.LedgerCurrency); err != nil {
+		return c, fmt.Errorf("LEDGER_CURRENCY must be an explicitly supported currency in production")
 	}
 	if c.AgentEnabled && (c.AgentKey == "" || c.AgentModel == "") {
 		return c, fmt.Errorf("AGENT_MODEL and GEMINI_API_KEY are required when AGENT_ENABLED=true")

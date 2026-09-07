@@ -6,9 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fintrack/server/money"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"strings"
 )
@@ -23,12 +23,12 @@ type Catalog struct {
 	Categories []Choice `json:"categories"`
 }
 type Draft struct {
-	Amount             float64 `json:"amount"`
-	Type               string  `json:"type"`
-	SourceAccount      string  `json:"sourceAccount"`
-	DestinationAccount string  `json:"destinationAccount"`
-	Category           string  `json:"category"`
-	Note               string  `json:"note"`
+	Amount             money.Amount `json:"amount"`
+	Type               string       `json:"type"`
+	SourceAccount      string       `json:"sourceAccount"`
+	DestinationAccount string       `json:"destinationAccount"`
+	Category           string       `json:"category"`
+	Note               string       `json:"note"`
 }
 type Result struct {
 	Transaction   *Draft `json:"transaction"`
@@ -57,7 +57,7 @@ func Validate(result Result, catalog Catalog) error {
 		return nil
 	}
 	d := result.Transaction
-	if result.Clarification != "" || math.IsNaN(d.Amount) || math.IsInf(d.Amount, 0) || d.Amount <= 0 || d.Amount > 1e12 || len(d.Note) > 500 {
+	if result.Clarification != "" || d.Amount <= 0 || d.Amount > money.Max || len(d.Note) > 500 {
 		return errors.New("invalid proposal")
 	}
 	accounts := map[string]bool{}

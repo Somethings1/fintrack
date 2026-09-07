@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/service"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -32,15 +33,16 @@ func TransactionOwnershipMiddleware() gin.HandlerFunc {
 func TransactionFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Transaction struct {
-			Creator            string  `json:"creator"`
-			Amount             float64 `json:"amount"`
-			DateTime           string  `json:"dateTime"`
-			Type               string  `json:"type"`
-			SourceAccount      string  `json:"sourceAccount"`
-			DestinationAccount string  `json:"destinationAccount"`
-			Category           string  `json:"category"`
-			Note               string  `json:"note"`
-			IsDeleted          bool    `json:"isDeleted"`
+			Currency           string       `json:"currency"`
+			Creator            string       `json:"creator"`
+			Amount             money.Amount `json:"amount"`
+			DateTime           string       `json:"dateTime"`
+			Type               string       `json:"type"`
+			SourceAccount      string       `json:"sourceAccount"`
+			DestinationAccount string       `json:"destinationAccount"`
+			Category           string       `json:"category"`
+			Note               string       `json:"note"`
+			IsDeleted          bool         `json:"isDeleted"`
 		}
 		var _transaction Transaction
 
@@ -50,6 +52,15 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 		_transaction.Creator = c.GetString("username")
+		currency, currencyErr := money.Resolve(c.Request.Context(), _transaction.Currency)
+		if currencyErr != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid ledger currency"})
+			return
+		}
+		if money.Validate(_transaction.Amount, currency) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid monetary precision or range"})
+			return
+		}
 
 		// Date time
 		DateTime, err := time.Parse(time.RFC3339, _transaction.DateTime)
@@ -78,7 +89,7 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 		// Amount
-		if _transaction.Amount <= 0 || _transaction.Amount > 1e12 {
+		if _transaction.Amount <= 0 || _transaction.Amount > money.Max {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Amount must be positive and at most 1e12",
 			})
@@ -180,6 +191,7 @@ func TransactionFormatMiddleware() gin.HandlerFunc {
 		}
 
 		transaction := model.Transaction{
+			Currency:           currency,
 			Creator:            _transaction.Creator,
 			Amount:             _transaction.Amount,
 			DateTime:           DateTime,

@@ -27,7 +27,7 @@ func AddSubscription(c *gin.Context) {
 	result, err := service.AddSubscription(c.Request.Context(), subscription)
 
 	if err != nil {
-		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -55,7 +55,7 @@ func UpdateSubscription(c *gin.Context) {
 
 	err = service.UpdateSubscription(c.Request.Context(), id, newTx)
 	if err != nil {
-		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -77,7 +77,7 @@ func DeleteSubscription(c *gin.Context) {
 
 	err = service.DeleteSubscription(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}

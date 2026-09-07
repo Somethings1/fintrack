@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/service"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -30,11 +31,12 @@ func CategoryOwnershipMiddleware() gin.HandlerFunc {
 func CategoryFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Category struct {
-			Owner  string  `json:"owner"`
-			Icon   string  `json:"icon"`
-			Name   string  `json:"name"`
-			Type   string  `json:"type"`
-			Budget float64 `json:"budget"`
+			Currency string       `json:"currency"`
+			Owner    string       `json:"owner"`
+			Icon     string       `json:"icon"`
+			Name     string       `json:"name"`
+			Type     string       `json:"type"`
+			Budget   money.Amount `json:"budget"`
 		}
 		var _category Category
 
@@ -43,6 +45,15 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 		_category.Owner = c.GetString("username")
+		currency, currencyErr := money.Resolve(c.Request.Context(), _category.Currency)
+		if currencyErr != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid ledger currency"})
+			return
+		}
+		if money.Validate(_category.Budget, currency) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid monetary precision or range"})
+			return
+		}
 
 		if _category.Type != "income" && _category.Type != "expense" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -66,11 +77,12 @@ func CategoryFormatMiddleware() gin.HandlerFunc {
 		}
 
 		category := model.Category{
-			Owner:  _category.Owner,
-			Icon:   _category.Icon,
-			Name:   _category.Name,
-			Type:   _category.Type,
-			Budget: _category.Budget,
+			Currency: currency,
+			Owner:    _category.Owner,
+			Icon:     _category.Icon,
+			Name:     _category.Name,
+			Type:     _category.Type,
+			Budget:   _category.Budget,
 		}
 
 		c.Set("category", category)

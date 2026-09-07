@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/service"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -30,10 +31,11 @@ func AccountOwnershipMiddleware() gin.HandlerFunc {
 func AccountFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Account struct {
-			Owner   string  `json:"owner"`
-			Balance float64 `json:"balance"`
-			Icon    string  `json:"icon"`
-			Name    string  `json:"name"`
+			Currency string       `json:"currency"`
+			Owner    string       `json:"owner"`
+			Balance  money.Amount `json:"balance"`
+			Icon     string       `json:"icon"`
+			Name     string       `json:"name"`
 		}
 		var _account Account
 
@@ -42,6 +44,15 @@ func AccountFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 		_account.Owner = c.GetString("username")
+		currency, currencyErr := money.Resolve(c.Request.Context(), _account.Currency)
+		if currencyErr != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid ledger currency"})
+			return
+		}
+		if money.Validate(_account.Balance, currency) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid monetary precision or range"})
+			return
+		}
 
 		if _account.Balance < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -58,10 +69,11 @@ func AccountFormatMiddleware() gin.HandlerFunc {
 		}
 
 		account := model.Account{
-			Owner:   _account.Owner,
-			Balance: _account.Balance,
-			Icon:    _account.Icon,
-			Name:    _account.Name,
+			Currency: currency,
+			Owner:    _account.Owner,
+			Balance:  _account.Balance,
+			Icon:     _account.Icon,
+			Name:     _account.Name,
 		}
 
 		c.Set("account", account)

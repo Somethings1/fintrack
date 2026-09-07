@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 
@@ -53,6 +54,20 @@ func FetchAccountsSince(ctx context.Context, username string, since time.Time) (
 }
 
 func AddAccount(ctx context.Context, account model.Account) (interface{}, error) {
+	account.Owner, _ = ctx.Value(util.UserIdKey).(string)
+	if account.Owner == "" {
+		return nil, errors.New("missing authenticated owner")
+	}
+	currency, err := money.Resolve(ctx, account.Currency)
+	if err != nil {
+		return nil, err
+	}
+	account.Currency = currency
+	if err := money.Validate(account.Balance, currency); err != nil {
+		return nil, err
+	}
+	account.OpeningBalance = account.Balance
+
 	account.LastUpdate = time.Now()
 	result, err := util.AccountCollection.InsertOne(ctx, account)
 
@@ -70,9 +85,16 @@ func AddAccount(ctx context.Context, account model.Account) (interface{}, error)
 }
 
 func UpdateAccount(ctx context.Context, id primitive.ObjectID, account model.Account) error {
+	if _, err := money.Resolve(ctx, account.Currency); err != nil {
+		return err
+	}
+	if err := money.Validate(account.Balance, money.Currency(ctx)); err != nil {
+		return err
+	}
+
 	filter := util.TenantFilter(ctx, "owner", id)
 	account.LastUpdate = time.Now()
-	updateAccount := bson.M{"$set": account}
+	updateAccount := bson.M{"$set": bson.M{"name": account.Name, "icon": account.Icon, "last_update": account.LastUpdate}}
 
 	_, err := util.AccountCollection.UpdateOne(ctx, filter, updateAccount)
 	if err != nil {

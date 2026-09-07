@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/service"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -31,13 +32,14 @@ func SavingOwnershipMiddleware() gin.HandlerFunc {
 func SavingFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Saving struct {
-			Owner       string  `json:"owner"`
-			Balance     float64 `json:"balance"`
-			Icon        string  `json:"icon"`
-			Name        string  `json:"name"`
-			Goal        float64 `json:"goal"`
-			CreatedDate string  `json:"createdDate"`
-			GoalDate    string  `json:"goalDate"`
+			Currency    string       `json:"currency"`
+			Owner       string       `json:"owner"`
+			Balance     money.Amount `json:"balance"`
+			Icon        string       `json:"icon"`
+			Name        string       `json:"name"`
+			Goal        money.Amount `json:"goal"`
+			CreatedDate string       `json:"createdDate"`
+			GoalDate    string       `json:"goalDate"`
 		}
 		var _saving Saving
 
@@ -46,6 +48,19 @@ func SavingFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 		_saving.Owner = c.GetString("username")
+		currency, currencyErr := money.Resolve(c.Request.Context(), _saving.Currency)
+		if currencyErr != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid ledger currency"})
+			return
+		}
+		if money.Validate(_saving.Balance, currency) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid monetary precision or range"})
+			return
+		}
+		if money.Validate(_saving.Goal, currency) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid monetary precision or range"})
+			return
+		}
 
 		if _saving.Balance < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -78,6 +93,7 @@ func SavingFormatMiddleware() gin.HandlerFunc {
 		}
 
 		saving := model.Saving{
+			Currency:    currency,
 			Owner:       _saving.Owner,
 			Balance:     _saving.Balance,
 			Icon:        _saving.Icon,

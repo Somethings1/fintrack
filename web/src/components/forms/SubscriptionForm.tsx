@@ -31,7 +31,7 @@ interface SubscriptionFormProps {
 }
 
 const intervalOptions = [
-    ...(import.meta.env.DEV ? [{ label: "Test", value: "test" }] : []),
+    { label: "Day", value: "day" },
     { label: "Week", value: "week" },
     { label: "Month", value: "month" },
     { label: "Year", value: "year" },

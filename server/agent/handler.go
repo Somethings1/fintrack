@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fintrack/server/config"
+	"fintrack/server/money"
 	"fintrack/server/util"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -56,6 +57,10 @@ func Handler(cfg config.Config) gin.HandlerFunc {
 		result, err := p.draft(ctx, request.Input, catalog)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"error": "AI could not produce a safe draft; try a clearer description or enter it manually"})
+			return
+		}
+		if result.Transaction != nil && money.Validate(result.Transaction.Amount, money.Currency(ctx)) != nil {
+			c.AbortWithStatusJSON(502, gin.H{"error": "AI draft exceeds ledger precision"})
 			return
 		}
 		// Deliberately no calls into transaction services. The ordinary authenticated,

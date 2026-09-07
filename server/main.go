@@ -8,6 +8,7 @@ import (
 	"fintrack/server/controller"
 	"fintrack/server/cronjob"
 	"fintrack/server/middleware"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -46,9 +48,20 @@ func newRouter(cfg config.Config) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 	authClient := &http.Client{Timeout: 6 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	currency := cfg.LedgerCurrency
+	if currency == "" && cfg.Environment != "production" {
+		currency = "USD"
+	}
+	r.GET("/api/config", func(c *gin.Context) {
+		precision, _ := money.Precision(currency)
+		c.JSON(200, gin.H{"currency": currency, "precision": precision, "moneyVersion": 1})
+	})
 	api := r.Group("/api", middleware.OriginGuard(cfg.AllowedOrigins),
 		middleware.AuthMiddleware(cfg.SupabaseURL, cfg.SupabaseKey, authClient),
-		middleware.ContextInjectorMiddleware(), middleware.RateLimit(20, 60, 8192))
+		middleware.ContextInjectorMiddleware(), func(c *gin.Context) {
+			c.Request = c.Request.WithContext(money.WithCurrency(c.Request.Context(), currency))
+			c.Next()
+		}, middleware.RateLimit(20, 60, 8192))
 	api.GET("/ws", socket.HandleWebSocket(cfg.AllowedOrigins))
 	api.POST("/agent/draft", middleware.RateLimit(1.0/10, 3, 4096), agent.Handler(cfg))
 	api.POST("/session", func(c *gin.Context) {
@@ -196,6 +209,9 @@ func run() error {
 	defer stop()
 	startup, cancel := context.WithTimeout(ctx, 30*time.Second)
 	err = util.InitDB(startup, cfg.MongoURI, cfg.MongoDatabase)
+	if err == nil {
+		err = util.EnsureLedger(startup, cfg.LedgerCurrency)
+	}
 	cancel()
 	if err != nil {
 		return err
@@ -205,11 +221,14 @@ func run() error {
 		defer cancel()
 		_ = util.MongoClient.Disconnect(shutdown)
 	}()
+	workerCtx, stopWorker := context.WithCancel(ctx)
+	var workers sync.WaitGroup
 	if cfg.CronEnabled {
-		slog.Warn("legacy_subscription_worker_enabled", "production_supported", false)
-		go cronjob.CreateSubscriptionNotificationsCron()
-		go cronjob.CreateSubscriptionTransactionCron()
+		workers.Add(1)
+		go func() { defer workers.Done(); cronjob.Run(workerCtx, cfg.LedgerCurrency) }()
 	}
+	// Workers finish/cancel their transactions before the database disconnects.
+	defer func() { stopWorker(); workers.Wait() }()
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: newRouter(cfg), ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout: 15 * time.Second, WriteTimeout: 45 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
 	done := make(chan error, 1)

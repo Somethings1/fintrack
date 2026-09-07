@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 
@@ -53,6 +54,23 @@ func FetchSavingsSince(ctx context.Context, username string, since time.Time) (*
 }
 
 func AddSaving(ctx context.Context, saving model.Saving) (interface{}, error) {
+	saving.Owner, _ = ctx.Value(util.UserIdKey).(string)
+	if saving.Owner == "" {
+		return nil, errors.New("missing authenticated owner")
+	}
+	currency, err := money.Resolve(ctx, saving.Currency)
+	if err != nil {
+		return nil, err
+	}
+	saving.Currency = currency
+	if err := money.Validate(saving.Balance, currency); err != nil {
+		return nil, err
+	}
+	if err := money.Validate(saving.Goal, currency); err != nil {
+		return nil, err
+	}
+	saving.OpeningBalance = saving.Balance
+
 	saving.LastUpdate = time.Now()
 
 	result, err := util.SavingCollection.InsertOne(ctx, saving)
@@ -70,9 +88,19 @@ func AddSaving(ctx context.Context, saving model.Saving) (interface{}, error) {
 }
 
 func UpdateSaving(ctx context.Context, id primitive.ObjectID, saving model.Saving) error {
+	if _, err := money.Resolve(ctx, saving.Currency); err != nil {
+		return err
+	}
+	if err := money.Validate(saving.Balance, money.Currency(ctx)); err != nil {
+		return err
+	}
+	if err := money.Validate(saving.Goal, money.Currency(ctx)); err != nil {
+		return err
+	}
+
 	saving.LastUpdate = time.Now()
 	filter := util.TenantFilter(ctx, "owner", id)
-	updateSaving := bson.M{"$set": saving}
+	updateSaving := bson.M{"$set": bson.M{"name": saving.Name, "icon": saving.Icon, "goal": saving.Goal, "goal_date": saving.GoalDate, "last_update": saving.LastUpdate}}
 
 	_, err := util.SavingCollection.UpdateOne(ctx, filter, updateSaving)
 	if err != nil {

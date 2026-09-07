@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/service"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -32,12 +33,13 @@ func SubscriptionOwnershipMiddleware() gin.HandlerFunc {
 func SubscriptionFormatMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		type Subscription struct {
-			Name          string  `json:"name"`
-			Icon          string  `json:"icon"`
-			Creator       string  `json:"creator"`
-			Amount        float64 `json:"amount"`
-			SourceAccount string  `json:"sourceAccount"`
-			Category      string  `json:"category"`
+			Currency      string       `json:"currency"`
+			Name          string       `json:"name"`
+			Icon          string       `json:"icon"`
+			Creator       string       `json:"creator"`
+			Amount        money.Amount `json:"amount"`
+			SourceAccount string       `json:"sourceAccount"`
+			Category      string       `json:"category"`
 
 			StartDate       string `json:"startDate"`
 			Interval        string `json:"interval"`
@@ -54,8 +56,17 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 		_subscription.Creator = c.GetString("username")
+		currency, currencyErr := money.Resolve(c.Request.Context(), _subscription.Currency)
+		if currencyErr != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid ledger currency"})
+			return
+		}
+		if money.Validate(_subscription.Amount, currency) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid monetary precision or range"})
+			return
+		}
 
-		if _subscription.Amount <= 0 || _subscription.Amount > 1e12 {
+		if _subscription.Amount <= 0 || _subscription.Amount > money.Max {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Amount cannot be negative",
 			})
@@ -122,7 +133,7 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 		if _subscription.Interval != "week" &&
 			_subscription.Interval != "month" &&
 			_subscription.Interval != "year" &&
-			_subscription.Interval != "test" {
+			_subscription.Interval != "day" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Invalid interval type: expected " +
 					"{week|month|year}, but got `" +
@@ -131,7 +142,7 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		if _subscription.RemindBefore < 0 {
+		if _subscription.RemindBefore < 0 || _subscription.RemindBefore > 366 || _subscription.MaxInterval < 0 || _subscription.MaxInterval > 100000 || len(_subscription.Name) > 100 || _subscription.Name == "" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "RemindBefore should be a positive number",
 			})
@@ -139,6 +150,7 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 		}
 
 		subscription := model.Subscription{
+			Currency:      currency,
 			Icon:          _subscription.Icon,
 			Name:          _subscription.Name,
 			Creator:       _subscription.Creator,
@@ -149,7 +161,7 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			StartDate:       StartDate,
 			Interval:        _subscription.Interval,
 			MaxInterval:     _subscription.MaxInterval,
-			CurrentInterval: 1,
+			CurrentInterval: 0,
 			RemindBefore:    _subscription.RemindBefore,
 
 			NextActive: StartDate,

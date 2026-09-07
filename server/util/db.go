@@ -3,13 +3,13 @@ package util
 import (
 	"context"
 	"errors"
+	"fintrack/server/money"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"math"
 	"time"
 )
 
@@ -58,7 +58,7 @@ func InitDB(ctx context.Context, uri, database string) error {
 	if err != nil {
 		return errors.New("transaction idempotency index creation failed")
 	}
-	return nil
+	return ledgerIndexes(ctx)
 }
 
 // TenantFilter never falls back to an unscoped query, even if the context is missing.
@@ -71,23 +71,38 @@ func TenantFilter(ctx context.Context, field string, id primitive.ObjectID) bson
 	return filter
 }
 
-func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount float64) (int64, error) {
-	if id == primitive.NilObjectID {
+func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount money.Amount) (int64, error) {
+	if id.IsZero() {
 		return 0, nil
-	} // income/expense have one absent side
-	if math.IsNaN(amount) || math.IsInf(amount, 0) {
-		return 0, errors.New("invalid balance adjustment")
+	}
+	currency := money.Currency(sc)
+	if err := money.Validate(amount, currency); err != nil {
+		return 0, err
 	}
 	filter := TenantFilter(sc, "owner", id)
-	update := bson.M{"$inc": bson.M{"balance": amount}, "$set": bson.M{"last_update": time.Now().UTC()}}
+	filter["currency"] = currency
 	for _, collection := range []*mongo.Collection{AccountCollection, SavingCollection} {
-		result, err := collection.UpdateOne(sc, filter, update)
+		var row struct {
+			Balance money.Amount `bson:"balance"`
+		}
+		err := collection.FindOne(sc, filter).Decode(&row)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			continue
+		}
 		if err != nil {
 			return 0, err
 		}
-		if result.MatchedCount == 1 {
-			return result.ModifiedCount, nil
+		if _, err := money.Add(row.Balance, amount); err != nil {
+			return 0, err
 		}
+		result, err := collection.UpdateOne(sc, filter, bson.M{"$inc": bson.M{"balance": amount}, "$set": bson.M{"last_update": time.Now().UTC()}})
+		if err != nil {
+			return 0, err
+		}
+		if result.MatchedCount != 1 {
+			return 0, mongo.ErrNoDocuments
+		}
+		return result.ModifiedCount, nil
 	}
-	return 0, errors.New("account is missing, deleted or not owned by the authenticated user")
+	return 0, errors.New("account is missing, deleted, in a different currency, or not owned")
 }
