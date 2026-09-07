@@ -11,14 +11,14 @@ import (
 )
 
 type Config struct {
-	LedgerCurrency             string
-	Environment, Port          string
-	DatabaseURL                string
-	SupabaseURL, SupabaseKey   string
-	AllowedOrigins             []string
-	AgentEnabled               bool
-	AgentKey, AgentModel       string
-	CronEnabled                bool
+	LedgerCurrency           string
+	Environment, Port        string
+	DatabaseURL              string
+	SupabaseURL, SupabaseKey string
+	AllowedOrigins           []string
+	AgentEnabled             bool
+	AgentKey, AgentModel     string
+	CronEnabled              bool
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
@@ -98,10 +98,20 @@ func validDatabaseURL(raw, environment string) error {
 	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" || u.User == nil {
 		return fmt.Errorf("DATABASE_URL must be a PostgreSQL connection URL")
 	}
+	query, err := url.ParseQuery(u.RawQuery)
+	if err != nil || u.Fragment != "" || u.Path == "" || u.Path == "/" || u.User.Username() == "" {
+		return fmt.Errorf("DATABASE_URL must specify a database and user")
+	}
 	if environment == "production" {
-		host := u.Hostname()
-		if host == "localhost" || host == "127.0.0.1" || strings.EqualFold(u.Query().Get("sslmode"), "disable") {
-			return fmt.Errorf("production DATABASE_URL must use a remote TLS PostgreSQL endpoint")
+		host := strings.ToLower(u.Hostname())
+		mode := query.Get("sslmode")
+		if host == "localhost" || host == "127.0.0.1" || host == "::1" || (mode != "require" && mode != "verify-ca" && mode != "verify-full") {
+			return fmt.Errorf("production DATABASE_URL requires a remote endpoint and explicit TLS sslmode")
+		}
+		for _, key := range []string{"host", "hostaddr", "port", "service", "servicefile", "sslmode"} {
+			if len(query[key]) > 1 || (key != "sslmode" && len(query[key]) != 0) {
+				return fmt.Errorf("production DATABASE_URL cannot override connection routing")
+			}
 		}
 	}
 	return nil

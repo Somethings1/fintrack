@@ -8,10 +8,9 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
-	"flag"
 	"fintrack/server/model"
 	"fintrack/server/util"
+	"flag"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -85,7 +84,10 @@ func loadSnapshot(ctx context.Context, db *mongo.Database) (snapshot, error) {
 }
 
 func snapshotPlan(s snapshot) (plan, error) {
-	raw, err := json.Marshal(s)
+	// BSON includes opening balances, request hashes, and occurrence metadata
+	// hidden by the public API's json:"-" tags. The snapshot uses ordered slices
+	// and structs, not maps, so its persisted representation is deterministic.
+	raw, err := bson.Marshal(s)
 	if err != nil {
 		return plan{}, err
 	}
@@ -149,6 +151,11 @@ func apply(ctx context.Context, s snapshot, currency string) error {
 		return err
 	}
 	defer tx.Rollback()
+	// The importer is offline: prevent a target writer from racing the empty
+	// check or committing a partially overlapping import.
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE financial_accounts, categories, subscriptions, transactions, notifications IN ACCESS EXCLUSIVE MODE`); err != nil {
+		return err
+	}
 	if err := targetEmpty(ctx, tx); err != nil {
 		return err
 	}
@@ -197,6 +204,22 @@ func apply(ctx context.Context, s snapshot, currency string) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notifications(id,owner,type,reference_id,title,message,read,scheduled_at,occurrence_key,last_update,is_deleted) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, v.ID.Hex(), v.Owner, string(v.Type), v.ReferenceId.Hex(), v.Title, v.Message, v.Read, v.ScheduledAt.UTC(), stringOrNil(v.OccurrenceKey), v.LastUpdate.UTC(), v.IsDeleted); err != nil {
 			return fmt.Errorf("insert notification %s: %w", v.ID.Hex(), err)
 		}
+	}
+	var reconciled bool
+	if err := tx.QueryRowContext(ctx, `
+		WITH postings AS (
+			SELECT source_account_id AS id, -amount_micros::numeric AS delta FROM transactions WHERE NOT is_deleted AND source_account_id IS NOT NULL
+			UNION ALL
+			SELECT destination_account_id, amount_micros::numeric FROM transactions WHERE NOT is_deleted AND destination_account_id IS NOT NULL
+		), totals AS (SELECT id, SUM(delta) AS delta FROM postings GROUP BY id)
+		SELECT NOT EXISTS (
+			SELECT 1 FROM financial_accounts a LEFT JOIN totals t USING (id)
+			WHERE a.balance_micros::numeric <> a.opening_balance_micros::numeric + COALESCE(t.delta, 0)
+		)`).Scan(&reconciled); err != nil {
+		return err
+	}
+	if !reconciled {
+		return fmt.Errorf("source balances do not reconcile with opening balances and active postings; no rows imported")
 	}
 	return tx.Commit()
 }

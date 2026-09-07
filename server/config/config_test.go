@@ -38,3 +38,16 @@ func TestDevelopmentDefaultsToLocalPostgres(t *testing.T) {
 		t.Fatal("unexpected development database defaults")
 	}
 }
+
+func TestProductionDatabaseRequiresTLS(t *testing.T) {
+	for _, mode := range []string{"", "disable", "allow", "prefer", "invalid", "require&sslmode=disable", "require&host=localhost"} {
+		if err := validDatabaseURL("postgres://app:secret@db.example.test/postgres?sslmode="+mode, "production"); err == nil {
+			t.Errorf("accepted unsafe TLS mode %q", mode)
+		}
+	}
+	for _, mode := range []string{"require", "verify-ca", "verify-full"} {
+		if err := validDatabaseURL("postgres://app:secret@db.example.test/postgres?sslmode="+mode, "production"); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
