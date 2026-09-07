@@ -1,190 +1,27 @@
 package service
 
-import (
+import(
 	"context"
+	"database/sql"
 	"errors"
 	"fintrack/server/model"
 	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"time"
 )
+var ErrScheduleImmutable=errors.New("a posted schedule cannot change its start, interval, or processed count; create a new schedule")
 
-var ErrScheduleImmutable = errors.New("a posted schedule cannot change its start, interval, or processed count; create a new schedule")
+func OccurrenceAt(start time.Time,interval string,ordinal int)(time.Time,error){if start.IsZero()||start.Year()<1970||ordinal<0||ordinal>100000{return time.Time{},errors.New("invalid recurrence range")};start=start.UTC();var result time.Time;switch interval{case"day":result=start.AddDate(0,0,ordinal);case"week":result=start.AddDate(0,0,ordinal*7);case"month","year":months:=ordinal;if interval=="year"{months*=12};first:=time.Date(start.Year(),start.Month(),1,start.Hour(),start.Minute(),start.Second(),start.Nanosecond(),time.UTC).AddDate(0,months,0);last:=time.Date(first.Year(),first.Month()+1,0,0,0,0,0,time.UTC).Day();day:=start.Day();if day>last{day=last};result=time.Date(first.Year(),first.Month(),day,start.Hour(),start.Minute(),start.Second(),start.Nanosecond(),time.UTC);default:return time.Time{},errors.New("unsupported recurrence interval")};if result.Year()>9999{return time.Time{},errors.New("recurrence exceeds supported calendar")};return result,nil}
+func validateSubscription(v model.Subscription)error{if v.Creator==""||v.Name==""||len(v.Name)>100||v.Amount<=0||v.SourceAccount.IsZero()||v.Category.IsZero()||v.RemindBefore<0||v.RemindBefore>366||v.MaxInterval<0||v.MaxInterval>100000{return errors.New("invalid subscription")};if err:=money.Validate(v.Amount,v.Currency);err!=nil{return err};_,err:=OccurrenceAt(v.StartDate,v.Interval,0);return err}
+func ownedSubscriptionContext(ctx context.Context,v model.Subscription)context.Context{return money.WithCurrency(context.WithValue(ctx,util.UserIdKey,v.Creator),v.Currency)}
+func touchSubscriptionReferences(ctx context.Context,tx *sql.Tx,v model.Subscription)error{owned:=ownedSubscriptionContext(ctx,v);probe:=model.Transaction{Type:"expense",Creator:v.Creator,Currency:v.Currency,Category:v.Category};if err:=validateCategory(owned,tx,probe);err!=nil{return err};return util.LockFinancialAccount(owned,tx,v.SourceAccount)}
 
-// OccurrenceAt is anchored to the original UTC date, clamping month ends and
-// leap days instead of repeatedly adding a month to an already-clamped date.
-// Ordinal zero is the first charge. CurrentInterval is the count already posted.
-func OccurrenceAt(start time.Time, interval string, ordinal int) (time.Time, error) {
-	if start.IsZero() || start.Year() < 1970 || ordinal < 0 || ordinal > 100000 {
-		return time.Time{}, errors.New("invalid recurrence range")
-	}
-	start = start.UTC()
-	var result time.Time
-	switch interval {
-	case "day":
-		result = start.AddDate(0, 0, ordinal)
-	case "week":
-		result = start.AddDate(0, 0, ordinal*7)
-	case "month", "year":
-		months := ordinal
-		if interval == "year" {
-			months *= 12
-		}
-		first := time.Date(start.Year(), start.Month(), 1, start.Hour(), start.Minute(), start.Second(), start.Nanosecond(), time.UTC).AddDate(0, months, 0)
-		last := time.Date(first.Year(), first.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
-		day := start.Day()
-		if day > last {
-			day = last
-		}
-		result = time.Date(first.Year(), first.Month(), day, start.Hour(), start.Minute(), start.Second(), start.Nanosecond(), time.UTC)
-	default:
-		return time.Time{}, errors.New("unsupported recurrence interval")
-	}
-	if result.Year() > 9999 {
-		return time.Time{}, errors.New("recurrence exceeds supported calendar")
-	}
-	return result, nil
-}
-func validateSubscription(sub model.Subscription) error {
-	if sub.Creator == "" || sub.Name == "" || len(sub.Name) > 100 || sub.Amount <= 0 || sub.SourceAccount.IsZero() || sub.Category.IsZero() || sub.RemindBefore < 0 || sub.RemindBefore > 366 || sub.MaxInterval < 0 || sub.MaxInterval > 100000 {
-		return errors.New("invalid subscription")
-	}
-	if err := money.Validate(sub.Amount, sub.Currency); err != nil {
-		return err
-	}
-	_, err := OccurrenceAt(sub.StartDate, sub.Interval, 0)
-	return err
-}
-func subscriptionContext(sc mongo.SessionContext, sub model.Subscription) mongo.SessionContext {
-	ctx := money.WithCurrency(context.WithValue(sc, util.UserIdKey, sub.Creator), sub.Currency)
-	ctx = context.WithValue(ctx, util.ClientIdKey, "")
-	// Preserve the driver session itself, not its SessionContext wrapper.
-	return mongo.NewSessionContext(ctx, mongo.SessionFromContext(sc))
-}
-func touchSubscriptionReferences(sc mongo.SessionContext, sub model.Subscription) error {
-	tx := model.Transaction{Type: "expense", Creator: sub.Creator, Currency: sub.Currency, Category: sub.Category}
-	if err := validateCategory(sc, tx); err != nil {
-		return err
-	}
-	// A zero increment is an actual metadata write, serializing against archive.
-	_, err := util.AdjustBalance(sc, sub.SourceAccount, 0)
-	return err
-}
+func ProcessOccurrence(ctx context.Context,id primitive.ObjectID,due,now time.Time,currency string)(bool,error){tx,err:=util.BeginLedgerTx(ctx);if err!=nil{return false,err};defer tx.Rollback();sub,err:=scanSubscription(tx.QueryRowContext(ctx,`SELECT `+subscriptionCols+` FROM subscriptions WHERE id=$1 AND next_active=$2 AND is_active=true AND is_deleted=false AND schedule_version=2 AND currency=$3 FOR UPDATE`,id.Hex(),due,currency));if errors.Is(err,sql.ErrNoRows){return false,nil};if err!=nil{return false,err};if due.After(now){return false,nil};if err:=validateSubscription(sub);err!=nil{return false,err};expected,err:=OccurrenceAt(sub.StartDate,sub.Interval,sub.CurrentInterval);if err!=nil||!expected.Equal(due){return false,errors.New("schedule position does not match its anchor")};if sub.MaxInterval>0&&sub.CurrentInterval>=sub.MaxInterval{return false,errors.New("invalid completed schedule")};owned:=ownedSubscriptionContext(ctx,sub);if err:=touchSubscriptionReferences(owned,tx,sub);err!=nil{return false,err};next,err:=OccurrenceAt(sub.StartDate,sub.Interval,sub.CurrentInterval+1);if err!=nil{return false,err};active:=sub.MaxInterval==0||sub.CurrentInterval+1<sub.MaxInterval;res,err:=tx.ExecContext(ctx,`UPDATE subscriptions SET current_interval=$1,next_active=$2,notify_at=$3,is_active=$4,posting_retry_at=NULL,last_update=$5 WHERE id=$6 AND next_active=$7 AND is_active=true AND is_deleted=false`,sub.CurrentInterval+1,next,nullTime(next.AddDate(0,0,-sub.RemindBefore)),active,now.UTC(),sub.ID.Hex(),due);if err!=nil{return false,err};n,_:=res.RowsAffected();if n!=1{return false,nil};entry:=model.Transaction{ID:primitive.NewObjectID(),Creator:sub.Creator,Currency:sub.Currency,Amount:sub.Amount,DateTime:due,Type:"expense",SourceAccount:sub.SourceAccount,Category:sub.Category,Note:"Subscription payment for "+sub.Name,LastUpdate:now.UTC(),SubscriptionID:sub.ID,OccurrenceAt:due};if err:=validateTransaction(entry);err!=nil{return false,err};if err:=validateCategory(owned,tx,entry);err!=nil{return false,err};_,err=tx.ExecContext(ctx,`INSERT INTO transactions(id,creator,currency,amount_micros,date_time,type,source_account_id,category_id,note,subscription_id,occurrence_at,last_update,is_deleted) VALUES($1,$2,$3,$4,$5,'expense',$6,$7,$8,$9,$10,$11,false)`,entry.ID.Hex(),entry.Creator,entry.Currency,int64(entry.Amount),entry.DateTime,entry.SourceAccount.Hex(),entry.Category.Hex(),entry.Note,entry.SubscriptionID.Hex(),entry.OccurrenceAt,entry.LastUpdate);if err!=nil{return false,err};if _,err:=util.AdjustBalance(owned,tx,sub.SourceAccount,-sub.Amount);err!=nil{return false,err};if err:=tx.Commit();err!=nil{return false,err};for _,kind:=range[]string{"subscriptions","transactions","accounts","savings"}{socket.Manager.BroadcastToUserExcept(sub.Creator,"",map[string]string{"collection":kind,"action":"refresh"})};return true,nil}
 
-// ProcessOccurrence atomically advances the schedule, inserts the unique
-// occurrence, and posts its balance effect. Retried/crashed/concurrent workers
-// cannot commit only part of an occurrence, and tombstones retain deduplication.
-func ProcessOccurrence(ctx context.Context, id primitive.ObjectID, due, now time.Time, currency string) (bool, error) {
-	session, err := util.StartLedgerSession()
-	if err != nil {
-		return false, err
-	}
-	defer session.EndSession(ctx)
-	result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		filter := bson.M{"_id": id, "next_active": due, "is_active": true, "is_deleted": false, "schedule_version": 2, "currency": currency}
-		var sub model.Subscription
-		if err := util.SubscriptionCollection.FindOne(sc, filter).Decode(&sub); err != nil {
-			if errors.Is(err, mongo.ErrNoDocuments) {
-				return false, nil
-			}
-			return nil, err
-		}
-		if due.After(now) {
-			return false, nil
-		}
-		if err := validateSubscription(sub); err != nil {
-			return nil, err
-		}
-		expected, err := OccurrenceAt(sub.StartDate, sub.Interval, sub.CurrentInterval)
-		if err != nil || !expected.Equal(due) {
-			return nil, errors.New("schedule position does not match its anchor")
-		}
-		if sub.MaxInterval > 0 && sub.CurrentInterval >= sub.MaxInterval {
-			return nil, errors.New("invalid completed schedule")
-		}
-		sc = subscriptionContext(sc, sub)
-		next, err := OccurrenceAt(sub.StartDate, sub.Interval, sub.CurrentInterval+1)
-		if err != nil {
-			return nil, err
-		}
-		active := sub.MaxInterval == 0 || sub.CurrentInterval+1 < sub.MaxInterval
-		update := bson.M{"current_interval": sub.CurrentInterval + 1, "next_active": next, "notify_at": next.AddDate(0, 0, -sub.RemindBefore), "is_active": active, "last_update": now.UTC()}
-		res, err := util.SubscriptionCollection.UpdateOne(sc, filter, bson.M{"$set": update})
-		if err != nil {
-			return nil, err
-		}
-		if res.MatchedCount != 1 {
-			return false, nil
-		}
-		tx := model.Transaction{ID: primitive.NewObjectID(), Creator: sub.Creator, Currency: sub.Currency, Amount: sub.Amount, DateTime: due, Type: "expense", SourceAccount: sub.SourceAccount, Category: sub.Category, Note: "Subscription payment for " + sub.Name, LastUpdate: now.UTC(), SubscriptionID: sub.ID, OccurrenceAt: due}
-		if err := validateTransaction(tx); err != nil {
-			return nil, err
-		}
-		if err := validateCategory(sc, tx); err != nil {
-			return nil, err
-		}
-		if _, err := util.TransactionCollection.InsertOne(sc, tx); err != nil {
-			return nil, err
-		}
-		if _, err := util.AdjustBalance(sc, sub.SourceAccount, -sub.Amount); err != nil {
-			return nil, err
-		}
-		return true, nil
-	})
-	posted, _ := result.(bool)
-	if posted && err == nil {
-		// The worker's outer context intentionally has no user. Broadcast only after
-		// commit and from the stored subscription owner, never a supplied payload.
-		var sub model.Subscription
-		if util.SubscriptionCollection.FindOne(ctx, bson.M{"_id": id, "currency": currency}).Decode(&sub) == nil {
-			for _, kind := range []string{"subscriptions", "transactions", "accounts", "savings"} {
-				socket.Manager.BroadcastToUserExcept(sub.Creator, "", map[string]string{"collection": kind, "action": "refresh"})
-			}
-		}
-	}
-	return posted, err
-}
+func ProcessReminder(ctx context.Context,id primitive.ObjectID,notifyAt,now time.Time,currency string)(bool,error){tx,err:=util.BeginLedgerTx(ctx);if err!=nil{return false,err};defer tx.Rollback();sub,err:=scanSubscription(tx.QueryRowContext(ctx,`SELECT `+subscriptionCols+` FROM subscriptions WHERE id=$1 AND notify_at=$2 AND is_active=true AND is_deleted=false AND schedule_version=2 AND currency=$3 FOR UPDATE`,id.Hex(),notifyAt,currency));if errors.Is(err,sql.ErrNoRows){return false,nil};if err!=nil{return false,err};if notifyAt.IsZero()||notifyAt.After(now)||!sub.NextActive.After(now){return false,nil};key:=sub.ID.Hex()+":"+sub.NextActive.UTC().Format(time.RFC3339Nano);res,err:=tx.ExecContext(ctx,`UPDATE subscriptions SET notify_at=NULL,reminder_retry_at=NULL,last_update=$1 WHERE id=$2 AND notify_at=$3`,now.UTC(),sub.ID.Hex(),notifyAt);if err!=nil{return false,err};n,_:=res.RowsAffected();if n!=1{return false,nil};notification:=model.Notification{ID:primitive.NewObjectID(),Owner:sub.Creator,Type:model.TypeSubscription,ReferenceId:sub.ID,Title:"Subscription reminder",Message:fmt.Sprintf("%s is due on %s (UTC)",sub.Name,sub.NextActive.UTC().Format("2006-01-02")),ScheduledAt:now.UTC(),LastUpdate:now.UTC(),OccurrenceKey:key};result,err:=tx.ExecContext(ctx,`INSERT INTO notifications(id,owner,type,reference_id,title,message,read,scheduled_at,occurrence_key,last_update,is_deleted) VALUES($1,$2,$3,$4,$5,$6,false,$7,$8,$9,false) ON CONFLICT (owner,occurrence_key) WHERE occurrence_key IS NOT NULL DO NOTHING`,notification.ID.Hex(),notification.Owner,string(notification.Type),notification.ReferenceId.Hex(),notification.Title,notification.Message,notification.ScheduledAt,notification.OccurrenceKey,notification.LastUpdate);if err!=nil{return false,err};created,_:=result.RowsAffected();if err:=tx.Commit();err!=nil{return false,err};return created==1,nil}
 
-func ProcessReminder(ctx context.Context, id primitive.ObjectID, notifyAt, now time.Time, currency string) (bool, error) {
-	session, err := util.StartLedgerSession()
-	if err != nil {
-		return false, err
-	}
-	defer session.EndSession(ctx)
-	result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		filter := bson.M{"_id": id, "notify_at": notifyAt, "is_active": true, "is_deleted": false, "schedule_version": 2, "currency": currency}
-		var sub model.Subscription
-		if err := util.SubscriptionCollection.FindOne(sc, filter).Decode(&sub); err != nil {
-			if errors.Is(err, mongo.ErrNoDocuments) {
-				return false, nil
-			}
-			return nil, err
-		}
-		if notifyAt.IsZero() || notifyAt.After(now) || !sub.NextActive.After(now) {
-			return false, nil
-		}
-		sc = subscriptionContext(sc, sub)
-		key := sub.ID.Hex() + ":" + sub.NextActive.UTC().Format(time.RFC3339Nano)
-		// Clearing the due marker and inserting the reminder are one transaction.
-		if _, err := util.SubscriptionCollection.UpdateOne(sc, filter, bson.M{"$set": bson.M{"notify_at": time.Time{}, "last_update": now.UTC()}}); err != nil {
-			return nil, err
-		}
-		existing, err := util.NotificationCollection.CountDocuments(sc, bson.M{"owner": sub.Creator, "occurrence_key": key})
-		if err != nil {
-			return nil, err
-		}
-		if existing > 0 {
-			return false, nil
-		}
-		n := model.Notification{ID: primitive.NewObjectID(), Owner: sub.Creator, Type: model.TypeSubscription, ReferenceId: sub.ID, Title: "Subscription reminder", Message: fmt.Sprintf("%s is due on %s (UTC)", sub.Name, sub.NextActive.UTC().Format("2006-01-02")), ScheduledAt: now.UTC(), LastUpdate: now.UTC(), OccurrenceKey: key}
-		_, err = util.NotificationCollection.InsertOne(sc, n)
-		return err == nil, err
-	})
-	made, _ := result.(bool)
-	return made, err
-}
+func DueSubscriptions(ctx context.Context,field string,now time.Time,currency string,limit int)([]model.Subscription,error){column,retry:="next_active","posting_retry_at";if field=="notify_at"{column,retry="notify_at","reminder_retry_at"}else if field!="next_active"{return nil,errors.New("invalid due field")};query:=`SELECT `+subscriptionCols+` FROM subscriptions WHERE schedule_version=2 AND is_active=true AND is_deleted=false AND currency=$1 AND `+column+` IS NOT NULL AND `+column+`<=$2 AND (`+retry+` IS NULL OR `+retry+`<=$2) ORDER BY `+column+`,id LIMIT $3`;rows,err:=util.DB.QueryContext(ctx,query,currency,now,limit);if err!=nil{return nil,err};defer rows.Close();out:=[]model.Subscription{};for rows.Next(){v,e:=scanSubscription(rows);if e!=nil{return nil,e};out=append(out,v)};return out,rows.Err()}
+func BackoffSubscription(ctx context,id primitive.ObjectID,field string,due,until time.Time)error{column,retry:="next_active","posting_retry_at";if field=="notify_at"{column,retry="notify_at","reminder_retry_at"}else if field!="next_active"{return errors.New("invalid due field")};_,err:=util.DB.ExecContext(ctx,`UPDATE subscriptions SET `+retry+`=$1 WHERE id=$2 AND `+column+`=$3`,until,id.Hex(),due);return err}

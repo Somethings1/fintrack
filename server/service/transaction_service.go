@@ -1,231 +1,36 @@
 package service
 
-import (
+import(
 	"context"
+	"database/sql"
 	"errors"
-	"fintrack/server/money"
-	"fmt"
-	"time"
-
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
-
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"time"
 )
 
-func GetTransactionByID(parent context.Context, id string) (model.Transaction, error) {
-	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
-	defer cancel()
+const transactionCols=`id,creator,currency,amount_micros,date_time,type,source_account_id,destination_account_id,category_id,note,COALESCE(request_key,''),COALESCE(request_hash,''),subscription_id,occurrence_at,last_update,is_deleted`
+func GetTransactionByID(ctx context.Context,id string)(model.Transaction,error){if _,err:=primitive.ObjectIDFromHex(id);err!=nil{return model.Transaction{},err};return scanTransaction(util.DB.QueryRowContext(ctx,`SELECT `+transactionCols+` FROM transactions WHERE id=$1 AND creator=$2 AND is_deleted=false`,id,util.UserID(ctx)))}
 
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return model.Transaction{}, err
-	}
-
-	var transaction model.Transaction
-
-	err = util.TransactionCollection.FindOne(ctx, util.TenantFilter(ctx, "creator", objectID)).Decode(&transaction)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return model.Transaction{}, errors.New("transaction not found")
-		}
-		return model.Transaction{}, err
-	}
-
-	return transaction, nil
+func addTransactionInternal(ctx context.Context,v model.Transaction)(interface{},error){
+	v.Creator=util.UserID(ctx);v.IsDeleted=false;currency,err:=money.Resolve(ctx,v.Currency);if err!=nil{return nil,err};v.Currency=currency;if err:=validateTransaction(v);err!=nil{return nil,err};v.ID=primitive.NewObjectID();v.RequestKey,_=ctx.Value(util.RequestKey).(string);v.RequestHash=transactionDigest(v)
+	if v.RequestKey!=""{if id,e:=replayTransaction(ctx,v.RequestKey,v.RequestHash);e==nil{return id,nil}else if !errors.Is(e,sql.ErrNoRows){return nil,e}}
+	tx,err:=util.BeginLedgerTx(ctx);if err!=nil{return nil,err};defer tx.Rollback();if err:=validateCategory(ctx,tx,v);err!=nil{return nil,err}
+	v.LastUpdate=time.Now().UTC();_,err=tx.ExecContext(ctx,`INSERT INTO transactions(id,creator,currency,amount_micros,date_time,type,source_account_id,destination_account_id,category_id,note,request_key,request_hash,subscription_id,occurrence_at,last_update,is_deleted) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false)`,v.ID.Hex(),v.Creator,v.Currency,int64(v.Amount),v.DateTime,v.Type,nullID(v.SourceAccount),nullID(v.DestinationAccount),nullID(v.Category),v.Note,nullString(v.RequestKey),nullString(v.RequestHash),nullID(v.SubscriptionID),nullTime(v.OccurrenceAt),v.LastUpdate)
+	if err==nil&&!v.SourceAccount.IsZero(){_,err=util.AdjustBalance(ctx,tx,v.SourceAccount,-v.Amount)};if err==nil&&!v.DestinationAccount.IsZero(){_,err=util.AdjustBalance(ctx,tx,v.DestinationAccount,v.Amount)}
+	if err!=nil{if v.RequestKey!=""{if id,e:=replayTransaction(ctx,v.RequestKey,v.RequestHash);e==nil{return id,nil}};return nil,err};if err:=tx.Commit();err!=nil{return nil,err};return v.ID,nil
 }
+func AddTransactionSilent(ctx context.Context,v model.Transaction)(interface{},error){return addTransactionInternal(ctx,v)}
+func AddTransaction(ctx context.Context,v model.Transaction)(interface{},error){id,err:=addTransactionInternal(ctx,v);if err==nil{socket.BroadcastFromContext(ctx,map[string]interface{}{"collection":"transactions","action":"create"})};return id,err}
 
-func FetchTransactionsSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
-	filter := bson.M{
-		"last_update": bson.M{
-			"$gte": since,
-		},
-		"creator": username,
-	}
-
-	opts := options.Find().SetSort(bson.D{
-		{Key: "last_update", Value: 1}, {Key: "_id", Value: 1},
-	})
-
-	return util.TransactionCollection.Find(ctx, filter, opts)
+func UpdateTransaction(ctx context.Context,id primitive.ObjectID,v model.Transaction)error{
+	v.Creator=util.UserID(ctx);v.ID=id;v.IsDeleted=false;currency,err:=money.Resolve(ctx,v.Currency);if err!=nil{return err};v.Currency=currency;if err:=validateTransaction(v);err!=nil{return err};tx,err:=util.BeginLedgerTx(ctx);if err!=nil{return err};defer tx.Rollback()
+	old,err:=scanTransaction(tx.QueryRowContext(ctx,`SELECT `+transactionCols+` FROM transactions WHERE id=$1 AND creator=$2 AND is_deleted=false FOR UPDATE`,id.Hex(),util.UserID(ctx)));if err!=nil{return err};if err:=validateCategory(ctx,tx,v);err!=nil{return err}
+	for _,change:=range[]struct{id primitive.ObjectID;amount money.Amount}{{old.SourceAccount,old.Amount},{old.DestinationAccount,-old.Amount},{v.SourceAccount,-v.Amount},{v.DestinationAccount,v.Amount}}{if !change.id.IsZero(){if _,err:=util.AdjustBalance(ctx,tx,change.id,change.amount);err!=nil{return err}}}
+	v.LastUpdate=time.Now().UTC();res,err:=tx.ExecContext(ctx,`UPDATE transactions SET currency=$1,amount_micros=$2,date_time=$3,type=$4,source_account_id=$5,destination_account_id=$6,category_id=$7,note=$8,last_update=$9 WHERE id=$10 AND creator=$11 AND is_deleted=false`,v.Currency,int64(v.Amount),v.DateTime,v.Type,nullID(v.SourceAccount),nullID(v.DestinationAccount),nullID(v.Category),v.Note,v.LastUpdate,id.Hex(),util.UserID(ctx));if err!=nil{return err};n,_:=res.RowsAffected();if n!=1{return sql.ErrNoRows};if err:=tx.Commit();err!=nil{return err};socket.BroadcastFromContext(ctx,map[string]interface{}{"collection":"transactions","action":"update"});return nil
 }
-
-func addTransactionInternal(ctx context.Context, transaction model.Transaction) (interface{}, error) {
-	transaction.Creator, _ = ctx.Value(util.UserIdKey).(string)
-	transaction.IsDeleted = false
-	var currencyErr error
-	transaction.Currency, currencyErr = money.Resolve(ctx, transaction.Currency)
-	if currencyErr != nil {
-		return nil, currencyErr
-	}
-	if err := validateTransaction(transaction); err != nil {
-		return nil, err
-	}
-	transaction.ID = primitive.NewObjectID()
-	transaction.RequestKey, _ = ctx.Value(util.RequestKey).(string)
-	transaction.RequestHash = transactionDigest(transaction)
-	if transaction.RequestKey != "" {
-		id, err := replayTransaction(ctx, transaction.RequestKey, transaction.RequestHash)
-		if err == nil {
-			return id, nil
-		}
-		if !errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, err
-		}
-	}
-	session, err := util.StartLedgerSession()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to start session: %w", err)
-	}
-	defer session.EndSession(ctx)
-
-	transaction.LastUpdate = time.Now()
-
-	result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		if err := validateCategory(sc, transaction); err != nil {
-			return nil, err
-		}
-		res, err := util.TransactionCollection.InsertOne(sc, transaction)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to insert transaction: %w", err)
-		}
-
-		if transaction.SourceAccount != primitive.NilObjectID {
-			if _, err := util.AdjustBalance(sc, transaction.SourceAccount, -transaction.Amount); err != nil {
-				return nil, fmt.Errorf("Failed to adjust source account balance: %w", err)
-			}
-		}
-
-		if transaction.DestinationAccount != primitive.NilObjectID {
-			if _, err := util.AdjustBalance(sc, transaction.DestinationAccount, transaction.Amount); err != nil {
-				return nil, fmt.Errorf("Failed to adjust destination account balance: %w", err)
-			}
-		}
-
-		return res.InsertedID, nil
-	})
-
-	if err != nil && transaction.RequestKey != "" && mongo.IsDuplicateKeyError(err) {
-		return replayTransaction(ctx, transaction.RequestKey, transaction.RequestHash)
-	}
-	return result, err
-}
-
-func AddTransactionSilent(ctx context.Context, transaction model.Transaction) (interface{}, error) {
-	return addTransactionInternal(ctx, transaction)
-}
-
-func AddTransaction(ctx context.Context, transaction model.Transaction) (interface{}, error) {
-	result, err := addTransactionInternal(ctx, transaction)
-	if err != nil {
-		return nil, err
-	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "transactions",
-		"action":     "create",
-		"detail":     transaction,
-	})
-
-	return result, nil
-}
-
-func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.Transaction) error {
-	newTx.Creator, _ = ctx.Value(util.UserIdKey).(string)
-	newTx.ID = id
-	newTx.IsDeleted = false
-	var currencyErr error
-	newTx.Currency, currencyErr = money.Resolve(ctx, newTx.Currency)
-	if currencyErr != nil {
-		return currencyErr
-	}
-	if err := validateTransaction(newTx); err != nil {
-		return err
-	}
-	session, err := util.StartLedgerSession()
-	if err != nil {
-		return err
-	}
-	defer session.EndSession(ctx)
-	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		var old model.Transaction
-		if err := util.TransactionCollection.FindOne(sc, util.TenantFilter(sc, "creator", id)).Decode(&old); err != nil {
-			return nil, err
-		}
-		if err := validateCategory(sc, newTx); err != nil {
-			return nil, err
-		}
-		for _, change := range []struct {
-			id     primitive.ObjectID
-			amount money.Amount
-		}{{old.SourceAccount, old.Amount}, {old.DestinationAccount, -old.Amount}, {newTx.SourceAccount, -newTx.Amount}, {newTx.DestinationAccount, newTx.Amount}} {
-			if _, err := util.AdjustBalance(sc, change.id, change.amount); err != nil {
-				return nil, err
-			}
-		}
-		newTx.LastUpdate = time.Now().UTC()
-		// BSON omitempty excludes inapplicable references from $set. Explicitly
-		// clear the old side when changing expense/income/transfer types so a
-		// later reversal cannot use stale source, destination or category IDs.
-		update := bson.M{"$set": newTx}
-		unset := bson.M{}
-		for field, ref := range map[string]primitive.ObjectID{"source_account": newTx.SourceAccount, "destination_account": newTx.DestinationAccount, "category": newTx.Category} {
-			if ref.IsZero() {
-				unset[field] = ""
-			}
-		}
-		if len(unset) > 0 {
-			update["$unset"] = unset
-		}
-		result, err := util.TransactionCollection.UpdateOne(sc, util.TenantFilter(sc, "creator", id), update)
-		if err != nil {
-			return nil, err
-		}
-		if result.MatchedCount != 1 {
-			return nil, mongo.ErrNoDocuments
-		}
-		return nil, nil
-	})
-	if err == nil {
-		socket.BroadcastFromContext(ctx, map[string]interface{}{"collection": "transactions", "action": "update"})
-	}
-	return err
-}
-
-func DeleteTransaction(ctx context.Context, id primitive.ObjectID) error {
-	session, err := util.StartLedgerSession()
-	if err != nil {
-		return err
-	}
-	defer session.EndSession(ctx)
-	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-		var tx model.Transaction
-		if err := util.TransactionCollection.FindOne(sc, util.TenantFilter(sc, "creator", id)).Decode(&tx); err != nil {
-			return nil, err
-		}
-		for _, change := range []struct {
-			id     primitive.ObjectID
-			amount money.Amount
-		}{{tx.SourceAccount, tx.Amount}, {tx.DestinationAccount, -tx.Amount}} {
-			if _, err := util.AdjustBalance(sc, change.id, change.amount); err != nil {
-				return nil, err
-			}
-		}
-		result, err := util.TransactionCollection.UpdateOne(sc, util.TenantFilter(sc, "creator", id), bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now().UTC()}})
-		if err != nil {
-			return nil, err
-		}
-		if result.MatchedCount != 1 {
-			return nil, mongo.ErrNoDocuments
-		}
-		return nil, nil
-	})
-	if err == nil {
-		socket.BroadcastFromContext(ctx, map[string]interface{}{"collection": "transactions", "action": "delete"})
-	}
-	return err
-}
+func DeleteTransaction(ctx context.Context,id primitive.ObjectID)error{tx,err:=util.BeginLedgerTx(ctx);if err!=nil{return err};defer tx.Rollback();v,err:=scanTransaction(tx.QueryRowContext(ctx,`SELECT `+transactionCols+` FROM transactions WHERE id=$1 AND creator=$2 AND is_deleted=false FOR UPDATE`,id.Hex(),util.UserID(ctx)));if err!=nil{return err};for _,change:=range[]struct{id primitive.ObjectID;amount money.Amount}{{v.SourceAccount,v.Amount},{v.DestinationAccount,-v.Amount}}{if !change.id.IsZero(){if _,err:=util.AdjustBalance(ctx,tx,change.id,change.amount);err!=nil{return err}}};res,err:=tx.ExecContext(ctx,`UPDATE transactions SET is_deleted=true,last_update=now() WHERE id=$1 AND creator=$2 AND is_deleted=false`,id.Hex(),util.UserID(ctx));if err!=nil{return err};n,_:=res.RowsAffected();if n!=1{return sql.ErrNoRows};if err:=tx.Commit();err!=nil{return err};socket.BroadcastFromContext(ctx,map[string]interface{}{"collection":"transactions","action":"delete"});return nil}
+func SyncTransactions(ctx context.Context,user string,since,after time.Time,afterID primitive.ObjectID,limit int)([]model.Transaction,bool,error){after,id:=afterArgs(after,afterID);rows,err:=util.DB.QueryContext(ctx,`SELECT `+transactionCols+` FROM transactions WHERE creator=$1 AND last_update >= $2 AND ($3::timestamptz IS NULL OR (last_update,id)>($3,$4)) ORDER BY last_update,id LIMIT $5`,user,since,nullTime(after),nullString(id),limit+1);if err!=nil{return nil,false,err};defer rows.Close();out:=make([]model.Transaction,0,limit+1);for rows.Next(){v,e:=scanTransaction(rows);if e!=nil{return nil,false,e};out=append(out,v)};if err:=rows.Err();err!=nil{return nil,false,err};more:=len(out)>limit;if more{out=out[:limit]};return out,more,nil}
