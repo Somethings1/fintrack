@@ -56,9 +56,14 @@ export async function confirmAgentProposal(proposal: AgentProposal): Promise<str
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (operation === 'create' && proposal.entity === 'transaction') headers['Idempotency-Key'] = proposal.id;
     let response: Response;
+    let body: string;
     try {
         response = await apiFetch(path, { method: operation === 'create' ? 'POST' : operation === 'update' ? 'PUT' : 'DELETE', headers,
             body: operation === 'delete' ? undefined : JSON.stringify(proposal.values) });
+        // Complete the response even for updates/deletes. Returning at headers
+        // leaves an unread fetch body susceptible to the request timeout/abort.
+        // Do not announce completion or trigger a refresh before consuming it.
+        body = await response.text();
     } catch {
         throw new Error('Save outcome is unknown. Check your records before requesting another change; this card will not automatically retry.');
     } finally {
@@ -71,7 +76,8 @@ export async function confirmAgentProposal(proposal: AgentProposal): Promise<str
         throw new Error('Save outcome is uncertain. Check your records before making another change.');
     }
     if (operation === 'create') {
-        const result: unknown = await response.json().catch(() => null);
+        let result: unknown;
+        try { result = JSON.parse(body); } catch { result = null; }
         if (!object(result) || typeof result.id !== 'string') throw new Error('The save returned an unexpected response. Check your records; do not submit it again.');
         return result.id;
     }
