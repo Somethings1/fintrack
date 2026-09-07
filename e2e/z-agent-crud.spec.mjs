@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
+// These mutation regressions must never run against a hosted or customer app.
+test.beforeEach(async ({baseURL}) => {
+  expect(baseURL).toBe('http://127.0.0.1:5173');
+});
+
 async function login(page) {
   await page.goto('/login', {waitUntil:'domcontentloaded'});
   await page.getByLabel('Email',{exact:true}).fill('bob@example.test');
@@ -12,6 +17,8 @@ async function login(page) {
   await page.getByRole('button',{name:'Open transaction assistant'}).click();
   await expect(page.getByRole('tab',{name:'Chat',exact:true})).toHaveAttribute('aria-selected','true');
   await page.getByRole('checkbox',{name:/Send my question/}).check();
+  await page.getByRole('checkbox',{name:'Allow change proposals',exact:true}).check();
+  await page.getByRole('checkbox',{name:'Allow delete/archive proposals',exact:true}).check();
   return token;
 }
 const collections={account:'accounts',saving:'savings',category:'categories',transaction:'transactions',subscription:'subscriptions'};
