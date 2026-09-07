@@ -60,6 +60,7 @@ func newRouter(cfg config.Config) *gin.Engine {
 	}, middleware.RateLimit(20, 60, 8192))
 	api.GET("/ws", socket.HandleWebSocket(cfg.AllowedOrigins))
 	api.POST("/agent/draft", middleware.RateLimit(1.0/10, 3, 4096), agent.Handler(cfg))
+	api.POST("/agent/message", middleware.RateLimit(1.0/10, 3, 4096), agent.MessageHandler(cfg))
 	api.POST("/session", func(c *gin.Context) {
 		header := strings.Fields(c.GetHeader("Authorization"))
 		if len(header) != 2 || !strings.EqualFold(header[0], "Bearer") {
@@ -104,7 +105,7 @@ func newRouter(cfg config.Config) *gin.Engine {
 	notifs.POST("/add", middleware.NotificationFormatMiddleware(), controller.AddNotification)
 	notifs.GET("/get-since/:time", controller.GetNotificationsSince)
 	notifs.PUT("/mark-read", controller.MarkNotificationsRead)
-	notifs.PUT("/update/:id", middleware.NotificationOwnershipMiddleware(), middleware.NotificationFormatMiddleware(), controller.UpdateNotification)
+	notifs.PUT("/update/:id", middleware.NotificationOwnershipMiddleware(), controller.UpdateNotification)
 	notifs.DELETE("/delete/:id", middleware.NotificationOwnershipMiddleware(), controller.DeleteNotification)
 	return r
 }

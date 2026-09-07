@@ -5,8 +5,9 @@ import type { Transaction } from '@/models/Transaction';
 import { addTransaction } from '@/services/transactionService';
 import { requestTransactionDraft } from '@/utils/chatbotUtils';
 import { RobotOutlined } from '@ant-design/icons';
-import { Alert,Button,Checkbox,Descriptions,Input,Modal,Space,Typography } from 'antd';
+import { Alert,Button,Checkbox,Descriptions,Input,Modal,Space,Tabs,Typography } from 'antd';
 import { useEffect,useRef,useState } from 'react';
+import FinancialChat from './FinancialChat';
 import './ChatBot.css';
 
 /** Propose -> inspect -> explicitly confirm. The model never receives a mutation tool. */
@@ -44,29 +45,33 @@ export default function ChatBot() {
         finally { saving.current = false; setBusy(false); }
     };
     const close = () => { if (saving.current) return; controller.current?.abort(); setBusy(false); setOpen(false); };
+    const draftPanel = <Space direction="vertical" style={{ width: '100%' }}>
+        <Alert type="info" showIcon message="Drafts only. Nothing is saved until you confirm. This is not financial advice." />
+        <Checkbox checked={consent} onChange={event => setConsent(event.target.checked)}>
+            Send this description and my account/category names to Google Gemini to prepare a draft. Do not include passwords or bank credentials.
+        </Checkbox>
+        <Input.TextArea aria-label="Describe a transaction" value={input} maxLength={1500} showCount rows={3} onChange={event => { setInput(event.target.value); setDraft(null); }} placeholder="I spent 20 on lunch from Wallet, in Food." disabled={busy} />
+        <Button type="primary" loading={busy && !saving.current} disabled={!consent || !input.trim() || busy} onClick={() => void propose()}>Prepare draft</Button>
+        {status && <Typography.Paragraph role="status">{status}</Typography.Paragraph>}
+        {draft && <>
+            <Descriptions bordered column={1} size="small" title="Review every field">
+                <Descriptions.Item label="Type">{draft.type}</Descriptions.Item>
+                <Descriptions.Item label="Amount">{draft.amount} (your configured currency)</Descriptions.Item>
+                <Descriptions.Item label="From">{names.get(draft.sourceAccount ?? '') ?? 'External'}</Descriptions.Item>
+                <Descriptions.Item label="To">{names.get(draft.destinationAccount ?? '') ?? 'External'}</Descriptions.Item>
+                <Descriptions.Item label="Category">{names.get(draft.category ?? '') ?? 'Transfer'}</Descriptions.Item>
+                <Descriptions.Item label="Note">{draft.note}</Descriptions.Item>
+            </Descriptions>
+            <Space><Button onClick={() => setDraft(null)} disabled={busy}>Discard</Button><Button type="primary" onClick={() => void accept()} disabled={busy || !consent} loading={saving.current}>Confirm and save transaction</Button></Space>
+        </>}
+    </Space>;
     return <>
         <Button className="chatbot-toggle" icon={<RobotOutlined />} onClick={() => setOpen(true)} aria-label="Open transaction assistant">Assistant</Button>
-        <Modal title="Transaction drafting assistant" open={open} onCancel={close} footer={null}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-                <Alert type="info" showIcon message="Drafts only. Nothing is saved until you confirm. This is not financial advice." />
-                <Checkbox checked={consent} onChange={event => setConsent(event.target.checked)}>
-                    Send this description and my account/category names to Google Gemini to prepare a draft. Do not include passwords or bank credentials.
-                </Checkbox>
-                <Input.TextArea aria-label="Describe a transaction" value={input} maxLength={1500} showCount rows={3} onChange={event => { setInput(event.target.value); setDraft(null); }} placeholder="I spent 20 on lunch from Wallet, in Food." disabled={busy} />
-                <Button type="primary" loading={busy && !saving.current} disabled={!consent || !input.trim() || busy} onClick={() => void propose()}>Prepare draft</Button>
-                {status && <Typography.Paragraph role="status">{status}</Typography.Paragraph>}
-                {draft && <>
-                    <Descriptions bordered column={1} size="small" title="Review every field">
-                        <Descriptions.Item label="Type">{draft.type}</Descriptions.Item>
-                        <Descriptions.Item label="Amount">{draft.amount} (your configured currency)</Descriptions.Item>
-                        <Descriptions.Item label="From">{names.get(draft.sourceAccount ?? '') ?? 'External'}</Descriptions.Item>
-                        <Descriptions.Item label="To">{names.get(draft.destinationAccount ?? '') ?? 'External'}</Descriptions.Item>
-                        <Descriptions.Item label="Category">{names.get(draft.category ?? '') ?? 'Transfer'}</Descriptions.Item>
-                        <Descriptions.Item label="Note">{draft.note}</Descriptions.Item>
-                    </Descriptions>
-                    <Space><Button onClick={() => setDraft(null)} disabled={busy}>Discard</Button><Button type="primary" onClick={() => void accept()} disabled={busy || !consent} loading={saving.current}>Confirm and save transaction</Button></Space>
-                </>}
-            </Space>
+        <Modal title="FinTrack assistant" open={open} onCancel={close} footer={null} width={680}>
+            <Tabs defaultActiveKey="draft" items={[
+                { key: 'draft', label: 'Draft transaction', children: draftPanel },
+                { key: 'chat', label: 'Ask finances', disabled: busy, children: open ? <FinancialChat /> : null },
+            ]} />
         </Modal>
     </>;
 }
