@@ -8,9 +8,9 @@ services:
       POSTGRES_PASSWORD: fintrack
       POSTGRES_DB: fintrack
     ports: ['127.0.0.1:5432:5432']
-    volumes: [postgres-data:/var/lib/postgresql/data]
+    volumes: [postgres-data:/var/lib/postgresql]
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U fintrack -d fintrack']
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U fintrack -d fintrack']
       interval: 3s
       timeout: 3s
       retries: 20
