@@ -24,6 +24,9 @@ jobs:
         run: |
           set +e
           {
+            echo '=== TIDY ==='
+            go mod tidy
+            echo "tidy_exit=$?"
             echo '=== GOFMT ==='
             gofmt -w .
             echo "gofmt_exit=$?"
@@ -37,10 +40,15 @@ jobs:
             go build ./...
             echo "build_exit=$?"
           } > ../db-migration-diagnostics.txt 2>&1
+          git diff -- . > ../db-migration-format.patch
           exit 0
       - name: Upload diagnostics
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: db-migration-diagnostics
-          path: db-migration-diagnostics.txt
+          path: |
+            db-migration-diagnostics.txt
+            db-migration-format.patch
+            server/go.mod
+            server/go.sum
           retention-days: 1
