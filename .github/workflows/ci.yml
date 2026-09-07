@@ -183,6 +183,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Fail-closed release guard tests
+        run: python3 -m unittest discover -s tests/ops -v
       - name: Real PostgreSQL owner-isolation tests
         run: bash scripts/test-policies.sh
 
@@ -206,6 +208,8 @@ jobs:
             web/package-lock.json
             e2e/package-lock.json
       - run: npm ci --legacy-peer-deps --prefix web && npm ci --prefix e2e
+      - name: Browser dependency audit
+        run: npm audit --prefix e2e --audit-level=high
       - name: Build the real client with disposable auth configuration
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:8089

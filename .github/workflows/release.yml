@@ -1,0 +1,52 @@
+name: Governed release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fintrack-release
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: python3 scripts/release.py preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+  publish:
+    needs: preflight
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build, test, scan and publish an immutable matched image set
+        run: python3 scripts/release.py publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VITE_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Preserve release digests and SBOMs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ github.sha }}-${{ github.run_id }}
+          path: release-artifacts/
+          retention-days: 90
+      - name: Remove disposable stack
+        if: ${{ always() }}
+        run: |
+          docker rm -f fintrack-edge fintrack-web fintrack-api fintrack-mongo || true
+          docker network rm fintrack-ci || true
+          docker logout ghcr.io || true
