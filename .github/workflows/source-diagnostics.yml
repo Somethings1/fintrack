@@ -4,19 +4,74 @@ on:
     branches: [main]
 permissions:
   contents: read
+concurrency:
+  group: temporary-hardening-maintenance
+  cancel-in-progress: false
 jobs:
   snapshot:
-    if: github.head_ref == 'codex/production-readiness'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'longnt27' && github.head_ref == 'codex/production-readiness'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - name: Archive tracked source only
-        run: git archive --format=tar HEAD | gzip > /tmp/fintrack-source.tar.gz
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.26.5'
+      - name: Reproducible source maintenance only
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('web/package.json')
+          data=json.loads(p.read_text())
+          # No source imports any of these dependencies; remove unused attack surface.
+          for name in ['axios','jspdf','jspdf-autotable','lodash','moment','module-alias','path']:
+              data['dependencies'].pop(name,None)
+          data['dependencies']['xlsx']='https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz'
+          data['devDependencies']['@types/file-saver']='^2.0.7'
+          data['devDependencies']['@types/papaparse']='^5.3.16'
+          p.write_text(json.dumps(data,indent=2)+'\n')
+          PY
+          cd web
+          npm update --legacy-peer-deps --ignore-scripts
+          npm audit --json > /tmp/npm-audit.json || test "$?" = 1
+          cd ../server
+          go mod edit -go=1.26.5
+          go get -u ./...
+          go mod tidy
+          gofmt -w .
+      - name: Publish source changes only to this existing PR branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git config user.name 'FinTrack maintenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server web/package.json web/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: refresh dependency locks and normalize Go formatting'
+            HEADER="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $HEADER" push origin HEAD:refs/heads/codex/production-readiness
+          fi
+      - name: Archive source and installed frontend tools for isolated validation
+        if: ${{ !cancelled() }}
+        run: |
+          git archive --format=tar HEAD | gzip > /tmp/fintrack-source.tar.gz
+          tar -czf /tmp/frontend-tools.tar.gz web/node_modules
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() }}
         with:
           name: source-diagnostics
-          path: /tmp/fintrack-source.tar.gz
+          path: |
+            /tmp/fintrack-source.tar.gz
+            /tmp/frontend-tools.tar.gz
+            /tmp/npm-audit.json
           retention-days: 1
