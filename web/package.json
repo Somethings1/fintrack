@@ -18,7 +18,7 @@
     "@emoji-mart/react": "^1.1.1",
     "@fontsource/orbitron": "^5.2.5",
     "@supabase/supabase-js": "^2.49.4",
-    "antd": "^5.24.5",
+    "antd": "^6.6.2",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "emoji-mart": "^5.6.0",
