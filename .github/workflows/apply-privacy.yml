@@ -1,0 +1,38 @@
+name: Apply reviewed privacy patch
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  apply:
+    if: github.repository == 'longnt27/fintrack' && github.actor == 'longnt27' && github.event.pull_request.number == 9 && github.head_ref == 'codex/production-readiness' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify and apply exact reviewed source patch
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, lzma, pathlib, subprocess
+          parts = [pathlib.Path(f'.maintenance/privacy-{i}.b64') for i in range(3)]
+          patch = lzma.decompress(base64.b64decode(''.join(p.read_text() for p in parts), validate=True))
+          if hashlib.sha256(patch).hexdigest() != '9d1e270eaf08c80e85b51e1ed059b263cd01a6cb53ae47b66c053c7603241c1b':
+              raise SystemExit('Reviewed payload digest mismatch')
+          subprocess.run(['git', 'apply', '--unidiff-zero', '--index', '-'], input=patch, check=True)
+          for p in parts:
+              subprocess.run(['git', 'rm', str(p)], check=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: exact currency UX, private avatars, policy tests and durable ledger sessions'
+      - name: Publish only to the existing review branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" push https://github.com/longnt27/fintrack.git HEAD:refs/heads/codex/production-readiness

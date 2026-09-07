@@ -167,10 +167,21 @@ jobs:
           docker rm -f fintrack-web fintrack-api fintrack-mongo || true
           docker network rm fintrack-ci || true
 
+  policies:
+    name: Policy isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Real PostgreSQL owner-isolation tests
+        run: bash scripts/test-policies.sh
+
   required:
     name: Required CI
     if: ${{ always() }}
-    needs: [backend, frontend, containers]
+    needs: [backend, frontend, containers, policies]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -179,4 +190,5 @@ jobs:
           BACKEND: ${{ needs.backend.result }}
           FRONTEND: ${{ needs.frontend.result }}
           CONTAINERS: ${{ needs.containers.result }}
-        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success
+          POLICIES: ${{ needs.policies.result }}
+        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success && test "$POLICIES" = success
