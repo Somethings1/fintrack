@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/util"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -82,10 +83,16 @@ func TestFormatAbortAndOwnership(t *testing.T) {
 		want int
 	}{
 		{`{`, 400}, {`{"name":"Wallet","owner":"attacker","balance":10,"icon":"W"}`, 204},
+		{`{"name":"Wallet","balance":10,"icon":"W","currency":"EUR"}`, 400},
+		{`{"name":"Wallet","balance":0.001,"icon":"W","currency":"USD"}`, 400},
 	} {
 		called := false
 		router := gin.New()
-		router.Use(func(c *gin.Context) { c.Set("username", "owner"); c.Next() })
+		router.Use(func(c *gin.Context) {
+			c.Set("username", "owner")
+			c.Request = c.Request.WithContext(money.WithCurrency(c.Request.Context(), "USD"))
+			c.Next()
+		})
 		router.POST("/", AccountFormatMiddleware(), func(c *gin.Context) {
 			called = true
 			raw, _ := c.Get("account")
