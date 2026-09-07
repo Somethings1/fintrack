@@ -25,3 +25,10 @@ coverage.out
 *.log
 
 coverage.out
+
+# Ephemeral acceptance-test artifacts and encrypted backup files
+e2e/test-results/
+e2e/playwright-report/
+e2e/fixture-logs/
+*.age
+*.age.manifest.json

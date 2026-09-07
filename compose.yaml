@@ -1,7 +1,7 @@
 name: fintrack
 services:
   api:
-    image: fintrack-api:${IMAGE_TAG:-local}
+    image: ${API_IMAGE:-fintrack-api:local}
     build: ./server
     environment:
       APP_ENV: production
@@ -30,7 +30,7 @@ services:
       driver: json-file
       options: {max-size: '10m', max-file: '3'}
   web:
-    image: fintrack-web:${IMAGE_TAG:-local}
+    image: ${WEB_IMAGE:-fintrack-web:local}
     build:
       context: ./web
       args:
