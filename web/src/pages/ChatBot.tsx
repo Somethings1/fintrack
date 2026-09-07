@@ -67,11 +67,12 @@ export default function ChatBot() {
     </Space>;
     return <>
         <Button className="chatbot-toggle" icon={<RobotOutlined />} onClick={() => setOpen(true)} aria-label="Open transaction assistant">Assistant</Button>
-        <Modal title="FinTrack assistant" open={open} onCancel={close} footer={null} width={680}>
+        {/* Unmount on close: chat history, consent and requests must not survive a hidden modal. */}
+        {open && <Modal title="FinTrack assistant" open onCancel={close} footer={null} width={680}>
             <Tabs defaultActiveKey="draft" items={[
                 { key: 'draft', label: 'Draft transaction', children: draftPanel },
-                { key: 'chat', label: 'Ask finances', disabled: busy, children: open ? <FinancialChat /> : null },
+                { key: 'chat', label: 'Ask finances', disabled: busy, children: <FinancialChat /> },
             ]} />
-        </Modal>
+        </Modal>}
     </>;
 }

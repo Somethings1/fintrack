@@ -65,7 +65,7 @@ export default function FinancialChat() {
         {error && <Alert type="error" role="alert" message={error} />}
         <Input.TextArea aria-label="Ask about your finances" value={input} onChange={event => setInput(event.target.value)} rows={3} maxLength={1000} showCount disabled={busy} placeholder="Compare this month's spending with last month." />
         <Space>
-            <Button type="primary" onClick={() => void send()} disabled={!consent || !input.trim() || busy} loading={busy}>Ask assistant</Button>
+            <Button type="primary" aria-label="Ask assistant" aria-busy={busy} onClick={() => void send()} disabled={!consent || !input.trim() || busy} loading={busy}>Ask assistant</Button>
             {busy && <Button onClick={cancel}>Stop</Button>}
             <Button onClick={clear} disabled={!turns.length && !input && !busy && !error}>Clear chat</Button>
         </Space>
