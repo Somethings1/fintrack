@@ -1,6 +1,6 @@
 module fintrack/server
 
-go 1.26.5
+go 1.26.7
 
 require (
 	github.com/gin-contrib/cors v1.7.8

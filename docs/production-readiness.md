@@ -45,7 +45,7 @@ Dependabot covers npm, Go, Actions and Docker; the pinned official SheetJS tarba
 release review because the npm distribution is not the canonical maintained package.
 
 ## Local development
-Install Go 1.26.5 and Node 22. Copy `server/.env.example` and `web/.env.example` to `.env` in their
+Install Go 1.26.7 and Node 22. Copy `server/.env.example` and `web/.env.example` to `.env` in their
 respective directories; use a development Supabase project. Start a local Mongo replica set (the
 CI bootstrap script is also usable locally when ports/names are free), then run `go run .` under
 `server/` and `npm ci --legacy-peer-deps && npm run dev` under `web/`. Vite proxies `/api` including

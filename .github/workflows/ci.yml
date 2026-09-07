@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version: '1.26.5'
+          go-version: '1.26.7'
           cache-dependency-path: server/go.sum
       - run: go mod download && go mod verify
       - name: Format
@@ -105,6 +105,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Validate deployment manifests
+        env:
+          MONGO_URI: mongodb://mongo:27017/?replicaSet=rs0
+          SUPABASE_URL: https://test.supabase.co
+          SUPABASE_ANON_KEY: public-test-only
+          ALLOWED_ORIGINS: https://app.example.com
+        run: |
+          docker compose -f compose.yaml config --quiet
+          docker compose -f compose.dev.yaml config --quiet
       - name: Build non-root API image
         run: docker build --pull -t fintrack-api:ci server
       - name: Build non-root web image with public test configuration
