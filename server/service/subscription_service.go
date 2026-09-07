@@ -196,7 +196,7 @@ func OnNotificationCreated(ctx context.Context, id primitive.ObjectID) error {
 }
 
 func OnTransactionCreated(ctx context.Context, id primitive.ObjectID) error {
-	sub, err := GetSubscriptionById(id.Hex())
+	sub, err := GetSubscriptionById(ctx, id.Hex())
 	if err != nil {
 		return err
 	}

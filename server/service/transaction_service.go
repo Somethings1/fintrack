@@ -157,7 +157,20 @@ func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.T
 			}
 		}
 		newTx.LastUpdate = time.Now().UTC()
-		result, err := util.TransactionCollection.UpdateOne(sc, util.TenantFilter(sc, "creator", id), bson.M{"$set": newTx})
+		// BSON omitempty excludes inapplicable references from $set. Explicitly
+		// clear the old side when changing expense/income/transfer types so a
+		// later reversal cannot use stale source, destination or category IDs.
+		update := bson.M{"$set": newTx}
+		unset := bson.M{}
+		for field, ref := range map[string]primitive.ObjectID{"source_account": newTx.SourceAccount, "destination_account": newTx.DestinationAccount, "category": newTx.Category} {
+			if ref.IsZero() {
+				unset[field] = ""
+			}
+		}
+		if len(unset) > 0 {
+			update["$unset"] = unset
+		}
+		result, err := util.TransactionCollection.UpdateOne(sc, util.TenantFilter(sc, "creator", id), update)
 		if err != nil {
 			return nil, err
 		}

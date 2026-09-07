@@ -6,7 +6,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fintrack/server/config"
+	"fintrack/server/model"
+	"fintrack/server/socket"
+	"fintrack/server/util"
 	"fmt"
+	"github.com/gorilla/websocket"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,47 +22,38 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"fintrack/server/config"
-	"fintrack/server/model"
-	"fintrack/server/socket"
-	"fintrack/server/util"
-	"github.com/gorilla/websocket"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Uses a disposable replica set and a local auth stub. No cloud credentials or
-// live financial data are needed. This is a required CI job, not an optional test.
-func TestProductionBoundaries(t *testing.T) {
+func TestIntegrationFinancialIsolationAndSync(t *testing.T) {
 	uri := os.Getenv("MONGO_TEST_URI")
 	if uri == "" {
-		t.Fatal("MONGO_TEST_URI must point to a disposable MongoDB replica set")
+		t.Fatal("MONGO_TEST_URI is required for explicitly requested integration tests")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	database := "fintrack_test_" + primitive.NewObjectID().Hex()
+	database := "fintrack_ci_" + primitive.NewObjectID().Hex()
 	if err := util.InitDB(ctx, uri, database); err != nil {
 		t.Fatal(err)
 	}
-	defer util.MongoClient.Disconnect(context.Background())
-	defer util.MongoClient.Database(database).Drop(context.Background())
-	defer socket.Manager.Close()
+	defer func() {
+		cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stop()
+		socket.Manager.Close()
+		_ = util.MongoClient.Database(database).Drop(cleanup)
+		_ = util.MongoClient.Disconnect(cleanup)
+	}()
 	auth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Header.Get("Authorization") {
-		case "Bearer alpha":
-			_, _ = io.WriteString(w, `{"id":"owner-a"}`)
-		case "Bearer beta":
-			_, _ = io.WriteString(w, `{"id":"owner-b"}`)
-		default:
-			w.WriteHeader(http.StatusUnauthorized)
+		user := map[string]string{"Bearer alpha": "owner-a", "Bearer beta": "owner-b"}[r.Header.Get("Authorization")]
+		if user == "" {
+			w.WriteHeader(401)
+			return
 		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"id": user})
 	}))
 	defer auth.Close()
-	cfg := config.Config{Environment: "test", SupabaseURL: auth.URL, SupabaseKey: "test-public", AllowedOrigins: []string{"https://app.test"}}
-	server := httptest.NewServer(newRouter(cfg))
+	server := httptest.NewServer(newRouter(config.Config{Environment: "test", SupabaseURL: auth.URL, SupabaseKey: "public-test", AllowedOrigins: []string{"https://app.test"}}))
 	defer server.Close()
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 15 * time.Second}
 	request := func(method, path, token string, body interface{}, key string) (int, []byte, http.Header) {
 		raw, _ := json.Marshal(body)
 		req, err := http.NewRequest(method, server.URL+path, bytes.NewReader(raw))
@@ -121,6 +119,23 @@ func TestProductionBoundaries(t *testing.T) {
 	replay := create("/api/transactions/add", "alpha", expense, "first-request")
 	if first != replay || balance(accountA) != 990 {
 		t.Fatal("replay duplicated a transaction or changed balance")
+	}
+	// Switching transaction type must clear the now-inapplicable account side.
+	incomeCategory := create("/api/categories/add", "alpha", map[string]interface{}{"name": "Income", "type": "income", "budget": 0, "icon": "I"}, "")
+	income := map[string]interface{}{"amount": 15, "dateTime": "2026-09-01T12:00:00Z", "type": "income", "destinationAccount": accountA, "category": incomeCategory, "note": "Correction"}
+	checkStatus("PUT", "/api/transactions/update/"+first, "alpha", income, "", 200)
+	if balance(accountA) != 1015 {
+		t.Fatal("expense-to-income correction did not reverse and reapply balances")
+	}
+	transactionID, _ := primitive.ObjectIDFromHex(first)
+	var corrected model.Transaction
+	if err := util.TransactionCollection.FindOne(ctx, bson.M{"_id": transactionID}).Decode(&corrected); err != nil || !corrected.SourceAccount.IsZero() {
+		t.Fatalf("income retained its old expense source: %v", err)
+	}
+	checkStatus("PUT", "/api/transactions/update/"+first, "alpha", expense, "", 200)
+	corrected = model.Transaction{}
+	if err := util.TransactionCollection.FindOne(ctx, bson.M{"_id": transactionID}).Decode(&corrected); err != nil || !corrected.DestinationAccount.IsZero() || balance(accountA) != 990 {
+		t.Fatalf("expense retained its old income destination or wrong balance: %v", err)
 	}
 	expense["amount"] = 11
 	checkStatus("POST", "/api/transactions/add", "alpha", expense, "first-request", 409)
