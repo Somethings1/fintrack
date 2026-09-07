@@ -13,9 +13,17 @@ for i in $(seq 1 30);do
  sleep 1
 done
 $ready
-curl --fail --silent --show-error --retry 5 --retry-connrefused --cacert /tmp/fintrack-root.crt https://localhost:18443/readyz >/dev/null
-curl --fail --silent --show-error --cacert /tmp/fintrack-root.crt -D /tmp/fintrack-tls-headers https://localhost:18443/ >/dev/null
+# The ports are intentionally bound to IPv4 loopback only. Keep the TLS hostname
+# as localhost while pinning transport resolution to 127.0.0.1 so runner IPv6
+# preference cannot turn a healthy edge into a connection-refused false negative.
+curl --fail --silent --show-error --retry 5 --retry-connrefused \
+ --resolve localhost:18443:127.0.0.1 --cacert /tmp/fintrack-root.crt \
+ https://localhost:18443/readyz >/dev/null
+curl --fail --silent --show-error \
+ --resolve localhost:18443:127.0.0.1 --cacert /tmp/fintrack-root.crt \
+ -D /tmp/fintrack-tls-headers https://localhost:18443/ >/dev/null
 grep -iq 'strict-transport-security: max-age=31536000' /tmp/fintrack-tls-headers
-curl --silent -D /tmp/fintrack-redirect http://localhost:18080/login >/dev/null
+curl --fail --silent --show-error --resolve localhost:18080:127.0.0.1 \
+ -D /tmp/fintrack-redirect http://localhost:18080/login >/dev/null
 grep -iq 'location: https://localhost/login' /tmp/fintrack-redirect
 echo 'Non-root read-only TLS edge, certificate validation and HTTPS redirect passed'
