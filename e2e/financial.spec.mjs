@@ -31,7 +31,10 @@ test('real ledger: exact decimal saves, confirmation, reload and user-switch iso
   for(const amount of ['0.10','0.20']) {
     await page.getByRole('button',{name:'Add new transaction',exact:true}).click();
     const dialog=page.getByRole('dialog');
-    await dialog.getByRole('radio',{name:'Expense',exact:true}).check();
+    const expense=dialog.getByRole('radio',{name:'Expense',exact:true});
+    // Ant Design keeps the native radio input visually hidden; click the visible label text.
+    await dialog.getByText('Expense',{exact:true}).click();
+    await expect(expense).toBeChecked();
     await dialog.getByLabel('Amount',{exact:true}).fill(amount);
     await dialog.getByLabel('Source Account',{exact:true}).click();
     await page.getByText('[A] Browser Reserve',{exact:true}).click();
