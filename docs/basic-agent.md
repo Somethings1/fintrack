@@ -1,9 +1,9 @@
 # Financial chat agent
 
-The default **Assistant > Chat** tab can investigate recorded finances and prepare
-create, update, or delete changes. All changes are reviewed and confirmed in the
-conversation; users do not need to switch to the legacy Draft transaction tab.
-The legacy draft endpoint/tab remains available for compatibility.
+The default **Assistant > Chat** tab investigates recorded finances and, when the
+user enables change proposals, prepares create/update/delete changes directly in
+chat. Every change requires a separate confirmation card. The legacy transaction
+drafting tab remains available; chat users do not need to switch to it.
 
 ## Capabilities
 
@@ -17,96 +17,83 @@ The legacy draft endpoint/tab remains available for compatibility.
 | Subscriptions | List/search/inspect and next-payment summary | Tracked recurring schedule | Name/amount/references/reminder/repetition limit; posted start/interval immutable | Stop future FinTrack postings, not merchant billing |
 
 Examples: "I spent 20 from Wallet on lunch in Food", "Correct yesterday's lunch
-to 18", "Transfer 50 from Wallet to Trip savings", "Set Food's monthly budget to
-300", "Remove Food's budget but keep the category", "Rename Travel to Japan", or
-"Delete the duplicate lunch transaction". Ambiguous matches should cause a
-clarification. Always check the actual proposal card: model intent recognition
-has not yet been evaluated with a live provider.
+to 18", "Transfer 50 from Wallet to Trip savings", or "Set Food's monthly budget
+to 300". Ambiguous matches should produce a clarification. Always inspect the
+actual proposal: model intent recognition is not yet live-provider evaluated.
 
 ## Tools and execution
 
-`POST /api/agent/message` implements one bounded GenerateContent/function-call
-loop. There are eleven tools:
+`POST /api/agent/message` runs one bounded GenerateContent/function-call loop.
+The eleven available definitions are four analytics tools, `find_records`, and
+`propose_transaction`, `propose_account`, `propose_saving`, `propose_category`,
+`propose_budget`, `propose_subscription`. Request permissions control which are
+exposed AND which may execute; the default read-only request has five tools.
 
-- Existing analytics: `get_financial_snapshot`, `get_spending_summary`,
-  `get_savings_goals`, `get_upcoming_subscriptions`.
-- `find_records`: list/search/read transaction, account, saving, category, budget,
-  or subscription records. Owner/currency come from verified request context.
-  Names and transaction notes use literal substring search; optional transaction
-  dates are start-inclusive/end-exclusive UTC and at most 366 days apart. Pages
-  contain at most 25 records, with `nextAfterId` for stable ID-keyset pagination.
-  ID order is not transaction-date order. Archived records are excluded.
-- `propose_transaction`, `propose_account`, `propose_saving`, `propose_category`,
-  `propose_budget`, `propose_subscription`: validate one proposed change and
-  return a typed `ChangeProposal`. These tools do not execute any write.
+Discovery is owner/currency scoped. `find_records` uses literal name/note substring
+search and optional UTC transaction dates (inclusive start, exclusive end, maximum
+366 days). Pages contain 25 records with `nextAfterId`; ID ordering is not date
+ordering. Stored notes are omitted from results unless separately enabled.
 
-Discovery and proposal construction use read-only repeatable-read PostgreSQL
-transactions, released before model generation. Updates merge explicitly supplied
-fields into the current owned record for a complete preview. Money uses exact
-major-unit decimal strings. References, currency, amount precision/range, record
-existence, and immutable fields are checked before returning a proposal.
+Queries and proposal construction use read-only repeatable-read PostgreSQL
+transactions, released before model generation. Updates preserve omitted fields.
+Money uses exact major-unit decimal strings. Targets and explicit references
+must be returned by owned lookups in the current request, not merely mentioned
+in history. Underlying ownership/currency/precision/immutable-field checks remain.
 
-One valid proposal ends the turn immediately; remaining tool calls are not run.
-The UI shows exact values, before/after differences, reference IDs/names, and
-warnings. Only the **Confirm change** button calls the existing authenticated
-POST/PUT/DELETE API. Those endpoints revalidate ownership and financial rules.
-Model text, including "yes" or a claim that a change was saved, cannot execute it.
-This is a ledger-management feature, not bank-payment initiation.
+One valid typed proposal ends the turn. Its card shows values, before/after
+changes, reference names/IDs and warnings. Only **Confirm change** invokes the
+normal authenticated financial API; the model has no write tool. Text such as
+"yes" or "saved" cannot trigger execution. This does not initiate bank payments.
 
-The card ID is the transaction-create idempotency key. A synchronous UI lock
-prevents repeat clicks on all domains. There are no automatic write retries. A
-failed or ambiguous response retires the card and reloads canonical records;
-users must inspect their records before requesting another change. Generic
-non-transaction creates do not gain durable server idempotency in this PR.
+Transaction creates use the card ID as their idempotency key. A synchronous UI
+lock prevents repeat clicks. Failed or uncertain saves retire the card without
+automatic retries and refresh canonical records. Non-transaction creates do not
+have durable cross-session idempotency. Inspect records before repeating them.
 
-A new message supersedes previous unconfirmed cards, allowing corrections without
-leaving stale actionable proposals. Application save/discard status and proposal
-fields accompany subsequent text history, but are not trusted evidence: the model
-must read records again. Closing the panel or signing out removes in-memory chat.
-Closing the modal, clearing chat, or switching to legacy drafts is blocked while
-a confirmation is in flight. There is no persisted proposal queue or chat log.
+New messages supersede pending cards. Changing permissions or withdrawing consent
+clears the conversation and proposals. Closing/signing out removes in-memory
+chat. Confirmed-save status in later history is untrusted and must be refreshed
+from tools. Closing/clearing/switching away is blocked while a save is in flight.
 
-## Configuration and consent
+## Configuration, consent and observability
 
-Keep using `AGENT_ENABLED`, `AGENT_MODEL`, and `GEMINI_API_KEY`; disabled by default.
-The configured Gemini model must support function calling. No provider is enabled
-implicitly, no more expensive model is selected, and no paid model runs in CI.
-Keys remain server-side. Production uses the existing Supabase PostgreSQL
-connection; development and CI use disposable local PostgreSQL.
+`AGENT_ENABLED`, `AGENT_MODEL`, and `GEMINI_API_KEY` remain server-side and disabled
+by default. Production uses the existing Supabase PostgreSQL connection; local
+Docker PostgreSQL supplies development/testing. CI never makes a paid model call.
 
-Chat consent explicitly covers selected transaction details/notes, names,
-balances, budgets, savings, subscriptions, and recent conversation. This is richer
-than the legacy transaction-drafting consent. The application does not persist
-chat; Google's processing/retention depends on the operator's provider agreement.
+Users separately enable change proposals, delete/archive proposals and stored
+transaction notes. Changing any scope starts a new chat. Typed user questions are
+still shared with the provider under the primary consent, so never paste secrets.
+The operator switch `AGENT_CHANGES_DISABLED` blocks new proposals in both modes,
+not existing cards or ordinary manual CRUD endpoints.
 
-Defaults shown on the card: opening balance 0, savings goal 0/no deadline,
-transaction timestamp now, subscription repetition limit 0 (unlimited), and
-reminder days 0. Existing balances cannot be overwritten by metadata updates.
-Budget limits are current monthly settings, not historical or prorated amounts.
-Subscription summaries contain one next payment per active schedule, including
-overdue payments, not every renewal or a full cash-flow forecast. Different tool
-calls can observe newer snapshots. Analytics details remain capped at 100, with
-full aggregate totals and truncation indicators.
+See `docs/agent-guardrails-observability.md` for enforced limits, credential
+filtering, request/tool/provider correlation, private Prometheus metrics,
+account-linked usage records, optional tariff snapshots, retention and alerts.
+Chat content is not persisted by FinTrack; provider processing/retention depends
+on the operator agreement. Operational usage metadata is not anonymous.
 
-## Verification and deferred work
+Opening balance defaults to zero; savings target zero means no target; omitted
+savings date means no deadline; transaction timestamp defaults to now. Subscription
+limit zero means unlimited and reminder default is zero days. Budgets are current
+monthly settings, not historical/prorated figures. Subscription summaries include
+one next payment per active schedule, including overdue payments, not every
+renewal. Separate calls can see newer snapshots; analytics details are capped at
+100 with full totals and truncation indicators.
 
-Normal CI runs scripted provider/tool-loop tests, proposal validation tests, real
-PostgreSQL tool/HTTP contract tests, and browser tests. New PostgreSQL tests verify
-that proposal creation changes no rows, then submit the same payload through the
-ordinary API and check CRUD, exact balances, reversals, budget clearing, reference
-checks and tenant isolation. Browser tests use mocked model answers with real
-API/database writes to verify confirmation, discard, double-click protection,
-superseding cards, and uncertain-outcome handling. They are not live-model tests.
+## Verification and remaining limits
 
-Dedicated AI guardrails, model-quality evals, cost accounting and observability
-remain deferred. The prompt is not an injection defense or correctness guarantee.
-Bulk/dependent multi-record changes require separate confirmations. This feature
-reuses the normal API's update semantics, not durable transactions spanning
-preview and confirmation; concurrent edits in another client can make a preview
-stale. Durable approval state, optimistic concurrency and generic cross-session
-idempotency need separate design before expanding to autonomous operations.
+Normal CI runs scripted provider/tool tests, real PostgreSQL ledger/proposal/usage
+contracts, and browser tests. Browser model responses are mocked while confirmed
+CRUD uses real disposable API/database writes. Permission/redaction/cancellation/
+concurrency tests are code regressions, not live-model-quality evaluations.
 
-No merge, deployment, live-data access or live-provider calls are part of this PR.
+Formal model-quality evals remain separate. Code-enforced capabilities reduce
+risk but do not guarantee prompt-injection resistance or financial correctness.
+There is no durable approval queue, signed confirmation ticket, optimistic
+concurrency, distributed spend quota, immutable audit ledger or automatic batch
+execution. Concurrent edits can stale a preview; normal API rules still apply.
+No deployment, live-data access or provider enablement is part of this PR.
 
 Provider protocol references:
 - https://ai.google.dev/api/generate-content
