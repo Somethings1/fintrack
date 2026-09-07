@@ -1,14 +1,30 @@
-FROM caddy:2-alpine
-USER root
-# The upstream binary requests privileged-port capabilities. We use high ports
-# and drop ALL runtime capabilities, so remove its file capabilities at build time.
+# Build the current stable Caddy release ourselves so the edge binary is produced
+# with the same patched Go toolchain used by the API and with security-fixed
+# transitive modules. The upstream v2.11.4 image was published before these fixes.
+FROM golang:1.26.7-alpine AS build
+RUN apk add --no-cache git ca-certificates
+WORKDIR /src
+RUN git clone --depth 1 --branch v2.11.4 https://github.com/caddyserver/caddy.git . \
+    && go get golang.org/x/crypto@v0.55.0 \
+              golang.org/x/net@v0.56.0 \
+              golang.org/x/text@v0.39.0 \
+              google.golang.org/grpc@v1.83.1 \
+    && go mod verify \
+    && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/caddy ./cmd/caddy
+
+# Do not inherit the upstream Caddy binary: Trivy must inspect only the binary we
+# just built. High ports mean no file capabilities or root privileges are needed.
+FROM alpine:3.24
 RUN apk upgrade --no-cache \
-    && apk add --no-cache --virtual .cap-tools libcap-utils \
-    && setcap -r /usr/bin/caddy \
-    && test -z "$(getcap /usr/bin/caddy)" \
-    && apk del .cap-tools \
-    && mkdir -p /data /config && chown -R 65532:65532 /data /config
+    && apk add --no-cache ca-certificates \
+    && addgroup -S -g 65532 caddy \
+    && adduser -S -D -H -u 65532 -G caddy caddy \
+    && mkdir -p /data /config /etc/caddy \
+    && chown -R 65532:65532 /data /config
 ENV HOME=/tmp
+COPY --from=build --chown=65532:65532 /out/caddy /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 USER 65532:65532
 EXPOSE 8080 8443
+ENTRYPOINT ["/usr/bin/caddy"]
+CMD ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
