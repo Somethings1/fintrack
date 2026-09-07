@@ -1,142 +1,102 @@
-# Production-readiness foundation
+# Production-readiness implementation
 
-This branch adds a tested deployment and security foundation. It is **not a certification that
-existing financial data is reconciled or that a live deployment has been reviewed**. No production
-secrets, database migrations, rulesets, paid AI calls or deployments are performed by CI.
+This repository contains production hardening and executable acceptance gates, not a
+certification of an uninspected live deployment. See [operations](operations.md) for
+migration, private storage, release, backup, TLS, monitoring and rollback procedures.
+Nothing in pull-request CI connects to production, enables AI, or publishes images.
 
-## Launch blockers: do not skip these
-1. **Money and currency model:** stored monetary values remain `float64`/JavaScript numbers.
-   Approve a per-ledger currency and precision model, migrate to integer minor units or Decimal128,
-   and reconcile opening balances, transfers, refunds and historical totals. The display-currency
-   setting is not an exchange-rate system. Do not treat this app as a banking/accounting ledger yet.
-2. **Recurring posting:** automatic subscription posting is disabled by default. Production rejects
-   `CRON_ENABLED=true`; HTTP creation no longer performs unbounded catch-up writes. Subscription
-   records/reminders remain available, but scheduled posting needs an atomic occurrence ledger,
-   idempotent advancement, bounded catch-up and restart/concurrency tests before re-enabling.
-3. **Tenant deployment review:** apply/review `deploy/profiles-rls.sql` in staging, verify profile
-   owner isolation using two real test accounts, and audit avatar-storage policies. The SQL is not
-   auto-applied. Review any existing SECURITY DEFINER functions and broad storage grants.
-4. **Operational controls:** configure TLS/HSTS, ingress request/body/connection quotas, managed
-   authenticated MongoDB replica-set access, backup/PITR retention, restore drills, monitoring and
-   a named on-call owner. Run a staged load test; there is no measured capacity or availability SLA.
-5. **Human acceptance:** exercise sign-in/sign-out, password recovery, profile/avatar, account,
-   savings, categories, transfers, exports, two simultaneous browser sessions, and optional agent
-   consent/save flows with representative data. CI's container smoke is not a browser E2E test.
-6. **Legacy clients:** the bounded NDJSON completion protocol is a coordinated frontend/API change.
-   Deploy a matching pair; old Electron/binary/browser clients are not release-qualified here.
+## What is implemented
 
-## CI and branch protection
-`Required CI` aggregates backend, frontend, and container jobs and fails if any prerequisite fails
-or is skipped. No path exclusions bypass required checks. Actions are commit-pinned and default to
-read-only repository permissions. PRs never deploy or publish images. The jobs run:
-- Go formatting, module verification, vet, race tests, build and pinned govulncheck.
-- A real disposable MongoDB replica set with local Supabase auth stub: tenant isolation, idempotent
-  retry and concurrent creation, balance reversal, safe archival, notification ownership, cursor
-  pagination across equal timestamps, cookie flags, readiness and WebSocket origins.
-- Clean npm install, zero-warning lint, TypeScript build, Node regression tests, npm high/critical
-  vulnerability gate and gzip bundle budgets (450 KB initial / 1.1 MB total JavaScript).
-- Both image builds, non-root/read-only/capability-dropped runtime smoke, graceful API shutdown,
-  Trivy high/critical image vulnerability scans, source secret scan and SBOM artifacts.
+| Area | Implementation | Verification |
+| --- | --- | --- |
+| Money | Checked fixed-point Go amounts, BSON Decimal128, explicit immutable deployment currency, precision validation, exact client sums | Unit and real MongoDB integration tests, including 0.10 + 0.20 and type checks |
+| Historical data | Dry-run offline migration; deterministic reviewed plan, ownership/reference checks, opening-balance reconciliation, transactionally guarded apply | Real database migration/refusal/concurrent-change tests |
+| Recurrence | Anchored UTC schedules, bounded catch-up, atomic occurrence posting and schedule/balance changes, unique occurrence constraints, atomic reminders, poison-item backoff | Concurrent-worker/retry/rollback/month-end/leap-year tests |
+| Authentication | Verified Supabase identity, bounded upstream calls, strict origins, owner-scoped mutations, secure WebSocket session establishment | Stubbed identity provider with real handlers/database; invalid auth and cross-tenant tests |
+| Privacy | Owner-isolated IndexedDB, private avatar paths, client image re-encoding, short-lived signed URLs; restrictive profile/storage RLS boundaries | Browser account-switch test and PostgreSQL Alice/Bob/anonymous policy tests |
+| Agent | Authenticated backend Gemini draft adapter, opt-in data-sharing consent, bounded catalog/input/output/time/concurrency, independent validation, separate manual save | Adversarial/failure unit tests and browser consent gate; no live model call in CI |
+| CI | Commit-pinned Actions, read-only PR permissions, strict aggregate, race/integration/lint/type/build/audit/image scans | Required CI fails unless every prerequisite succeeds |
+| Performance | Compound sync indexes, bounded keyset/NDJSON protocol, batched IndexedDB writes, lazy routes/exports, exact lookup maps, bundle budgets | Bundle gates and 320-request authenticated concurrent posting regression |
+| Runtime | Non-root read-only API/web/TLS edge, security headers, limits, readiness, graceful shutdown, protected metrics | Image builds, container smoke, certificate-validated local TLS smoke, secret/vulnerability scans, SBOMs |
+| Recovery | Streamed age-encrypted Mongo backup, exact document/index inventories, fresh-target restore, checksum/freshness checks | Disposable real database encrypted restore drill; wrong checksum and existing target rejection |
+| Release | Manual protected-environment workflow, exact-main-commit CI and review-rule verification, re-smoke/re-scan candidate images, immutable digest manifest | Release preflight refusal unit tests; actual publication requires operator approval |
 
-An administrator must configure the repository ruleset: require PRs, `Required CI`, up-to-date
-branches, human review, resolved conversations, and no force-push or routine bypass. CODEOWNERS is
-advisory without an enforced ruleset. Enable dependency alerts and private vulnerability reporting.
-Dependabot covers npm, Go, Actions and Docker; the pinned official SheetJS tarball needs manual
-release review because the npm distribution is not the canonical maintained package.
+## Required CI
 
-## Local development
-Install Go 1.26.7 and Node 22. Copy `server/.env.example` and `web/.env.example` to `.env` in their
-respective directories; use a development Supabase project. Start a local Mongo replica set (the
-CI bootstrap script is also usable locally when ports/names are free), then run `go run .` under
-`server/` and `npm ci --legacy-peer-deps && npm run dev` under `web/`. Vite proxies `/api` including
-WebSockets to `127.0.0.1:8080`. The browser no longer contains a provider secret or hardcoded API URL.
+`.github/workflows/ci.yml` runs on pull requests, main pushes, manual dispatch and a
+weekly schedule. `Required CI` requires all six jobs to finish successfully:
 
-For a full local Docker stack, put development Supabase values in a root `.env` and run
-`docker compose --env-file .env -f compose.dev.yaml up --build -d`. Mongo is intentionally
-unauthenticated and unexposed to host ports in this development-only stack. Do not reuse it in
-production. `docker compose -f compose.dev.yaml down` retains the named database volume; adding
-`--volumes` deletes it and should only be done intentionally on disposable data.
+- **backend**: module verification, formatting, vet, race unit/integration tests,
+  actual API/database load regression, build, reachable Go vulnerability scan;
+- **frontend**: clean lockfile install, zero-warning lint, regression tests, strict
+  TypeScript/build, 450 KB initial / 1.1 MB total gzip JavaScript budgets, npm audit;
+- **containers**: Compose validation, API/web/edge builds, least-privilege runtime
+  smoke, shutdown, TLS certificate verification, source secret scan, high/critical
+  image vulnerability gates and CycloneDX SBOMs;
+- **Policy isolation**: real PostgreSQL RLS with two identities and anonymous access,
+  including intentionally broad legacy policies; operational release-guard tests;
+- **Browser acceptance**: Chromium against the built client, real API and replica-set
+  database; Supabase alone is a disposable test double; authenticated saves, exact
+  balances, reload, consent, logout/revocation and same-browser user-switch isolation;
+- **Encrypted restore drill**: real dump/encrypt/decrypt/restore, document and index
+  verification, Decimal128 retention and refusal to overwrite an existing target.
 
-## Production container deployment
-1. Complete the launch blockers and obtain green checks for the exact commit to release.
-2. Copy `.env.example` to a protected, untracked configuration file (owner-readable only). Use
-   an authenticated TLS replica-set URI and a least-privilege application user. `SUPABASE_ANON_KEY`
-   is the public browser key, not a service-role key. Prefer a platform secret manager over env files.
-3. Run `docker compose --env-file .env config --quiet`. Never paste the expanded configuration
-   into logs or issues: it contains runtime secrets.
-4. Set an immutable release tag, build the matching API/web images, scan them and record their
-   digests. Release deployments should use those image digests, not rebuilt mutable tags. Base-image
-   tags remain updateable by Dependabot; rebuild/scan regularly and pin reviewed release digests.
-5. Run `docker compose --env-file .env up --build -d`. The published web port binds only to localhost
-   by default. Put a TLS reverse proxy/load balancer in front; keep API/Mongo inaccessible externally.
-   Set `ALLOWED_ORIGINS` to exact public HTTPS origins and Supabase redirect allowlists to the same
-   origin plus `/update-password` as required. Custom Supabase domains require updating the CSP.
-6. Verify `/healthz` (web), `/readyz` (Mongo-backed API readiness via proxy), authenticated CRUD,
-   auth rejection and WebSocket reconnect. Record the exact images/config and smoke results.
+Evidence artifacts include coverage, browser failure traces/screenshots and image
+SBOMs. Fixtures contain synthetic data only. The backup drill does not upload keys or
+archives. Dependency scans are thresholded point-in-time checks, not proof of absence
+of all vulnerabilities. `server/test` is obsolete legacy-auth coverage behind the
+`legacy` build tag, not silently represented as current integration coverage.
 
-The API image has no shell and runs as UID 65532; the web image runs as UID 101. Production Compose
-uses read-only root filesystems, all Linux capabilities dropped, no-new-privileges, tmpfs, memory/CPU
-and PID limits, bounded logs and graceful shutdown. These defaults need a measured load test before
-changing limits. API liveness `/livez` is deliberately independent from Mongo; `/readyz` is not.
+## Scope and remaining operator decisions
 
-## Authentication, privacy and synchronization
-HTTP calls use a verified bearer token. A dedicated authenticated endpoint mints a Secure (production),
-HttpOnly, SameSite=Strict, `/api`-scoped cookie for browser WebSockets. Cookies alone cannot authorize
-unsafe cross-origin requests. WebSocket connections have exact-origin checks, bounded per-user/global
-counts, queues, deadlines, heartbeat and periodic reauthentication. Ingress quotas are still required:
-auth verification occurs before the per-user in-process quota, and replicas do not share a limiter.
+The monetary model is **one currency per deployment**, with no FX conversion or mixed
+currency totals. Supported precision is explicit in `server/money/amount.go` and the
+client configuration validator. Changing a profile setting cannot relabel balances.
+The application is a personal tracker, not a regulated bank, immutable double-entry
+accounting system, tax-compliance product or externally audited financial ledger.
 
-Logs contain generated request IDs, method, route template, status and elapsed time, not query strings,
-auth headers, bodies, financial descriptions, model prompts or provider responses. Readiness failures
-return no database internals. Propagate request IDs to support without sending financial payloads.
+Migration is intentionally limited to 2,000 documents / 8 MiB per plan. Larger data
+sets need a separately reviewed batched migration, not disabling this guard. An
+operator must choose the real historical currency, reconcile inferred openings with
+statements, approve recurrence checkpoints, stop writers and approve the plan hash.
+The API refuses incompatible legacy storage instead of silently rounding it.
 
-Synchronization uses tenant-indexed ascending `(last_update, _id)` keyset pages of 500 plus a completion
-marker. The client handles split UTF-8/NDJSON, requires the marker before checkpointing, overlaps
-millisecond boundaries and includes tombstones. Cache writes are batched and per-user IndexedDB replaces
-the old shared database. Logout deletes local financial caches. Quota/corruption/network errors must
-not advance checkpoints. More than 100,000 records per synchronization requires an export/backfill
-strategy; this client intentionally bounds work instead of silently dropping data.
+Local policy fixtures do not certify a particular hosted Supabase project, OAuth
+configuration or Storage deployment. Apply the scripts in a staging project, inspect
+existing functions/grants and exercise real account/profile/avatar access before
+launch. Public legacy avatar URLs are not reused; owners must re-upload authorized
+images to the private bucket.
 
-POST transaction requests accept a per-user `Idempotency-Key`; the unique partial Mongo index is created
-at startup. Replaying the same key/payload returns the original ID without changing balances; another
-payload returns 409. Keys are stored with the transaction, including after deletion, and are not TTL
-purged. The browser coalesces simultaneous submissions and retains keys after ambiguous failures.
-Other create endpoints do not yet have server-side replay guarantees. Mutations do not optimistically
-adjust balances. Referenced accounts/savings/categories cannot be archived via unsafe cascading deletes.
+CI load testing is a bounded regression workload on a GitHub runner, not a claimed
+production capacity, SLA or soak test. Monitoring alert thresholds are starter policy
+and need a named operator, a configured scraper/alert receiver, representative staged
+load and realistic host/database sizing.
 
-## Optional assistant and agent development
-The assistant is a **bounded transaction-drafting workflow**, not an autonomous financial agent.
-It is off by default. Enabling it requires `AGENT_ENABLED=true`, a server-only `GEMINI_API_KEY`,
-and an explicitly selected supported `AGENT_MODEL` (do not assume an old model name still exists).
-Review provider data handling, region, retention, budget and model availability before enabling.
-Rotate any historical browser-exposed Gemini key and invalidate old assets; removing code is not revocation.
+Repository rules, independent reviewers, hosted databases, DNS, secrets, ACME,
+backup retention/offsite storage/PITR and key custody require operator configuration.
+[operations](operations.md) supplies executable tools and exact rollout steps. No
+live-data migration, repository-administration mutation, registry publication or
+production deployment is performed by the hardening PR.
 
-A user must opt in before their description and owned account/category IDs and names are sent to Google.
-Balances, transaction history and auth credentials are not sent. Output must match a bounded JSON schema
-and pass independent amount/type/ownership validation. The provider has no tools, write capability or
-arbitrary endpoint selection. Requests have body/token/response/time limits, per-user quota and an
-8-request process-wide concurrency cap. Failures/refusals return no executable draft and are not retried.
-The user sees the proposal and separately confirms a save through the ordinary validated/idempotent API.
-Names/descriptions/output are treated as untrusted data, including prompt-injection attempts.
-`AGENTS.md` documents the same boundaries for coding assistants working on this repository.
+## Development
 
-## Operate and recover
-Monitor readiness, 5xx, auth-upstream 503s, 429s, latency, Mongo primary/pool health, disk, backup age,
-container restarts and agent provider failures/spend. Alert thresholds and capacity are deployment-specific.
-Perform a scheduled isolated restore from backups and compare per-user record counts, tombstones and
-balance reconciliation; never test restoration over the live database. Back up before index/schema changes.
+Use Go 1.26.7, Node 22 and MongoDB 7 with a replica set. Copy the environment examples
+and use a development Supabase project. For native development run a local replica
+set, `go run .` in `server`, and `npm ci --legacy-peer-deps && npm run dev` in `web`.
+Vite proxies `/api` and WebSockets to the local API. Set `LEDGER_CURRENCY` explicitly
+when importing any historical data. Development defaults to USD only for fresh data.
 
-Rollback means restoring the previous **matching** API/web image pair and compatible configuration,
-then repeating readiness and authenticated smoke tests. Do not roll back only the frontend or delete
-new indexes/data blindly. Pause writes and reconcile before reversing a financial migration. To disable
-the optional assistant, set `AGENT_ENABLED=false` and redeploy the API; do not leave compromised keys active.
-Do not enable legacy recurrence as a workaround. Incident reports should include request IDs and sanitized
-error classes, not tokens, prompts, descriptions or customer financial data.
+Alternatively use `docker compose --env-file .env -f compose.dev.yaml up --build -d`.
+That manifest's unauthenticated, host-unexposed MongoDB is **development only**.
+`down` preserves the named volume; `down --volumes` destroys its data.
 
-## External design references
-- Go vulnerability scanning: https://go.dev/security/vuln/
-- MongoDB transaction guidance: https://www.mongodb.com/docs/manual/core/transactions/
+## Design references
+
+- MongoDB transactions: https://www.mongodb.com/docs/manual/core/transactions/
+- MongoDB backup tools: https://www.mongodb.com/docs/database-tools/mongodump/
 - Supabase RLS: https://supabase.com/docs/guides/database/postgres/row-level-security
+- Supabase private storage: https://supabase.com/docs/guides/storage/security/access-control
+- Go vulnerability scanning: https://go.dev/security/vuln/
+- Caddy HTTPS: https://caddyserver.com/docs/automatic-https
 - Gemini structured output: https://ai.google.dev/gemini-api/docs/structured-output
-- SheetJS maintained distribution: https://docs.sheetjs.com/docs/getting-started/installation/nodejs/
-- Docker startup dependencies: https://docs.docker.com/compose/how-tos/startup-order/
+- SheetJS distribution: https://docs.sheetjs.com/docs/getting-started/installation/nodejs/

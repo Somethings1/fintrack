@@ -16,8 +16,11 @@ one validated transaction proposal; it does not execute tools or financial mutat
   add write tools, shell execution, arbitrary outbound URLs, hidden retries or autonomous posting.
 - Do not weaken CI, disable lint/type checking, suppress vulnerability findings, or claim tests ran
   when unavailable. A missing tool is a validation limitation, not a passing result.
-- Do not migrate monetary floats without an approved currency/precision model and reconciliation.
-  Do not enable the legacy recurring-posting worker in production.
+- Money is checked fixed-point in Go and Decimal128 in MongoDB. Never reintroduce float
+  arithmetic for persisted amounts or totals; one immutable currency per deployment.
+  Use the offline migration only with an approved plan hash/reconciliation and stopped writers.
+  Recurrence must preserve the actual MongoDB session (`mongo.SessionFromContext`) when
+  adding context values; never wrap a SessionContext as a Session or split atomic postings.
 
 ## Commands
 - `cd web && npm ci --legacy-peer-deps && npm run lint -- --max-warnings=0 && npm test && npm run build && npm run check:bundle`
@@ -26,5 +29,15 @@ one validated transaction proposal; it does not execute tools or financial mutat
 - `docker compose --env-file .env config --quiet` validates deployment configuration without logging secrets.
 
 The old tests under `server/test` require removed legacy auth endpoints and are preserved behind
-`-tags=legacy`; they are not the replacement integration suite. New integration tests live in
-`server/integration_test.go`. See `docs/production-readiness.md` before making release claims.
+`-tags=legacy`; they are not the replacement integration suite. Current integration tests include `server/integration_test.go`,
+`server/ledger_integration_test.go` and `server/load_integration_test.go`. Browser fixtures
+are compiled only with `-tags=browser`, require FINTRACK_CI=1 and an exact disposable URI,
+and are never linked into the production binary.
+
+Additional CI entrypoints: `bash scripts/test-policies.sh`, `bash scripts/test-browser.sh`,
+`bash scripts/test-restore.sh`, and `python3 -m unittest discover -s tests/ops`. Read their
+fixture prerequisites before running; do not redirect them to a live service.
+
+`release.yml` is manual/main-only and protected; never run its publication or administration
+helpers during a PR task. Changes to CI/release/security policy need human review.
+See `docs/production-readiness.md` and `docs/operations.md` before making release claims.

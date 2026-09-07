@@ -10,6 +10,7 @@ import (
 	"fintrack/server/middleware"
 	"fintrack/server/money"
 	"fintrack/server/socket"
+	"fintrack/server/telemetry"
 	"fintrack/server/util"
 	"fmt"
 	"github.com/gin-contrib/cors"
@@ -37,6 +38,7 @@ func newRouter(cfg config.Config) *gin.Engine {
 		AllowMethods:  []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:  []string{"Content-Type", "Authorization", "clientId", "Idempotency-Key"},
 		ExposeHeaders: []string{"X-Request-ID"}, AllowCredentials: true, MaxAge: 12 * time.Hour}))
+	r.GET("/metrics", gin.WrapF(telemetry.Handler))
 	r.GET("/livez", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	r.GET("/readyz", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
@@ -223,6 +225,7 @@ func run() error {
 	}()
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	var workers sync.WaitGroup
+	telemetry.WorkerEnabled(cfg.CronEnabled)
 	if cfg.CronEnabled {
 		workers.Add(1)
 		go func() { defer workers.Done(); cronjob.Run(workerCtx, cfg.LedgerCurrency) }()

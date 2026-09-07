@@ -192,7 +192,7 @@ export function ProfilePage() {
                         </Button>
                     </Col>
                     <Col>
-                        <Button danger icon={<LogoutOutlined />} onClick={handleLogout}>
+                        <Button aria-label="Logout" danger icon={<LogoutOutlined aria-hidden="true" />} onClick={handleLogout}>
                             Logout
                         </Button>
                     </Col>

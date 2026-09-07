@@ -32,3 +32,9 @@ e2e/playwright-report/
 e2e/fixture-logs/
 *.age
 *.age.manifest.json
+
+# Private migration/operator evidence and caches
+**/__pycache__/
+release-evidence/
+money-plan*.json
+money-apply*.json

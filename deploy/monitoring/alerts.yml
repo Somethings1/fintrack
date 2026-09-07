@@ -1,0 +1,28 @@
+groups:
+  - name: fintrack
+    rules:
+      - alert: FinTrackUnavailable
+        expr: up{job="fintrack"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: 'API metrics are unreachable; check readiness and MongoDB primary.'}
+      - alert: FinTrackServerErrors
+        expr: sum(rate(fintrack_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(fintrack_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'API 5xx exceeds 5%; investigate sanitized logs using request IDs.'}
+      - alert: FinTrackRecurringWorkerStalled
+        expr: fintrack_worker_enabled == 1 and time() - fintrack_worker_last_success_timestamp_seconds > 300
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'Recurring worker has not completed successfully; inspect failed references/backlog.'}
+      - alert: FinTrackRecurringBacklog
+        expr: fintrack_worker_enabled == 1 and fintrack_worker_oldest_due_seconds > 300
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: 'Recurring payments are behind schedule; measure capacity before scaling.'}
+      - alert: FinTrackClientFailures
+        expr: sum(rate(fintrack_http_requests_total{status_class="4xx"}[5m])) > 5
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'Elevated client failures; check auth outages and quotas before relaxing limits.'}

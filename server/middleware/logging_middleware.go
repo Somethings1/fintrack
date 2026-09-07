@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fintrack/server/telemetry"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"log/slog"
@@ -16,6 +17,7 @@ func LoggingMiddleware() gin.HandlerFunc {
 		requestID := uuid.NewString()
 		c.Header("X-Request-ID", requestID)
 		c.Next()
+		telemetry.Request(c.Writer.Status(), time.Since(started))
 		route := c.FullPath()
 		if route == "" {
 			route = "unmatched"

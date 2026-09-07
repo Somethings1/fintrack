@@ -75,7 +75,8 @@ const Accounts = () => {
                 </Select>
 
                 <Button
-                    icon={<PlusOutlined />}
+                    aria-label="New Account"
+                    icon={<PlusOutlined aria-hidden="true" />}
                     type="primary"
                     shape="round"
                     onClick={() => setIsModalOpen(true)}

@@ -17,3 +17,12 @@ updates:
   - package-ecosystem: docker
     directory: /web
     schedule: {interval: weekly}
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule: {interval: weekly}
+  - package-ecosystem: docker
+    directory: /deploy/edge
+    schedule: {interval: weekly}
+  - package-ecosystem: docker
+    directory: /deploy/backup
+    schedule: {interval: weekly}

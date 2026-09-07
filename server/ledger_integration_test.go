@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fintrack/server/cronjob"
 	"fintrack/server/migration"
 	"fintrack/server/model"
 	"fintrack/server/money"
@@ -259,5 +260,56 @@ func TestOfflineMoneyMigrationAndReconciliation(t *testing.T) {
 	}
 	if len(plan.Issues) == 0 || migration.Apply(ctx, db, plan, plan.Digest, true) == nil {
 		t.Fatal("silent rounding accepted")
+	}
+}
+
+// A full batch of broken references must not permanently starve later schedules.
+func TestPoisonOccurrenceBackoffAllowsNextBatch(t *testing.T) {
+	ctx, _ := ledgerDB(t)
+	ctx = money.WithCurrency(context.WithValue(ctx, util.UserIdKey, "owner-a"), "USD")
+	if err := util.EnsureLedger(ctx, "USD"); err != nil {
+		t.Fatal(err)
+	}
+	a, err := service.AddAccount(ctx, model.Account{Name: "Wallet", Balance: money.Must("10")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := service.AddCategory(ctx, model.Category{Name: "Food", Type: "expense"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	due := now.Add(-time.Hour)
+	bad := make([]interface{}, 100)
+	for i := range bad {
+		bad[i] = model.Subscription{ID: primitive.NewObjectID(), Name: "Poison", Creator: "owner-a", Currency: "USD", ScheduleVersion: 2, Amount: money.Must("0.1"), SourceAccount: primitive.NewObjectID(), Category: c.(primitive.ObjectID), StartDate: due, NextActive: due, Interval: "day", MaxInterval: 1, IsActive: true}
+	}
+	if _, err := util.SubscriptionCollection.InsertMany(ctx, bad); err != nil {
+		t.Fatal(err)
+	}
+	good, err := service.AddSubscription(ctx, model.Subscription{Name: "Healthy", Amount: money.Must("0.2"), SourceAccount: a.(primitive.ObjectID), Category: c.(primitive.ObjectID), StartDate: now, Interval: "day", MaxInterval: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cronjob.Tick(ctx, now, "USD") == nil {
+		t.Fatal("broken references must report a failed tick")
+	}
+	count, err := util.SubscriptionCollection.CountDocuments(ctx, bson.M{"posting_retry_at": now.Add(5 * time.Minute)})
+	if err != nil || count != 100 {
+		t.Fatal("poison batch was not delayed", count, err)
+	}
+	if err := cronjob.Tick(ctx, now.Add(30*time.Second), "USD"); err != nil {
+		t.Fatal(err)
+	}
+	count, err = util.TransactionCollection.CountDocuments(ctx, bson.M{"subscription_id": good})
+	if err != nil || count != 1 {
+		t.Fatal("healthy schedule starved", count, err)
+	}
+	var account model.Account
+	if err := util.AccountCollection.FindOne(ctx, bson.M{"_id": a}).Decode(&account); err != nil {
+		t.Fatal(err)
+	}
+	if account.Balance != money.Must("9.8") {
+		t.Fatal("poison attempts changed the balance")
 	}
 }
