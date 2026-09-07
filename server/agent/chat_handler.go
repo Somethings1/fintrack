@@ -13,49 +13,55 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MessageHandler supports investigation and confirmation-only CRUD proposals.
-// Enabling it uses the same explicitly configured Gemini model and credentials.
 func MessageHandler(cfg config.Config) gin.HandlerFunc {
-	p := provider{
-		endpoint: "https://generativelanguage.googleapis.com/v1beta/models/" + cfg.AgentModel + ":generateContent",
-		key:      cfg.AgentKey,
-		client:   &http.Client{Timeout: 18 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-	}
-	return messageHandler(cfg.AgentEnabled, chatRunner{model: p, tools: WorkspaceTools{LedgerTools{DB: util.DB}}})
+	p := provider{endpoint: "https://generativelanguage.googleapis.com/v1beta/models/" + cfg.AgentModel + ":generateContent", key: cfg.AgentKey, client: providerClient(cfg)}
+	handler := messageHandler(cfg.AgentEnabled, chatRunner{model: p, tools: WorkspaceTools{LedgerTools: LedgerTools{DB: util.DB}}})
+	return func(c *gin.Context) { c.Set("agent_changes_disabled", cfg.AgentChangesDisabled); handler(c) }
 }
-
 func messageHandler(enabled bool, runner chatRunner) gin.HandlerFunc {
-	slots := make(chan struct{}, 8)
 	return func(c *gin.Context) {
 		if !enabled {
-			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "AI assistant is disabled"})
+			c.Set("agent_outcome", "disabled")
+			c.AbortWithStatusJSON(503, gin.H{"error": "AI assistant is disabled", "runId": runID(c.Request.Context())})
 			return
 		}
 		if util.UserID(c.Request.Context()) == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatus(401)
 			return
 		}
 		raw, err := io.ReadAll(io.LimitReader(c.Request.Body, (64<<10)+1))
 		if err != nil || len(raw) > 64<<10 {
-			c.AbortWithStatus(http.StatusRequestEntityTooLarge)
+			c.AbortWithStatus(413)
 			return
 		}
 		var request ChatRequest
-		if decodeStrict(raw, &request) != nil || request.validate() != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "provide a question, explicit AI consent, and valid bounded history"})
+		if !uniqueJSON(raw) || decodeStrict(raw, &request) != nil {
+			c.AbortWithStatusJSON(400, gin.H{"error": "Provide a valid bounded request with no unknown or duplicate fields."})
 			return
 		}
-		select {
-		case slots <- struct{}{}:
-			defer func() { <-slots }()
-		default:
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "agent is busy"})
+		if err := request.validate(); err != nil {
+			var guard *guardError
+			if errors.As(err, &guard) {
+				writeGuardError(c, err)
+			} else {
+				c.AbortWithStatusJSON(400, gin.H{"error": "Provide a question, explicit consent, and valid permissions/history."})
+			}
+			return
+		}
+		if request.AllowChanges && c.GetBool("agent_changes_disabled") {
+			writeGuardError(c, deny("changes_not_enabled"))
 			return
 		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
 		defer cancel()
 		result, err := runner.Run(ctx, request, time.Now().UTC(), money.Currency(ctx))
 		if err != nil {
+			c.Set("agent_outcome", outcomeFor(err))
+			var guard *guardError
+			if errors.As(err, &guard) {
+				writeGuardError(c, err)
+				return
+			}
 			status, message := http.StatusBadGateway, "The assistant could not complete this question. No records were changed."
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
 				status, message = http.StatusGatewayTimeout, "The assistant timed out. Try a narrower question."
@@ -64,9 +70,12 @@ func messageHandler(enabled bool, runner chatRunner) gin.HandlerFunc {
 			} else if errors.Is(err, errToolUnavailable) {
 				status, message = http.StatusServiceUnavailable, "Financial data is temporarily unavailable."
 			}
-			c.AbortWithStatusJSON(status, gin.H{"error": message})
+			c.AbortWithStatusJSON(status, gin.H{"error": message, "runId": runID(ctx)})
 			return
 		}
-		c.JSON(http.StatusOK, result)
+		if result.Proposal != nil {
+			c.Set("agent_outcome", "proposed")
+		}
+		c.JSON(200, result)
 	}
 }

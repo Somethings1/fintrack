@@ -50,4 +50,5 @@ func Handler(w http.ResponseWriter, _ *http.Request) {
 		enabled = 1
 	}
 	fmt.Fprintf(w, "fintrack_worker_enabled %d\nfintrack_worker_last_success_timestamp_seconds %d\nfintrack_worker_failures_total %d\nfintrack_worker_oldest_due_seconds %d\n", enabled, workerLastSuccess.Load(), workerFailures.Load(), workerLagSeconds.Load())
+	WriteAgentMetrics(w)
 }

@@ -44,8 +44,8 @@ func TestAgentFunctionCallingRoundTrip(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Error(err)
 		}
-		if len(request.Tools) != 1 || len(request.Tools[0].Declarations) != 11 {
-			t.Error("missing tool definitions")
+		if len(request.Tools) != 1 || len(request.Tools[0].Declarations) != 5 {
+			t.Error("read-only requests must receive exactly the five read tools")
 		}
 		switch step {
 		case 0:

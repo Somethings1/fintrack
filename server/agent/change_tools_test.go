@@ -67,7 +67,7 @@ func TestChangeProposalStopsBeforeAnyOtherCall(t *testing.T) {
 		calls++
 		return proposal, nil
 	})}
-	result, err := runner.Run(context.Background(), ChatRequest{Input: "Create Wallet", Consent: true}, time.Now(), "USD")
+	result, err := runner.Run(context.Background(), ChatRequest{Input: "Create Wallet", Consent: true, AllowChanges: true}, time.Now(), "USD")
 	if err != nil || result.Proposal != proposal || calls != 1 || modelCalls != 1 {
 		t.Fatalf("unexpected proposal lifecycle: %+v calls=%d model=%d err=%v", result, calls, modelCalls, err)
 	}

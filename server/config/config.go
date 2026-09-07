@@ -19,6 +19,8 @@ type Config struct {
 	AgentEnabled             bool
 	AgentKey, AgentModel     string
 	CronEnabled              bool
+	AgentChangesDisabled     bool
+	AgentPricing             AgentPricing
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
@@ -86,6 +88,12 @@ func Parse(env func(string) string) (Config, error) {
 		if !(ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '-' || ch == '.') {
 			return c, fmt.Errorf("invalid AGENT_MODEL")
 		}
+	}
+	if len(c.AgentModel) > 100 {
+		return c, fmt.Errorf("AGENT_MODEL must be at most 100 characters")
+	}
+	if err := parseAgentOptions(env, &c); err != nil {
+		return c, err
 	}
 	return c, nil
 }
