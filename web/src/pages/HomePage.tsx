@@ -1,14 +1,14 @@
 import { Layout } from "antd";
 import { useState } from "react";
-import SideBar from "./SideBar";
+import ChatBot from "./ChatBot";
 import AppHeader from "./Header";
-import Overview from "./subpages/Overview/Overview";
-import Transactions from "./subpages/Transactions/Transactions";
-import Budget from "./subpages/Budget/Budget";
+import SideBar from "./SideBar";
 import Accounts from "./subpages/Accounts/Accounts";
+import Budget from "./subpages/Budget/Budget";
+import Overview from "./subpages/Overview/Overview";
 import Savings from "./subpages/Savings/Savings";
 import Subscriptions from "./subpages/Subscriptions/Subscriptions";
-import ChatBot from "./ChatBot";
+import Transactions from "./subpages/Transactions/Transactions";
 
 const { Content } = Layout;
 

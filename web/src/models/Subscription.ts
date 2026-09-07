@@ -1,4 +1,5 @@
 export interface Subscription {
+    currency?: string;
     _id: string;
     name: string;
     icon: string;
@@ -8,7 +9,7 @@ export interface Subscription {
     category: string;
 
     startDate: Date;
-    interval: number;
+    interval: "day" | "week" | "month" | "year";
     maxInterval: number;
     currentInterval: number;
     remindBefore: number;

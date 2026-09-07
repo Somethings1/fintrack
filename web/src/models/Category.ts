@@ -1,4 +1,5 @@
 export interface Category {
+    currency?: string;
   _id: string;
   owner: string;
   type: "income" | "expense";

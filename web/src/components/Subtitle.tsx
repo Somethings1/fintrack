@@ -1,7 +1,7 @@
-import React from "react";
 import { colors } from "@/theme/color";
+import React from "react";
 
-const Subtitle: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+const Subtitle: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
     <h2
       style={{

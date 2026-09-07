@@ -1,107 +1,62 @@
-type Listener = (payload: { collection: string; action: string; detail?: any }) => void;
-
+import { websocketURL } from '@/config/api';
+import { apiFetch,requireSuccess } from './apiClient';
+type Event = { collection: string; action: string; detail?: unknown };
+type Listener = (payload: Event) => void;
 const listeners = new Set<Listener>();
 let socket: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-let heartbeatTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-
-const WS_URL = "ws://localhost:8080/api/ws";
-const RECONNECT_INTERVAL = 60_000;
-const HEARTBEAT_INTERVAL = 30_000;
-
-function notifyAll(payload: { collection: string; action: string; detail?: any }) {
-    listeners.forEach(listener => {
-        try {
-            listener(payload);
-        } catch (err) {
-            console.error("Socket listener failed", err);
-        }
-    });
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+let active = false;
+let connecting = false;
+let attempt = 0;
+let generation = 0;
+function notify(payload: Event) { for (const listener of listeners) listener(payload); }
+function retry() {
+    if (!active || reconnectTimer) return;
+    const delay = Math.min(30_000, 1_000 * 2 ** Math.min(attempt++, 5)) + Math.random() * 500;
+    reconnectTimer = setTimeout(() => { reconnectTimer = undefined; void connect(); }, delay);
 }
-
-function setupHeartbeat() {
-    if (!socket) return;
-    clearTimeout(heartbeatTimer);
-
-    heartbeatTimer = setTimeout(() => {
-        try {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: "ping" }));
-                setupHeartbeat();
-            }
-        } catch (err) {
-            console.warn("Heartbeat failed", err);
-
-        }
-    }, HEARTBEAT_INTERVAL);
+async function connect() {
+    if (!active || connecting || socket) return;
+    connecting = true;
+    const current = generation;
+    try {
+        // Mint a path-scoped HttpOnly cookie; do not put tokens into a WebSocket URL.
+        await requireSuccess(await apiFetch('/api/session', { method: 'POST' }));
+        if (!active || generation !== current) return;
+        const connection = new WebSocket(websocketURL());
+        socket = connection;
+        connection.onopen = () => {
+            attempt = 0;
+            heartbeatTimer = setInterval(() => { if (connection.readyState === WebSocket.OPEN) connection.send('{"type":"ping"}'); }, 30_000);
+            notify({ collection: '', action: 'reconnect' });
+        };
+        connection.onmessage = event => {
+            try {
+                const data: unknown = JSON.parse(String(event.data));
+                if (!data || typeof data !== 'object') return;
+                if ('type' in data && data.type === 'init' && 'clientId' in data && typeof data.clientId === 'string') localStorage.setItem('clientId', data.clientId);
+                else if ('collection' in data && typeof data.collection === 'string' && 'action' in data && typeof data.action === 'string') notify({ collection: data.collection, action: data.action });
+            } catch { /* Untrusted messages are discarded without logging their payload. */ }
+        };
+        connection.onclose = () => {
+            if (socket === connection) socket = null;
+            clearInterval(heartbeatTimer); heartbeatTimer = undefined;
+            retry();
+        };
+        connection.onerror = () => connection.close();
+    } catch { retry(); }
+    finally { connecting = false; if (active && current !== generation && !socket) retry(); }
 }
-
-function connect() {
-    if (socket) return;
-
-    console.info("[socketService] Connecting...");
-    socket = new WebSocket(WS_URL);
-
-    socket.onopen = () => {
-        console.info("[socketService] Connected!");
-        reconnectTimer && clearTimeout(reconnectTimer);
-        setupHeartbeat();
-        notifyAll({ collection: "__RECONNECT__", action: "reconnect" });
-    };
-
-    socket.onmessage = event => {
-        try {
-            const data = JSON.parse(event.data);
-            const { collection, action, detail: clientId } = data;
-
-            if (action == "init") {
-                localStorage.setItem("clientId", clientId);
-            }
-            else if (collection && action) {
-                notifyAll(data);
-            } else {
-                console.warn("Unexpected message format", data);
-            }
-        } catch (err) {
-            console.error("Invalid JSON from socket:", event.data);
-        }
-    };
-
-    socket.onerror = err => {
-        console.error("[socketService] Error:", err);
-    };
-
-    socket.onclose = (event) => {
-        console.warn("[socketService] Disconnected:", event.code, event.reason);
-        socket = null;
-        reconnectTimer = setTimeout(() => {
-            connect();
-        }, RECONNECT_INTERVAL);
-    };
-}
-
 export const socketService = {
-    start: () => connect(),
-
-    stop: () => {
-        if (socket) {
-            console.info("[socketService] Stopping...");
-            socket.close();
-            socket = null;
-        }
-        reconnectTimer && clearTimeout(reconnectTimer);
-        heartbeatTimer && clearTimeout(heartbeatTimer);
+    start() { if (!active) { active = true; void connect(); } },
+    stop() {
+        active = false; generation++;
+        clearTimeout(reconnectTimer); reconnectTimer = undefined;
+        clearInterval(heartbeatTimer); heartbeatTimer = undefined;
+        if (socket) { socket.onclose = null; socket.close(); socket = null; }
+        localStorage.removeItem('clientId');
     },
-
-    restart: () => {
-        console.info("[socketService] Restarting...");
-        socketService.stop();
-        socketService.start();
-    },
-
-    subscribe: (listener: Listener) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-    },
+    restart() { this.stop(); this.start(); },
+    subscribe(listener: Listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
 };
-

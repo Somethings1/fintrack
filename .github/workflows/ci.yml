@@ -1,0 +1,270 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.7'
+          cache-dependency-path: server/go.sum
+      - run: go mod download && go mod verify
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        if: ${{ !cancelled() }}
+        run: go vet ./...
+      - name: Race-tested unit suite
+        if: ${{ !cancelled() }}
+        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out -timeout=120s ./...
+      - name: Build
+        if: ${{ !cancelled() }}
+        run: go build -trimpath -o /tmp/fintrack .
+      - name: Disposable MongoDB replica set
+        working-directory: .
+        run: bash scripts/start-ci-mongo.sh
+      - name: Financial and isolation integration tests
+        env:
+          MONGO_TEST_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true
+        run: go test -race -tags=integration -count=1 -timeout=180s -v ./...
+      - name: Reachable Go vulnerabilities
+        if: ${{ !cancelled() }}
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          govulncheck ./...
+      - name: Coverage evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-coverage
+          path: server/coverage.out
+          retention-days: 7
+      - name: Remove disposable database
+        if: ${{ always() }}
+        working-directory: .
+        run: |
+          docker rm -f fintrack-mongo || true
+          docker network rm fintrack-ci || true
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - name: Zero-warning lint
+        run: npm run lint -- --max-warnings=0
+      - name: Regression tests
+        if: ${{ !cancelled() }}
+        run: npm test
+      - name: Typecheck and production build
+        if: ${{ !cancelled() }}
+        run: npm run build
+      - name: Bundle size budgets
+        run: npm run check:bundle
+      - name: Dependency vulnerabilities
+        if: ${{ !cancelled() }}
+        run: npm audit --audit-level=high
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate deployment manifests
+        env:
+          APP_DOMAIN: app.example.com
+          ACME_EMAIL: ci@example.test
+          LEDGER_CURRENCY: USD
+          MONGO_URI: mongodb://mongo:27017/?replicaSet=rs0
+          SUPABASE_URL: https://test.supabase.co
+          SUPABASE_ANON_KEY: public-test-only
+          ALLOWED_ORIGINS: https://app.example.com
+        run: |
+          docker compose -f compose.yaml config --quiet
+          docker compose -f compose.dev.yaml config --quiet
+          docker compose -f compose.yaml -f compose.edge.yaml config --quiet
+      - name: Build non-root API image
+        run: docker build --pull -t fintrack-api:ci server
+      - name: Build non-root web image with public test configuration
+        run: >-
+          docker build --pull
+          --build-arg VITE_SUPABASE_URL=https://test.supabase.co
+          --build-arg VITE_SUPABASE_ANON_KEY=public-test-only
+          -t fintrack-web:ci web
+      - name: Build TLS edge
+        run: docker build --pull -t fintrack-edge:ci deploy/edge
+      - name: Disposable MongoDB replica set
+        run: bash scripts/start-ci-mongo.sh
+      - name: Read-only container smoke tests
+        run: bash scripts/container-smoke.sh
+      - name: Verified local TLS edge
+        run: bash scripts/test-edge.sh
+      - name: Export images for isolated scanning
+        run: |
+          mkdir -p "$RUNNER_TEMP/scan"
+          docker save fintrack-api:ci -o "$RUNNER_TEMP/scan/api.tar"
+          docker save fintrack-web:ci -o "$RUNNER_TEMP/scan/web.tar"
+          docker save fintrack-edge:ci -o "$RUNNER_TEMP/scan/edge.tar"
+      - name: Scan source for exposed secrets
+        run: >-
+          docker run --rm -v "$PWD:/src:ro"
+          aquasec/trivy:0.74.0 fs --scanners secret --exit-code 1
+          --skip-dirs /src/.git /src
+      - name: Fail on high or critical image vulnerabilities
+        run: |
+          for image in api web edge; do
+            docker run --rm -v "$RUNNER_TEMP/scan:/scan" \
+              aquasec/trivy:0.74.0 image --input "/scan/$image.tar" \
+              --scanners vuln --severity HIGH,CRITICAL --exit-code 1
+          done
+      - name: Generate CycloneDX software inventories
+        if: ${{ !cancelled() }}
+        run: |
+          for image in api web edge; do
+            if test -f "$RUNNER_TEMP/scan/$image.tar"; then
+              docker run --rm -v "$RUNNER_TEMP/scan:/scan" \
+                aquasec/trivy:0.74.0 image --input "/scan/$image.tar" \
+                --format cyclonedx --output "/scan/$image.cdx.json"
+            fi
+          done
+      - name: Preserve software inventories
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: container-sboms
+          path: ${{ runner.temp }}/scan/*.cdx.json
+          retention-days: 7
+      - name: Clean disposable stack
+        if: ${{ always() }}
+        run: |
+          docker rm -f fintrack-edge fintrack-web fintrack-api fintrack-mongo || true
+          docker network rm fintrack-ci || true
+
+  policies:
+    name: Policy isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Fail-closed release guard tests
+        run: python3 -m unittest discover -s tests/ops -v
+      - name: Real PostgreSQL owner-isolation tests
+        run: bash scripts/test-policies.sh
+
+  browser:
+    name: Browser acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.7'
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            e2e/package-lock.json
+      - run: npm ci --legacy-peer-deps --prefix web && npm ci --prefix e2e
+      - name: Browser dependency audit
+        run: npm audit --prefix e2e --audit-level=high
+      - name: Build the real client with disposable auth configuration
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:8089
+          VITE_SUPABASE_ANON_KEY: public-ci-only
+        run: npm run build --prefix web
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - run: bash scripts/start-ci-mongo.sh
+      - name: Real browser, API and database acceptance
+        run: bash scripts/test-browser.sh
+      - name: Browser evidence (synthetic data only)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-evidence
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            e2e/fixture-logs/
+          retention-days: 7
+      - name: Clean disposable database
+        if: ${{ always() }}
+        run: docker rm -f fintrack-mongo || true
+
+  restore:
+    name: Encrypted restore drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build backup tooling
+        run: docker build --pull -t fintrack-backup:ci -f deploy/backup/Dockerfile .
+      - run: bash scripts/start-ci-mongo.sh
+      - name: Encrypt, restore and verify synthetic data
+        run: bash scripts/test-restore.sh
+      - name: Clean disposable database
+        if: ${{ always() }}
+        run: docker rm -f fintrack-mongo || true
+
+  required:
+    name: Required CI
+    if: ${{ always() }}
+    needs: [backend, frontend, containers, policies, browser, restore]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every gate to succeed
+        env:
+          BACKEND: ${{ needs.backend.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+          POLICIES: ${{ needs.policies.result }}
+          BROWSER: ${{ needs.browser.result }}
+          RESTORE: ${{ needs.restore.result }}
+        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success && test "$POLICIES" = success && test "$BROWSER" = success && test "$RESTORE" = success

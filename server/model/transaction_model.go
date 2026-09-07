@@ -1,14 +1,20 @@
 package model
 
 import (
+	"fintrack/server/money"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
 
 type Transaction struct {
+	SubscriptionID     primitive.ObjectID `bson:"subscription_id,omitempty" json:"-"`
+	OccurrenceAt       time.Time          `bson:"occurrence_at,omitempty" json:"-"`
+	Currency           string             `bson:"currency" json:"currency"`
+	RequestKey         string             `bson:"request_key,omitempty" json:"-"`
+	RequestHash        string             `bson:"request_hash,omitempty" json:"-"`
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Creator            string             `bson:"creator" json:"creator"`
-	Amount             float64            `bson:"amount" json:"amount"`
+	Amount             money.Amount       `bson:"amount" json:"amount"`
 	DateTime           time.Time          `bson:"date_time" json:"dateTime"`
 	Type               string             `bson:"type" json:"type"`
 	SourceAccount      primitive.ObjectID `bson:"source_account,omitempty" json:"sourceAccount,omitempty"`
@@ -18,4 +24,3 @@ type Transaction struct {
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
 }
-

@@ -1,8 +1,8 @@
-import React from "react";
 import RoundedBox from "@/components/RoundedBox";
-import { Button, Typography } from "antd";
 import SimpleTransactionTable from "@/components/TransactionTable/SimpleTransactionTable";
 import { LinkOutlined } from "@ant-design/icons";
+import { Button,Typography } from "antd";
+import React from "react";
 
 const { Title } = Typography;
 

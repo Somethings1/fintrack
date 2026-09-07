@@ -1,7 +1,8 @@
+import { addMoney } from "@/utils/money";
+import { useTransactions } from "@/hooks/useTransactions";
+import dayjs from "dayjs";
 import React from "react";
 import TotalBox from "./TotalBox";
-import dayjs from "dayjs";
-import { useTransactions } from "@/hooks/useTransactions";
 
 const TotalIncome: React.FC = () => {
     const { transactions: txs } = useTransactions();
@@ -10,14 +11,14 @@ const TotalIncome: React.FC = () => {
         const now = dayjs();
         return txs
             .filter(t => t.type === "income" && dayjs(t.dateTime).isSame(now, "month"))
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => addMoney(sum, t.amount), 0);
     };
 
     const getPrevious = async () => {
         const prev = dayjs().subtract(1, "month");
         return txs
             .filter(t => t.type === "income" && dayjs(t.dateTime).isSame(prev, "month"))
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => addMoney(sum, t.amount), 0);
     };
 
     return (

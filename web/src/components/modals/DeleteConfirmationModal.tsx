@@ -1,7 +1,7 @@
 // src/components/modals/DeleteConfirmationModal.tsx
-import React from 'react';
-import { Modal, Typography, Alert, Space } from 'antd';
 import { WarningOutlined } from '@ant-design/icons';
+import { Alert,Modal,Space,Typography } from 'antd';
+import React from 'react';
 
 const { Text } = Typography;
 

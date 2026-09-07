@@ -1,138 +1,85 @@
+// Package cronjob runs bounded, cancellable, replica-safe subscription workers.
 package cronjob
 
 import (
 	"context"
-	"log"
-	"os"
-	"time"
-    "fmt"
-
+	"errors"
 	"fintrack/server/model"
 	"fintrack/server/service"
+	"fintrack/server/telemetry"
 	"fintrack/server/util"
-
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"log/slog"
+	"time"
 )
 
-func CreateSubscriptionNotificationsCron() {
-    ticker := time.NewTicker(1 * time.Hour)
-    if os.Getenv("DEV") == "true" {
-        ticker = time.NewTicker(1 * time.Minute)
-    }
-    defer ticker.Stop()
-
-    for {
-        <-ticker.C
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-        now := time.Now()
-
-        filter := bson.M{
-            "is_active": true,
-            "notify_at": bson.M{
-                "$lte": now,
-                "$gt": time.Time{},
-            },
-            "is_deleted": false,
-        }
-
-        cursor, err := util.SubscriptionCollection.Find(ctx, filter)
-        if err != nil {
-            log.Println("Error fetching subscriptions for notifications:", err)
-            cancel()
-            continue
-        }
-
-        for cursor.Next(ctx) {
-            var sub model.Subscription
-            if err := cursor.Decode(&sub); err != nil {
-                log.Println("Error decoding subscription:", err)
-                continue
-            }
-
-            ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
-            ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
-
-            notif := model.Notification{
-                Owner: sub.Creator,
-                Type: model.TypeSubscription,
-                ReferenceId: sub.ID,
-                Title: "Subscription Alert",
-                Message: fmt.Sprintf("Your subscription %s is about to due in %d days.", sub.Name, sub.RemindBefore),
-                ScheduledAt: time.Now(),
-            }
-
-            if _, err := service.AddNotification(ctxWithInfo, notif); err != nil {
-                log.Println("Failed to create notification for subscription:", err)
-            }
-
-            service.OnNotificationCreated(ctxWithInfo, sub.ID)
-        }
-
-        cursor.Close(ctx)
-        cancel()
-    }
+// Run drains at most one occurrence per subscription and 100 subscriptions per
+// tick. No unbounded catch-up or leases: database transactions arbitrate workers.
+func Run(ctx context.Context, currency string) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		tick, cancel := context.WithTimeout(ctx, 25*time.Second)
+		if err := Tick(tick, time.Now().UTC(), currency); err != nil && ctx.Err() == nil {
+			slog.Error("recurrence_tick_failed")
+		}
+		cancel()
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
-
-func CreateSubscriptionTransactionCron() {
-    ticker := time.NewTicker(1 * time.Hour)
-    if os.Getenv("DEV") == "true" {
-        ticker = time.NewTicker(1 * time.Minute)
-    }
-    defer ticker.Stop()
-
-    for {
-        <-ticker.C
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-        now := time.Now()
-
-        filter := bson.M{
-            "is_active": true,
-            "next_active": bson.M{"$lte": now},
-            "is_deleted": false,
-        }
-
-        cursor, err := util.SubscriptionCollection.Find(ctx, filter)
-        if err != nil {
-            log.Println("Error fetching subscriptions for transactions:", err)
-            cancel()
-            continue
-        }
-
-        for cursor.Next(ctx) {
-            var sub model.Subscription
-            if err := cursor.Decode(&sub); err != nil {
-                log.Println("Error decoding subscription:", err)
-                continue
-            }
-
-            ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
-            ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
-
-            txn := model.Transaction{
-                Creator:        sub.Creator,
-                Amount:         sub.Amount,
-                SourceAccount:  sub.SourceAccount,
-                Category:       sub.Category,
-                DateTime:       now,
-                Type:           "expense",
-                Note:           "Subscription payment for " + sub.Name,
-                IsDeleted:      false,
-            }
-
-            if _, err := service.AddTransaction(ctxWithInfo, txn); err != nil {
-                log.Println("Failed to create transaction for subscription:", err)
-                continue
-            }
-
-            if err := service.OnTransactionCreated(ctxWithInfo, sub.ID); err != nil {
-                log.Println("Failed to update subscription after transaction:", err)
-            }
-        }
-
-        cursor.Close(ctx)
-        cancel()
-    }
+func Tick(ctx context.Context, now time.Time, currency string) error {
+	var failures error
+	var oldest time.Duration
+	defer func() { telemetry.WorkerTick(failures, oldest) }()
+	for _, field := range []string{"next_active", "notify_at"} {
+		retryField := "posting_retry_at"
+		if field == "notify_at" {
+			retryField = "reminder_retry_at"
+		}
+		filter := bson.M{"$or": bson.A{bson.M{retryField: bson.M{"$exists": false}}, bson.M{retryField: bson.M{"$lte": now}}}, "schedule_version": 2, "is_active": true, "is_deleted": false, "currency": currency, field: bson.M{"$lte": now, "$gt": time.Time{}}}
+		cursor, err := util.SubscriptionCollection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: field, Value: 1}, {Key: "_id", Value: 1}}).SetLimit(100))
+		if err != nil {
+			failures = err
+			return err
+		}
+		var subs []model.Subscription
+		err = cursor.All(ctx, &subs)
+		cursor.Close(ctx)
+		if err != nil {
+			failures = err
+			return err
+		}
+		for _, sub := range subs {
+			if ctx.Err() != nil {
+				failures = ctx.Err()
+				return ctx.Err()
+			}
+			due := sub.NextActive
+			if field == "notify_at" {
+				due = sub.NotifyAt
+			}
+			oldest = max(oldest, now.Sub(due))
+			// Failed references/invalid records do not starve the rest of the batch.
+			if field == "next_active" {
+				_, err = service.ProcessOccurrence(ctx, sub.ID, sub.NextActive, now, currency)
+			} else {
+				_, err = service.ProcessReminder(ctx, sub.ID, sub.NotifyAt, now, currency)
+			}
+			if err != nil {
+				slog.Error("recurrence_occurrence_failed", "phase", field)
+				failures = errors.Join(failures, err)
+				// Quarantine a poison occurrence briefly, not the whole due queue.
+				// Match its observed schedule so a successful concurrent worker's
+				// newer occurrence is never delayed. Financial data is unchanged.
+				_, backoffErr := util.SubscriptionCollection.UpdateOne(ctx, bson.M{"_id": sub.ID, field: due}, bson.M{"$set": bson.M{retryField: now.Add(5 * time.Minute)}})
+				failures = errors.Join(failures, backoffErr)
+			}
+		}
+	}
+	return failures
 }
-

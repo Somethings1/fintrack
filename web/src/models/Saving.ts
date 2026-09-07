@@ -1,4 +1,5 @@
 export interface Saving {
+    currency?: string;
   _id: string;
   owner: string;
   balance: number;

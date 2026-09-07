@@ -1,12 +1,11 @@
+import { getLedgerConfig } from "@/config/ledger";
+import { useSettings } from "@/context/settings-context";
 import React from "react";
-import { useSettings } from "@/context/SettingsContext";
 
 interface BalanceProps {
   amount: number;
   type: string;
-  decimals?: number;
   locale?: string;
-  currencySymbol?: string;
   size?: "xs" | "s" | "m" | "l" | "xl";
   align?: "left" | "right" | "center";
 }
@@ -14,20 +13,16 @@ interface BalanceProps {
 const Balance: React.FC<BalanceProps> = ({
   amount,
   type,
-  decimals,
   locale,
-  currencySymbol,
   size = "s",
   align = "right",
 }) => {
   const { settings } = useSettings();
 
-  // Use settings or fallback defaults
+  const ledger = getLedgerConfig();
   const effectiveLocale = locale || settings?.display_locale || "en-US";
-  const effectiveDecimals =
-    decimals !== undefined ? decimals : settings?.display_floating_points ?? 2;
-  const effectiveCurrencySymbol =
-    currencySymbol || settings?.display_currency || "đ";
+  const effectiveDecimals = ledger.precision;
+  const effectiveCurrencySymbol = ledger.currency;
   const currencyPosition = settings?.currency_position || "before";
 
   // Colors based on type
@@ -47,7 +42,7 @@ const Balance: React.FC<BalanceProps> = ({
   };
 
   const formattedAmount = Math.abs(amount).toLocaleString(effectiveLocale, {
-    minimumFractionDigits: 0,
+    minimumFractionDigits: effectiveDecimals,
     maximumFractionDigits: effectiveDecimals,
   });
 

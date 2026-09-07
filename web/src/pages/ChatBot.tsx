@@ -1,396 +1,72 @@
-import React, { useRef, useState, useEffect } from "react";
-import { Transaction } from "@/models/Transaction";
-import { Account } from "@/models/Account";
-import { Category } from "@/models/Category";
-import { Button, Input, Tooltip, Spin, Modal, Avatar } from "antd";
-import { UserOutlined, SendOutlined, RobotOutlined } from "@ant-design/icons";
-import { getStoredCategories } from "@/services/categoryService";
-import "./ChatBot.css";
-import { normalizeTransaction } from "@/utils/transactionUtils";
-import AddEditTransactionModal from "@/components/modals/AddEditTransactionModal";
-import { talkToGemini } from "@/utils/chatbotUtils";
-import AccountForm from "@/components/forms/AccountForm";
-import CategoryForm from "@/components/forms/CategoryForm";
-import { useSavings } from "@/hooks/useSavings";
-import { useAccounts } from "@/hooks/useAccounts";
-import { addTransaction } from "@/services/transactionService";
-import { useCategories } from "../hooks/useCategories";
-import { getStoredAccounts } from "../services/accountService";
-import { getStoredSavings } from "../services/savingService";
+import { useAccounts } from '@/hooks/useAccounts';
+import { useCategories } from '@/hooks/useCategories';
+import { useSavings } from '@/hooks/useSavings';
+import type { Transaction } from '@/models/Transaction';
+import { addTransaction } from '@/services/transactionService';
+import { requestTransactionDraft } from '@/utils/chatbotUtils';
+import { RobotOutlined } from '@ant-design/icons';
+import { Alert,Button,Checkbox,Descriptions,Input,Modal,Space,Typography } from 'antd';
+import { useEffect,useRef,useState } from 'react';
+import './ChatBot.css';
 
-interface Message {
-    from: "user" | "bot";
-    text: string;
-    transaction?: Transaction,
-    buttons?: { label: string; onClick: () => void }[];
-}
-
-const ChatBot: React.FC = () => {
-    const [visible, setVisible] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            from: "bot",
-            text: "Hi! I can understand sentences like “I spent 200k for lunch from wallet” and turn them into transactions. Try me!",
-        },
-    ]);
-    const [input, setInput] = useState("");
-    const [lastInput, setLastInput] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [accountNames, setAccountNames] = useState<Record<string, string>>({});
-    const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
-    const [showAddEditModal, setShowAddEditModal] = useState(false);
-    const [transactionToEdit, setTransactionToEdit] = useState(null);
-
-    const [accountModalOpen, setAccountModalOpen] = useState(false);
-    const [accountToAdd, setAccountToAdd] = useState<Account>(null);
-
-    const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-    const [categoryToAdd, setCategoryToAdd] = useState<Category>(null);
-    const accounts = useAccounts();
-    const savings = useSavings();
-    const categories = useCategories();
-
-    let accountOptions;
-
-    const fetchNames = async () => {
-        const accounts = await getStoredAccounts();
-        const savings = await getStoredSavings();
-        const categoryOptions = await getStoredCategories();
-        accountOptions = [...accounts, ...savings];
-
-        const accountMap: Record<string, string> = {};
-        const categoryMap: Record<string, string> = {};
-
-        accountOptions.forEach(a => accountMap[a._id] = a.name);
-        categoryOptions.forEach(c => categoryMap[c._id] = c.name);
-
-        setAccountNames(accountMap);
-        setCategoryNames(categoryMap);
-
-        return { accounts: accountMap, categories: categoryMap };
-    };
-
-    useEffect(() => {
-        fetchNames();
-    }, [accounts, savings, categories]);
-
-    const removeLastMessageButtons = () => {
-        setMessages((current) => {
-            const updated = [...current];
-            const last = updated.length - 1;
-            if (last >= 0 && updated[last].buttons) {
-                const cleaned = { ...updated[last] };
-                delete cleaned.buttons;
-                updated[last] = cleaned;
-                return updated;
-            }
-            return current;
-        });
-    }
-
-    const handleResultFromChatbot = (transaction, error, validity) => {
-        transaction.dateTime = new Date();
-        if (error) {
-            if (error.type === "account") setAccountToAdd({ name: error.name });
-            else setCategoryToAdd({ name: error.name });
-            setMessages((prev) => [
-                ...prev,
-                {
-                    from: "bot",
-                    text: error.message,
-                    transaction,
-                    buttons: [
-                        {
-                            label: error.type === "account" ? "Add Account" : "Add Category",
-                            onClick: () =>
-                                error.type === "account"
-                                    ? handleAddAccount()
-                                    : handleAddCategory(),
-                        },
-                        {
-                            label: "Edit this transaction",
-                            onClick: () => handleEdit(transaction)
-                        },
-                    ],
-                },
-            ]);
-        } else {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    from: "bot",
-                    text: "Here's the transaction I created. Want to accept or edit it?",
-                    transaction,
-                    buttons: [
-                        { label: "Accept", onClick: () => handleAccept(transaction) },
-                        { label: "Edit", onClick: () => handleEdit(transaction) },
-                    ],
-                },
-            ]);
-        }
-    }
-
-    const handleFirstSend = async () => {
-        if (!input.trim()) return;
-        const userText = input.trim();
-        setLastInput(input);
-        removeLastMessageButtons();
-        setMessages((prev) => [...prev, { from: "user", text: userText }]);
-        setInput("");
-
-        await handleSend(input, accountNames, categoryNames);
-    }
-
-    const handleSend = async (input: string, accountNames: any, categoryNames: any) => {
-        setLoading(true);
-
+/** Propose -> inspect -> explicitly confirm. The model never receives a mutation tool. */
+export default function ChatBot() {
+    const [open, setOpen] = useState(false);
+    const [input, setInput] = useState('');
+    const [consent, setConsent] = useState(false);
+    const [draft, setDraft] = useState<Partial<Transaction> | null>(null);
+    const [status, setStatus] = useState('');
+    const [busy, setBusy] = useState(false);
+    const controller = useRef<AbortController | null>(null);
+    const saving = useRef(false);
+    const accounts = useAccounts(); const savings = useSavings(); const categories = useCategories();
+    const names = new Map([...accounts, ...savings, ...categories].map(item => [item._id, item.name]));
+    useEffect(() => () => controller.current?.abort(), []);
+    const propose = async () => {
+        if (!consent || !input.trim() || busy) return;
+        controller.current?.abort(); controller.current = new AbortController();
+        const request = controller.current;
+        setBusy(true); setDraft(null); setStatus('');
         try {
-            const { transaction, error, validity } = await talkToGemini(input, accountNames, categoryNames);
-            handleResultFromChatbot(transaction, error, validity);
-        } catch (err) {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    from: "bot",
-                    text: "Something went wrong while talking to my digital brain. Try again?",
-                },
-            ]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleAccept = async (tx: any) => {
-        tx = normalizeTransaction(tx);
-        await addTransaction(tx);
-        setShowAddEditModal(false);
-        removeLastMessageButtons();
-        setMessages((prev) => [
-            ...prev,
-            {
-                from: "bot",
-                text: "New transaction added successfully. What's next?"
+            const result = await requestTransactionDraft(input.trim(), consent, request.signal);
+            if (!request.signal.aborted) {
+                setDraft(result.transaction ? { ...result.transaction, dateTime: new Date(), isDeleted: false } : null);
+                setStatus(result.clarification);
             }
-        ]);
+        } catch (error) { if (!request.signal.aborted) setStatus(error instanceof Error ? error.message : 'Draft failed'); }
+        finally { if (!request.signal.aborted) setBusy(false); }
     };
-
-    const handleCancelAddEdit = () => {
-        setTransactionToEdit(null);
-        setShowAddEditModal(false);
-    }
-
-    const handleEdit = (tx: any) => {
-        setTransactionToEdit(tx);
-        setShowAddEditModal(true);
+    const accept = async () => {
+        if (!draft || saving.current) return;
+        saving.current = true; setBusy(true);
+        try { await addTransaction(draft); setDraft(null); setInput(''); setStatus('Transaction saved.'); }
+        catch (error) { setStatus(error instanceof Error ? error.message : 'Saving failed. Check your transaction list before retrying.'); }
+        finally { saving.current = false; setBusy(false); }
     };
-
-    const handleAddAccount = () => {
-        setAccountModalOpen(true);
-    };
-
-    const handleAddCategory = () => {
-        setCategoryModalOpen(true);
-    };
-
-    const handleNewAccount = async () => {
-        setTimeout(async () => {
-            const { accounts, categories } = await fetchNames();
-            removeLastMessageButtons();
-            setMessages((prev) => [
-                ...prev,
-                {
-                    from: "bot",
-                    text: "New account added. Now I'm trying to recreate your transaction"
-                }
-            ]);
-            handleSend(lastInput, accounts, categories);
-            setAccountModalOpen(false);
-        }, 500);
-    }
-
-    const handleNewCategory = async () => {
-        setTimeout(async () => {
-            const { accounts, categories } = await fetchNames();
-            removeLastMessageButtons();
-            setMessages((prev) => [
-                ...prev,
-                {
-                    from: "bot",
-                    text: "New category added. Now I'm trying to recreate your transaction"
-                }
-            ]);
-            handleSend(lastInput, accounts, categories);
-            setCategoryModalOpen(false);
-        }, 500);
-    }
-
-    if (Object.keys(categoryNames).length === 0) {
-        return <Spin />;
-    }
-
-
-    return (
-
-        <div className="chatbot-container">
-
-            {visible && (
-                <div className="chatbot-popup">
-                    <h3 style={{ textAlign: "center", padding: "10px", borderBottom: "1px solid #D0D0D4" }}>Fintrack assistant</h3>
-                    <div className="chatbot-messages">
-                        {messages.map((msg, idx) => {
-                            const isUser = msg.from === "user";
-                            return (
-                                <div
-                                    key={idx}
-                                    className={`chat-bubble ${isUser ? "user" : "bot"}`}
-                                    style={{ display: "flex", alignItems: "flex-start", gap: 12 }}
-                                >
-                                    {/* Avatar */}
-                                    {!isUser && (
-                                        <Avatar
-                                            icon={<RobotOutlined />}
-                                            style={{
-                                                backgroundColor: "#7265e6",
-                                                flexShrink: 0,
-                                            }}
-                                        />
-                                    )
-                                    }
-
-                                    {/* Bubble content */}
-                                    <div style={{ flex: 1 }}>
-                                        <div className="chat-text">{msg.text}</div>
-
-                                        {msg.transaction && (
-                                            <div
-                                                style={{
-                                                    background: "#f6f6f6",
-                                                    border: "1px solid #e0e0e0",
-                                                    borderRadius: 8,
-                                                    padding: 12,
-                                                    marginTop: 8,
-                                                    fontSize: 13,
-                                                    color: "#333",
-                                                }}
-                                            >
-                                                <div><strong>Amount:</strong> {(msg.transaction.amount ?? 0).toLocaleString()} đ</div>
-                                                <div><strong>Type:</strong> {msg.transaction.type}</div>
-                                                <div><strong>Date:</strong> {new Date(msg.transaction.dateTime).toLocaleString()}</div>
-                                                {msg.transaction.sourceAccount && (
-                                                    <div><strong>Source:</strong> {accountNames[msg.transaction.sourceAccount]}</div>
-                                                )}
-                                                {msg.transaction.destinationAccount && (
-                                                    <div><strong>Destination:</strong> {accountNames[msg.transaction.destinationAccount]}</div>
-                                                )}
-                                                {msg.transaction.category && (
-                                                    <div><strong>Category:</strong> {categoryNames[msg.transaction.category]}</div>
-                                                )}
-                                                {msg.transaction.note && (
-                                                    <div><strong>Note:</strong> {msg.transaction.note}</div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {msg.buttons && (
-                                            <div className="chat-buttons" style={{ marginTop: 8 }}>
-                                                {msg.buttons.map((btn, i) => (
-                                                    <Button key={i} size="small" onClick={btn.onClick}>
-                                                        {btn.label}
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {isUser && (
-                                        <Avatar
-                                            icon={<UserOutlined />}
-                                            style={{
-                                                backgroundColor: "#EFEFF1",
-                                                flexShrink: 0,
-                                                color: "black",
-                                            }}
-                                        />
-
-                                    )}
-                                </div>
-
-                            );
-                        })}
-                        {loading && <Spin style={{ marginTop: 8 }} />}
-                    </div>
-
-                    <div className="chatbot-input-row">
-                        <Input
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onPressEnter={handleFirstSend}
-                            placeholder="Type a sentence..."
-                        />
-                        <Button
-                            icon={<SendOutlined />}
-                            type="primary"
-                            onClick={handleFirstSend}
-                            id="send-button"
-                        />
-                    </div>
-                </div>
-            )}
-            {!visible ? (
-                <Tooltip title="Ask ChatBot">
-                    <Button
-                        shape="circle"
-                        type="primary"
-                        icon={<RobotOutlined />}
-                        size="large"
-                        onClick={() => setVisible(true)}
-                        className="chatbot-icon"
-                    />
-                </Tooltip>
-            ) : (
-                <Button
-                    shape="circle"
-                    type="primary"
-                    icon={<RobotOutlined />}
-                    size="large"
-                    onClick={() => setVisible(false)}
-                    className="chatbot-icon chatbot-icon-active"
-                />
-            )}
-
-
-            <AddEditTransactionModal
-                open={showAddEditModal}
-                onCancel={handleCancelAddEdit}
-                onSubmit={handleAccept}
-                transactionToEdit={transactionToEdit}
-                accountOptions={accountOptions}
-                categoryOptions={categories}
-            />
-
-            <Modal
-                title="New account"
-                open={accountModalOpen}
-                onCancel={() => setAccountModalOpen(false)}
-                footer={null}
-                destroyOnClose
-            >
-                <AccountForm account={accountToAdd} onSubmit={handleNewAccount} onCancel={() => setAccountModalOpen(false)} />
-            </Modal>
-
-            <Modal
-                title="New category"
-                open={categoryModalOpen}
-                onCancel={() => setCategoryModalOpen(false)}
-                footer={null}
-                destroyOnClose
-            >
-                <CategoryForm category={categoryToAdd} onSubmit={handleNewCategory} onCancel={() => setCategoryModalOpen(false)} />
-            </Modal>
-
-        </div>
-    );
-};
-
-export default ChatBot;
-
+    const close = () => { if (saving.current) return; controller.current?.abort(); setBusy(false); setOpen(false); };
+    return <>
+        <Button className="chatbot-toggle" icon={<RobotOutlined />} onClick={() => setOpen(true)} aria-label="Open transaction assistant">Assistant</Button>
+        <Modal title="Transaction drafting assistant" open={open} onCancel={close} footer={null}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+                <Alert type="info" showIcon message="Drafts only. Nothing is saved until you confirm. This is not financial advice." />
+                <Checkbox checked={consent} onChange={event => setConsent(event.target.checked)}>
+                    Send this description and my account/category names to Google Gemini to prepare a draft. Do not include passwords or bank credentials.
+                </Checkbox>
+                <Input.TextArea aria-label="Describe a transaction" value={input} maxLength={1500} showCount rows={3} onChange={event => { setInput(event.target.value); setDraft(null); }} placeholder="I spent 20 on lunch from Wallet, in Food." disabled={busy} />
+                <Button type="primary" loading={busy && !saving.current} disabled={!consent || !input.trim() || busy} onClick={() => void propose()}>Prepare draft</Button>
+                {status && <Typography.Paragraph role="status">{status}</Typography.Paragraph>}
+                {draft && <>
+                    <Descriptions bordered column={1} size="small" title="Review every field">
+                        <Descriptions.Item label="Type">{draft.type}</Descriptions.Item>
+                        <Descriptions.Item label="Amount">{draft.amount} (your configured currency)</Descriptions.Item>
+                        <Descriptions.Item label="From">{names.get(draft.sourceAccount ?? '') ?? 'External'}</Descriptions.Item>
+                        <Descriptions.Item label="To">{names.get(draft.destinationAccount ?? '') ?? 'External'}</Descriptions.Item>
+                        <Descriptions.Item label="Category">{names.get(draft.category ?? '') ?? 'Transfer'}</Descriptions.Item>
+                        <Descriptions.Item label="Note">{draft.note}</Descriptions.Item>
+                    </Descriptions>
+                    <Space><Button onClick={() => setDraft(null)} disabled={busy}>Discard</Button><Button type="primary" onClick={() => void accept()} disabled={busy || !consent} loading={saving.current}>Confirm and save transaction</Button></Space>
+                </>}
+            </Space>
+        </Modal>
+    </>;
+}

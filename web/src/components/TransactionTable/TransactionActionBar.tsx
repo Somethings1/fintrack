@@ -1,13 +1,13 @@
-import React from 'react';
-import { Button, Space } from 'antd';
 import {
-    DeleteOutlined,
-    EditOutlined,
-    FilterOutlined,
-    SelectOutlined,
-    PlusOutlined,
-    DownloadOutlined
+DeleteOutlined,
+DownloadOutlined,
+EditOutlined,
+FilterOutlined,
+PlusOutlined,
+SelectOutlined
 } from '@ant-design/icons';
+import { Button,Space } from 'antd';
+import React from 'react';
 
 interface TransactionActionBarProps {
     // Filter props
@@ -90,7 +90,7 @@ const TransactionActionBar: React.FC<TransactionActionBarProps> = ({
                 >
                     {editMode ? "Exit Edit" : "Edit Mode"}
                 </Button>
-                <Button type="primary" icon={<PlusOutlined />} onClick={onAddNew}>
+                <Button aria-label="Add new transaction" type="primary" icon={<PlusOutlined aria-hidden="true" />} onClick={onAddNew}>
                     Add new transaction
                 </Button>
             </Space>

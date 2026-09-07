@@ -1,0 +1,27 @@
+# Optional automatic TLS edge. Requires DNS and inbound 80/443 to this host.
+# docker compose -f compose.yaml -f compose.edge.yaml up -d
+services:
+  edge:
+    image: ${EDGE_IMAGE:-fintrack-edge:local}
+    build: ./deploy/edge
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Supply a public hostname, without scheme/path}
+      ACME_EMAIL: ${ACME_EMAIL:?Supply the TLS certificate operations email}
+    ports: ['80:8080', '443:8443']
+    depends_on:
+      web: {condition: service_healthy}
+    user: '65532:65532'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes: ['edge_data:/data']
+    tmpfs: ['/tmp:rw,nosuid,noexec,size=16m', '/config:rw,nosuid,noexec,uid=65532,gid=65532,size=16m']
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+volumes:
+  edge_data:

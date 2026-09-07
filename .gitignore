@@ -11,3 +11,30 @@
 /electron/node_modules/
 /web/.env
 
+
+# Runtime secrets and generated artifacts
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+**/.DS_Store
+server/fintrack
+coverage.out
+*.log
+
+coverage.out
+
+# Ephemeral acceptance-test artifacts and encrypted backup files
+e2e/test-results/
+e2e/playwright-report/
+e2e/fixture-logs/
+*.age
+*.age.manifest.json
+
+# Private migration/operator evidence and caches
+**/__pycache__/
+release-evidence/
+money-plan*.json
+money-apply*.json

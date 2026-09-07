@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useRef } from "react";
 import {
-    Popover,
-    List,
-    Typography,
-    Badge,
-    Button,
-    Divider,
-} from "antd";
-import {
-    BellOutlined,
-    ArrowLeftOutlined,
+ArrowLeftOutlined,
+BellOutlined,
 } from "@ant-design/icons";
+import {
+Badge,
+Button,
+Divider,
+List,
+Popover,
+Typography,
+} from "antd";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import React,{ useCallback,useEffect,useRef,useState } from "react";
 
 import { useNotifications } from "@/hooks/useNotifications";
-import { markAsRead } from "@/services/notificationService";
 import { Notification } from "@/models/Notification";
-import { getTransactionById } from "../services/transactionService";
+import { markAsRead } from "@/services/notificationService";
 import { getCategoryById } from "../services/categoryService";
 import { getSubscriptionById } from "../services/subscriptionService";
+import { getTransactionById } from "../services/transactionService";
 
 dayjs.extend(relativeTime);
 
@@ -30,22 +30,22 @@ const NotificationPopover = () => {
     const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
     const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
     const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-    const [referencedData, setReferencedData] = useState<any>(null);
+    const [referencedData, setReferencedData] = useState<{ amount?: number; type?: string; name?: string; dateTime?: Date; budget?: number; interval?: string; nextActive?: Date } | null>(null);
     const listRef = useRef<HTMLDivElement | null>(null);
 
-    const processNotifications = () => {
+    const processNotifications = useCallback(() => {
         const now = dayjs();
         const filtered = allNotifications
             .filter(n => dayjs(n.scheduledAt).isBefore(now) || dayjs(n.scheduledAt).isSame(now))
             .sort((a, b) => dayjs(b.scheduledAt).valueOf() - dayjs(a.scheduledAt).valueOf());
         setFilteredNotifications(filtered);
-    };
+    }, [allNotifications]);
 
     useEffect(() => {
         processNotifications();
         const intervalId = setInterval(processNotifications, 5000);
         return () => clearInterval(intervalId);
-    }, [allNotifications]);
+    }, [processNotifications]);
 
     const unreadNotifications = filteredNotifications.filter(n => !n.read);
     const unreadCount = unreadNotifications.length;
@@ -102,7 +102,7 @@ const NotificationPopover = () => {
         );
     };
 
-    const getTimeLabel = (time: string) => {
+    const getTimeLabel = (time: string | Date) => {
         const now = dayjs();
         const scheduled = dayjs(time);
         const diff = now.diff(scheduled, 'minute');

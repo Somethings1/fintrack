@@ -1,40 +1,14 @@
-import { useEffect, useState } from "react";
-import { Category } from "@/models/Category";
-import { getStoredCategories } from "@/services/categoryService";
-import { useRefresh } from "@/context/RefreshProvider";
-
-let cachedCategories: Category[] = [];
-const subscribers = new Set<(categories: Category[]) => void>();
-let isInitialized = false;
-
-async function refreshData() {
-    const data = await getStoredCategories();
-    cachedCategories = data;
-    subscribers.forEach((callback) => callback(cachedCategories));
-}
-
+import { registerRefreshCallback,unregisterRefreshCallback } from '@/context/RefreshBus';
+import type { Category } from '@/models/Category';
+import { getStoredCategories } from '@/services/categoryService';
+import { useEffect,useState } from 'react';
 export function useCategories() {
-    const [categories, setCategories] = useState<Category[]>(cachedCategories);
-    const { register, unregister } = useRefresh();
-
+    const [items, setItems] = useState<Category[]>([]);
     useEffect(() => {
-        subscribers.add(setCategories);
-
-        const onRefresh = () => refreshData();
-
-        register("categories", onRefresh);
-
-        if (!isInitialized) {
-            isInitialized = true;
-            refreshData();
-        }
-
-        return () => {
-            subscribers.delete(setCategories);
-            unregister("categories", onRefresh);
-        };
+        let active = true;
+        const refresh = () => { void getStoredCategories().then(data => { if (active) setItems(data); }).catch(() => { if (active) setItems([]); }); };
+        registerRefreshCallback('categories', refresh); refresh();
+        return () => { active = false; unregisterRefreshCallback('categories', refresh); };
     }, []);
-
-    return categories;
+    return items;
 }
-

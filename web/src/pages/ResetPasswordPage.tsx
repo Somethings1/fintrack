@@ -1,6 +1,6 @@
-import React, { useState } from "react";
 import { resetPassword } from "@/services/authService";
 import { Typography } from "antd";
+import React,{ useState } from "react";
 import "./ResetPasswordPage.css";
 
 const ResetPasswordPage = () => {
@@ -12,8 +12,8 @@ const ResetPasswordPage = () => {
         try {
             await resetPassword(email);
             setStatus("✅ Check your email for the reset link.");
-        } catch (err: any) {
-            setStatus(err.message || "❌ Reset failed. Try again.");
+        } catch (err: unknown) {
+            setStatus((err instanceof Error ? err.message : "❌ Reset failed. Try again."));
         }
     };
 

@@ -1,109 +1,67 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { RefreshProvider } from "./context/RefreshProvider";
-import { message } from 'antd';
-import WelcomePage from "./pages/WelcomePage";
-import LoginPage from "./pages/LoginPage";
-import HomePage from "./pages/HomePage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import UpdatePasswordPage from "./pages/UpdatePasswordPage";
-import { getCurrentUser, supabase } from "@/services/authService"; // Import the API client
-import { PollingProvider } from "./context/PollingProvider";
-import { setMessageApi } from "./utils/messageProvider";
+import { message,Spin } from 'antd';
+import { Fragment,lazy,Suspense,useEffect,useRef,useState,type ReactNode } from 'react';
+import { Navigate,Route,BrowserRouter as Router,Routes } from 'react-router-dom';
 import './App.css';
-import { ProfilePage } from "./pages/Profile";
-import { SettingsProvider } from "./context/SettingsContext";
+import { PollingProvider } from './context/PollingProvider';
+import { RefreshProvider } from './context/RefreshProvider';
+import { SettingsProvider } from './context/SettingsContext';
+import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import UpdatePasswordPage from './pages/UpdatePasswordPage';
+import WelcomePage from './pages/WelcomePage';
+import { getCurrentUser,supabase } from './services/authService';
+import { clearUserCache } from "./utils/db";
+import { setMessageApi } from './utils/messageProvider';
+const HomePage = lazy(() => import('./pages/HomePage'));
+const ProfilePage = lazy(() => import('./pages/Profile').then(module => ({ default: module.ProfilePage })));
 
-
-const PrivateRoute = ({ children }: { children: JSX.Element }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-
+function PrivateRoute({ children }: { children: ReactNode }) {
+    const [authenticated, setAuthenticated] = useState<string | false | null>(null);
+    const verifiedUser = useRef('');
     useEffect(() => {
-        const checkAuth = async () => {
+        let active = true;
+        let version = 0;
+        const check = async () => {
+            const current = ++version;
             try {
                 const user = await getCurrentUser();
-
-                if (user) {
-                    localStorage.setItem("username", user.id);
-                    setIsAuthenticated(true);
-                } else {
-                    setIsAuthenticated(false);
-                }
-            } catch {
-                setIsAuthenticated(false);
-            }
+                if (!active || current !== version) return;
+                if (user) localStorage.setItem('username', user.id);
+                verifiedUser.current = user?.id ?? '';
+                setAuthenticated(user?.id ?? false);
+            } catch { if (active) setAuthenticated(false); }
         };
-
-        checkAuth();
+        void check();
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+                const previous = verifiedUser.current; verifiedUser.current = ''; ++version;
+                localStorage.removeItem('username'); setAuthenticated(false);
+                if (previous) void clearUserCache(previous).catch(() => undefined);
+            } else if (event === 'SIGNED_IN' && session.user.id !== verifiedUser.current) {
+                setAuthenticated(null); queueMicrotask(() => { if (active) void check(); });
+            }
+        });
+        return () => { active = false; data.subscription.unsubscribe(); };
     }, []);
-
-    if (isAuthenticated === null) return <p>Loading...</p>;
-    return isAuthenticated ? children : <Navigate to="/login" />;
-};
-
-// App component which uses PrivateRoute and handles routes for the application
-const App = () => {
+    if (authenticated === null) return <Spin aria-label="Checking session" />;
+    return authenticated ? <Fragment key={authenticated}>{children}</Fragment> : <Navigate to="/login" replace />;
+}
+export default function App() {
     const [messageApi, contextHolder] = message.useMessage();
-
+    useEffect(() => { setMessageApi(messageApi); }, [messageApi]);
     useEffect(() => {
-        setMessageApi(messageApi);
-    }, [messageApi]);
-
-    useEffect(() => {
-        // On first load
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                document.cookie = `access_token=${session.access_token}; path=/; Secure; SameSite=Strict`;
-            }
-        });
-
-        // On token change (login, refresh, logout, etc.)
-        const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                document.cookie = `access_token=${session.access_token}; path=/; Secure; SameSite=Strict`;
-            } else {
-                // Clear cookie on logout
-                document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-            }
-        });
-
-        return () => {
-            listener.subscription.unsubscribe();
-        };
+        // Remove legacy JS-readable cookies. WebSocket sessions now use /api-scoped HttpOnly cookies.
+        document.cookie = 'access_token=; path=/; Max-Age=0; SameSite=Strict';
     }, []);
-    return (
-        <>
-            {contextHolder}
-            <SettingsProvider>
-                <RefreshProvider>
-                    <Router>
-                        <Routes>
-                            <Route path="/" element={<WelcomePage />} />
-                            <Route path="/login" element={<LoginPage />} />
-                            <Route path="/reset-password" element={<ResetPasswordPage />} />
-                            <Route path="/update-password" element={<UpdatePasswordPage />} />
-
-                            <Route path="/profile"
-                                element={
-                                    <PrivateRoute>
-                                        <ProfilePage />
-                                    </PrivateRoute>
-                                } />
-                            <Route path="/home"
-                                element={
-                                    <PrivateRoute>
-                                        <PollingProvider>
-                                            <HomePage />
-                                        </PollingProvider>
-                                    </PrivateRoute>
-                                } />
-                        </Routes>
-                    </Router>
-                </RefreshProvider>
-            </SettingsProvider>
-        </>
-    );
-};
-
-export default App;
-
+    return <>{contextHolder}<SettingsProvider><RefreshProvider><Router>
+        <Suspense fallback={<Spin aria-label="Loading page" />}><Routes>
+            <Route path="/" element={<WelcomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/update-password" element={<UpdatePasswordPage />} />
+            <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+            <Route path="/home" element={<PrivateRoute><PollingProvider><HomePage /></PollingProvider></PrivateRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes></Suspense>
+    </Router></RefreshProvider></SettingsProvider></>;
+}

@@ -1,23 +1,25 @@
-import React, { useEffect, useState } from "react";
-import {
-    Form,
-    Input,
-    InputNumber,
-    Button,
-    Space,
-    Popconfirm,
-    DatePicker,
-    message,
-} from "antd";
-import dayjs from "dayjs";
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
+import IconPickerField from "@/components/IconPickerField";
+import { useRefresh } from "@/context/refresh-context";
 import { Saving } from "@/models/Saving";
 import {
-    addSaving,
-    updateSaving,
-    deleteSavings,
+addSaving,
+deleteSavings,
+updateSaving,
 } from "@/services/savingService";
-import IconPickerField from "@/components/IconPickerField";
-import { useRefresh } from "@/context/RefreshProvider";
+import {
+Button,
+DatePicker,
+Form,
+Input,
+InputNumber,
+message,
+Popconfirm,
+Space,
+} from "antd";
+import dayjs from "dayjs";
+import React,{ useEffect,useState } from "react";
 
 interface SavingFormProps {
     saving?: Partial<Saving>;
@@ -31,8 +33,10 @@ const SavingForm: React.FC<SavingFormProps> = ({
     onCancel,
 }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, false) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [isDeleting, setIsDeleting] = useState(false);
-    const { triggerRefresh } = useRefresh();
+    const { trigger: triggerRefresh } = useRefresh();
 
     useEffect(() => {
         if (saving) {
@@ -50,10 +54,10 @@ const SavingForm: React.FC<SavingFormProps> = ({
                 goalDate: dayjs().add(1, "month"),
             });
         }
-    }, [saving]);
+    }, [saving, form]);
 
-    const handleFinish = async (values: any) => {
-        const updated: Saving = {
+    const handleFinish = async (values: Omit<Saving, 'createdDate' | 'goalDate'> & { createdDate: dayjs.Dayjs; goalDate: dayjs.Dayjs }) => {
+        const updated: Partial<Saving> = {
             _id: saving?._id ?? "",
             owner: localStorage.getItem("username") ?? "",
             name: values.name,
@@ -73,7 +77,7 @@ const SavingForm: React.FC<SavingFormProps> = ({
                 await addSaving(updated);
             }
             onSubmit?.();
-            triggerRefresh();
+            triggerRefresh('savings');
         } catch (err) {
             console.error("Failed to save saving:", err);
             message.error("Failed to save saving");
@@ -83,10 +87,10 @@ const SavingForm: React.FC<SavingFormProps> = ({
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteSavings([saving!._id]);
+            await deleteSavings([saving!._id!]);
             message.success("Saving deleted successfully");
             onCancel?.();
-            triggerRefresh();
+            triggerRefresh('savings');
         } catch (err) {
             console.error(err);
             message.error("Failed to delete saving");
@@ -127,23 +131,23 @@ const SavingForm: React.FC<SavingFormProps> = ({
             <Form.Item
                 name="balance"
                 label="Initial balance"
-                rules={[{
+                rules={[moneyRule, {
                     required: true,
                     message: "Please specify a balance"
                 }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber disabled={!!saving?._id} style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item
                 name="goal"
                 label="Goal balance"
-                rules={[{
+                rules={[moneyRule, {
                     required: true,
                     message: "Please specify a goal."
                 }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item

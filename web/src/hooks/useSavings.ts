@@ -1,40 +1,14 @@
-import { useEffect, useState } from "react";
-import { Saving } from "@/models/Saving";
-import { getStoredSavings } from "@/services/savingService";
-import { useRefresh } from "@/context/RefreshProvider";
-
-let cachedSavings: Saving[] = [];
-const subscribers = new Set<(savings: Saving[]) => void>();
-let isInitialized = false;
-
-async function refreshData() {
-    const data = await getStoredSavings();
-    cachedSavings = data;
-    subscribers.forEach((callback) => callback(cachedSavings));
-}
-
+import { registerRefreshCallback,unregisterRefreshCallback } from '@/context/RefreshBus';
+import type { Saving } from '@/models/Saving';
+import { getStoredSavings } from '@/services/savingService';
+import { useEffect,useState } from 'react';
 export function useSavings() {
-    const [savings, setSavings] = useState<Saving[]>(cachedSavings);
-    const { register, unregister } = useRefresh();
-
+    const [items, setItems] = useState<Saving[]>([]);
     useEffect(() => {
-        subscribers.add(setSavings);
-
-        const onRefresh = () => refreshData();
-
-        register("savings", onRefresh);
-
-        if (!isInitialized) {
-            isInitialized = true;
-            refreshData();
-        }
-
-        return () => {
-            subscribers.delete(setSavings);
-            unregister("savings", onRefresh);
-        };
+        let active = true;
+        const refresh = () => { void getStoredSavings().then(data => { if (active) setItems(data); }).catch(() => { if (active) setItems([]); }); };
+        registerRefreshCallback('savings', refresh); refresh();
+        return () => { active = false; unregisterRefreshCallback('savings', refresh); };
     }, []);
-
-    return savings;
+    return items;
 }
-

@@ -1,139 +1,50 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { saveToDB } from "@/utils/db";
-import { socketService } from "@/services/socketService";
-import { triggerRefresh } from "@/context/RefreshBus";
+import { fetchStreamedEntities } from '@/services/entityService';
+import { socketService } from '@/services/socketService';
+import { useEffect,type ReactNode } from 'react';
+import { registerRefreshCallback,triggerRefresh,unregisterRefreshCallback } from './RefreshBus';
 
-type LastSyncMap = Record<string, string>;
-
-const POLLING_KEYS = ["transactions", "accounts", "savings", "categories", "subscriptions", "notifications"];
-
-type PollingContextType = {
-    lastSyncMap: LastSyncMap;
-};
-
-const PollingContext = createContext<PollingContextType>({ lastSyncMap: {} });
-
-async function fetchCollection(
-    collection: string,
-    lastSync: string,
-    updateLastSync: (collection: string, timestamp: string) => void
-) {
-    try {
-        const res = await fetch(`http://localhost:8080/api/${collection}/get-since/${lastSync}`, {
-            method: "GET",
-            credentials: "include",
-        });
-        if (!res.ok) return;
-
-        const reader = res.body?.getReader();
-        if (!reader) {
-            console.error(`Failed to get reader for collection ${collection}`);
-            return;
-        }
-
-        const decoder = new TextDecoder();
-        let jsonData = "";
-        let latestTimestamp = lastSync;
-        const entriesToSave: any[] = [];
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            jsonData += decoder.decode(value, { stream: true });
-
-            const newEntries = jsonData
-                .split("\n")
-                .filter(line => line.trim() !== "")
-                .map(line => {
-                    try {
-                        return JSON.parse(line);
-                    } catch (e) {
-                        console.error("Error parsing streamed JSON:", line, e);
-                        return null;
-                    }
-                })
-                .filter(entry => entry !== null);
-
-            for (const entry of newEntries) {
-                if (entry.lastUpdate && entry.lastUpdate > latestTimestamp) {
-                    latestTimestamp = entry.lastUpdate;
+const COLLECTIONS = ['transactions', 'accounts', 'savings', 'categories', 'subscriptions', 'notifications'];
+/** Coalesce invalidations, retain incomplete requests for retry, and release everything on unmount. */
+export function PollingProvider({ children }: { children: ReactNode }) {
+    useEffect(() => {
+        const controller = new AbortController();
+        const inFlight = new Set<string>();
+        const dirty = new Set<string>();
+        const user = localStorage.getItem('username');
+        const sync = async (collection: string) => {
+            if (controller.signal.aborted || !user) return;
+            if (inFlight.has(collection)) { dirty.add(collection); return; }
+            inFlight.add(collection);
+            const key = `lastSync:money-v1:${user}:${collection}`;
+            try {
+                const since = localStorage.getItem(key) ?? new Date(0).toISOString();
+                const latest = await fetchStreamedEntities(`/api/${collection}/get-since/${encodeURIComponent(since)}`, collection, controller.signal);
+                if (!controller.signal.aborted) {
+                    if (latest) localStorage.setItem(key, latest);
+                    triggerRefresh(collection);
                 }
-                entriesToSave.push(entry);
+            } catch {
+                // Periodic or reconnect invalidation retries without advancing the checkpoint.
+            } finally {
+                inFlight.delete(collection);
+                if (dirty.delete(collection) && !controller.signal.aborted) void sync(collection);
             }
-
-            jsonData = "";
-        }
-
-        if (entriesToSave.length > 0) {
-            await saveToDB(collection, entriesToSave);
-            updateLastSync(collection, latestTimestamp);
-        }
-    } catch (error) {
-        console.error(`Polling error for collection ${collection}:`, error);
-    }
-}
-
-export const PollingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [lastSyncMap, setLastSyncMap] = useState<LastSyncMap>(() => {
-        const map: LastSyncMap = {};
-        POLLING_KEYS.forEach(key => {
-            map[key] = localStorage.getItem(`lastSync_${key}`) || new Date(0).toISOString();
+        };
+        const all = () => { for (const collection of COLLECTIONS) void sync(collection); };
+        registerRefreshCallback('sync', all);
+        const unsubscribe = socketService.subscribe(({ collection, action }) => {
+            if (action === 'reconnect') all();
+            else if (COLLECTIONS.includes(collection)) void sync(collection);
         });
-        return map;
-    });
-
-    const updateLastSync = (collection: string, timestamp: string) => {
-        setLastSyncMap(prev => {
-            if (prev[collection] >= timestamp) return prev;
-            const newMap = { ...prev, [collection]: timestamp };
-            localStorage.setItem(`lastSync_${collection}`, timestamp);
-            return newMap;
-        });
-        if (collection == "transactions") {
-            console.log("Because we are triggering refresh from here.");
-        }
-        triggerRefresh(collection);
-    };
-
-    const lastSyncMapRef = React.useRef(lastSyncMap);
-    useEffect(() => {
-        lastSyncMapRef.current = lastSyncMap;
-    }, [lastSyncMap]);
-
-    const fetchCollectionCb = useCallback(
-        (collection: string) => fetchCollection(collection, lastSyncMapRef.current[collection], updateLastSync),
-        [updateLastSync]
-    );
-
-
-    useEffect(() => {
-        POLLING_KEYS.forEach(fetchCollectionCb);
-    }, []);
-
-
-    useEffect(() => {
-        socketService.start();
-
-        const unsubscribe = socketService.subscribe(({ collection, action, detail }) => {
-            if (action === "reconnect") {
-                POLLING_KEYS.forEach(fetchCollectionCb);
-            } else if (POLLING_KEYS.includes(collection)) {
-                fetchCollection(collection, lastSyncMap[collection], updateLastSync)
-            }
-        });
-
+        all(); socketService.start();
+        const timer = setInterval(() => { if (document.visibilityState === 'visible') all(); }, 60_000);
+        const visible = () => { if (document.visibilityState === 'visible') all(); };
+        document.addEventListener('visibilitychange', visible);
         return () => {
-            unsubscribe();
+            controller.abort(); clearInterval(timer); unsubscribe(); socketService.stop();
+            unregisterRefreshCallback('sync', all);
+            document.removeEventListener('visibilitychange', visible);
         };
     }, []);
-
-    return (
-        <PollingContext.Provider value={{ lastSyncMap }}>
-            {children}
-        </PollingContext.Provider>
-    );
-};
-
-export const usePollingContext = () => useContext(PollingContext);
-
+    return children;
+}

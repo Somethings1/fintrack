@@ -8,22 +8,22 @@ import (
 type NotificationType string
 
 const (
-    TypeTransaction     NotificationType = "transaction"
-    TypeOverBudget      NotificationType = "over_budget"
-    TypeFinishIncome    NotificationType = "finish_income"
-    TypeSubscription    NotificationType = "subscription"
+	TypeTransaction  NotificationType = "transaction"
+	TypeOverBudget   NotificationType = "over_budget"
+	TypeFinishIncome NotificationType = "finish_income"
+	TypeSubscription NotificationType = "subscription"
 )
 
 type Notification struct {
-	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	Owner              string             `bson:"owner" json:"owner"`
-    Type               NotificationType   `bson:"type" json:"type"`
-    ReferenceId        primitive.ObjectID `bson:"reference_id" json:"referenceId"`
-	Title              string             `bson:"title" json:"title"`
-	Message            string             `bson:"message" json:"message"`
-    Read               bool               `bson:"read" json:"read"`
-    ScheduledAt        time.Time          `bson:"scheduled_at" json:"scheduledAt"`
-	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
-	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
+	OccurrenceKey string             `bson:"occurrence_key,omitempty" json:"-"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Owner         string             `bson:"owner" json:"owner"`
+	Type          NotificationType   `bson:"type" json:"type"`
+	ReferenceId   primitive.ObjectID `bson:"reference_id" json:"referenceId"`
+	Title         string             `bson:"title" json:"title"`
+	Message       string             `bson:"message" json:"message"`
+	Read          bool               `bson:"read" json:"read"`
+	ScheduledAt   time.Time          `bson:"scheduled_at" json:"scheduledAt"`
+	LastUpdate    time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
+	IsDeleted     bool               `bson:"is_deleted" json:"isDeleted"`
 }
-

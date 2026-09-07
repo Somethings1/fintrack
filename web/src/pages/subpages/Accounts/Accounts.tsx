@@ -1,21 +1,20 @@
-import { useEffect, useState } from "react";
-import { addAccount } from "@/services/accountService";
-import { Account } from "@/types/Account";
-import {
-    Button,
-    Modal,
-    Space,
-    Typography,
-    Row,
-    Col,
-    Select
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
 import AccountForm from "@/components/forms/AccountForm";
-import AccountBox from "./AccountBox";
-import Title from "@/components/Title";
 import Subtitle from "@/components/Subtitle";
+import Title from "@/components/Title";
 import { useAccounts } from "@/hooks/useAccounts";
+import { Account } from "@/models/Account";
+import { PlusOutlined } from "@ant-design/icons";
+import {
+Button,
+Col,
+Modal,
+Row,
+Select,
+Space,
+Typography
+} from "antd";
+import { useState } from "react";
+import AccountBox from "./AccountBox";
 
 const { Option } = Select;
 
@@ -24,8 +23,7 @@ const Accounts = () => {
     const [sortOption, setSortOption] = useState("name-asc");
     const accounts = useAccounts();
 
-    const handleNewAccount = async (account: Account) => {
-        await addAccount(account);
+    const handleNewAccount = () => {
         setIsModalOpen(false);
     };
 
@@ -77,7 +75,8 @@ const Accounts = () => {
                 </Select>
 
                 <Button
-                    icon={<PlusOutlined />}
+                    aria-label="New Account"
+                    icon={<PlusOutlined aria-hidden="true" />}
                     type="primary"
                     shape="round"
                     onClick={() => setIsModalOpen(true)}

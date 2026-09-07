@@ -1,8 +1,8 @@
-import React, { useState } from "react";
 import { supabase } from "@/services/authService";
+import { Typography } from "antd";
+import React,{ useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./UpdatePasswordPage.css";
-import { Typography } from "antd";
 
 const UpdatePasswordPage = () => {
     const { Title } = Typography;

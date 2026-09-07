@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { Modal, Radio, Button, Row, Col, Typography, Divider } from 'antd';
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { Account } from '@/models/Account';
+import { addMoney, subtractMoney } from "@/utils/money";
 import { useTransactions } from '@/hooks/useTransactions';
-import ChartSection from './ChartSection';
+import { Account } from '@/models/Account';
+import { LeftOutlined,RightOutlined } from '@ant-design/icons';
+import { Button,Modal,Radio } from 'antd';
+import React,{ useMemo,useState } from 'react';
 import Balance from '../../Balance';
 import Subtitle from '../../Subtitle';
+import ChartSection from './ChartSection';
 
-const { Text } = Typography;
 
 interface AccountInfoModalProps {
     isOpen: boolean;
@@ -43,9 +43,7 @@ const AccountInfoModal: React.FC<AccountInfoModalProps> = ({ isOpen, account, on
     const handlePrev = () => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
-            mode === 'month'
-                ? newDate.setMonth(prev.getMonth() - 1)
-                : newDate.setFullYear(prev.getFullYear() - 1);
+            if (mode === 'month') newDate.setMonth(prev.getMonth() - 1); else newDate.setFullYear(prev.getFullYear() - 1);
             return newDate;
         });
     };
@@ -53,9 +51,7 @@ const AccountInfoModal: React.FC<AccountInfoModalProps> = ({ isOpen, account, on
     const handleNext = () => {
         setCurrentDate(prev => {
             const newDate = new Date(prev);
-            mode === 'month'
-                ? newDate.setMonth(prev.getMonth() + 1)
-                : newDate.setFullYear(prev.getFullYear() + 1);
+            if (mode === 'month') newDate.setMonth(prev.getMonth() + 1); else newDate.setFullYear(prev.getFullYear() + 1);
             return newDate;
         });
     };
@@ -77,21 +73,21 @@ const AccountInfoModal: React.FC<AccountInfoModalProps> = ({ isOpen, account, on
 
     const income = txsInPeriod
         .filter(tx => tx.destinationAccount === account._id)
-        .reduce((sum, tx) => sum + tx.amount, 0);
+        .reduce((sum, tx) => addMoney(sum, tx.amount), 0);
 
     const expense = txsInPeriod
         .filter(tx => tx.sourceAccount === account._id)
-        .reduce((sum, tx) => sum + tx.amount, 0);
+        .reduce((sum, tx) => addMoney(sum, tx.amount), 0);
 
     const futureIncome = txsAfterPeriod
         .filter(tx => tx.destinationAccount === account._id)
-        .reduce((sum, tx) => sum + tx.amount, 0);
+        .reduce((sum, tx) => addMoney(sum, tx.amount), 0);
 
     const futureExpense = txsAfterPeriod
         .filter(tx => tx.sourceAccount === account._id)
-        .reduce((sum, tx) => sum + tx.amount, 0);
+        .reduce((sum, tx) => addMoney(sum, tx.amount), 0);
 
-    const balanceAtEndOfPeriod = account.balance - futureIncome + futureExpense;
+    const balanceAtEndOfPeriod = addMoney(subtractMoney(account.balance, futureIncome), futureExpense);
 
     return (
         <Modal

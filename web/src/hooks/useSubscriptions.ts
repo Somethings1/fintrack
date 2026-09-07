@@ -1,40 +1,14 @@
-import { useEffect, useState } from "react";
-import { Subscription } from "@/models/Subscription";
-import { getStoredSubscriptions } from "@/services/subscriptionService";
-import { useRefresh } from "@/context/RefreshProvider";
-
-let cachedSubscriptions: Subscription[] = [];
-const subscribers = new Set<(subs: Subscription[]) => void>();
-let isInitialized = false;
-
-async function refreshData() {
-    const data = await getStoredSubscriptions();
-    cachedSubscriptions = data;
-    subscribers.forEach((callback) => callback(cachedSubscriptions));
-}
-
+import { registerRefreshCallback,unregisterRefreshCallback } from '@/context/RefreshBus';
+import type { Subscription } from '@/models/Subscription';
+import { getStoredSubscriptions } from '@/services/subscriptionService';
+import { useEffect,useState } from 'react';
 export function useSubscriptions() {
-    const [subscriptions, setSubscriptions] = useState<Subscription[]>(cachedSubscriptions);
-    const { register, unregister } = useRefresh();
-
+    const [items, setItems] = useState<Subscription[]>([]);
     useEffect(() => {
-        subscribers.add(setSubscriptions);
-
-        const onRefresh = () => refreshData();
-
-        register("subscriptions", onRefresh);
-
-        if (!isInitialized) {
-            isInitialized = true;
-            refreshData();
-        }
-
-        return () => {
-            subscribers.delete(setSubscriptions);
-            unregister("subscriptions", onRefresh);
-        };
+        let active = true;
+        const refresh = () => { void getStoredSubscriptions().then(data => { if (active) setItems(data); }).catch(() => { if (active) setItems([]); }); };
+        registerRefreshCallback('subscriptions', refresh); refresh();
+        return () => { active = false; unregisterRefreshCallback('subscriptions', refresh); };
     }, []);
-
-    return subscriptions;
+    return items;
 }
-

@@ -1,6 +1,6 @@
 import React from "react";
 
-const Title: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+const Title: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
     <h1
       style={{

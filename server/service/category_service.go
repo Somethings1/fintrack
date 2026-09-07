@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"fintrack/server/model"
+	"fintrack/server/money"
 	"fintrack/server/socket"
 	"fintrack/server/util"
 
@@ -16,8 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetCategoryByID(id string) (model.Category, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func GetCategoryByID(parent context.Context, id string) (model.Category, error) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -27,7 +27,7 @@ func GetCategoryByID(id string) (model.Category, error) {
 
 	var category model.Category
 
-	err = util.CategoryCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&category)
+	err = util.CategoryCollection.FindOne(ctx, util.TenantFilter(ctx, "owner", objectID)).Decode(&category)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return model.Category{}, errors.New("transaction not found")
@@ -41,18 +41,31 @@ func GetCategoryByID(id string) (model.Category, error) {
 func FetchCategoriesSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
 	filter := bson.M{
 		"last_update": bson.M{
-			"$gt": since,
+			"$gte": since,
 		},
 		"owner": username,
 	}
 
 	opts := options.Find().SetSort(bson.D{
-		{Key: "last_update", Value: -1},
+		{Key: "last_update", Value: 1}, {Key: "_id", Value: 1},
 	})
 	return util.CategoryCollection.Find(ctx, filter, opts)
 }
 
 func AddCategory(ctx context.Context, category model.Category) (interface{}, error) {
+	category.Owner, _ = ctx.Value(util.UserIdKey).(string)
+	if category.Owner == "" {
+		return nil, errors.New("missing authenticated owner")
+	}
+	currency, err := money.Resolve(ctx, category.Currency)
+	if err != nil {
+		return nil, err
+	}
+	category.Currency = currency
+	if err := money.Validate(category.Budget, currency); err != nil {
+		return nil, err
+	}
+
 	category.LastUpdate = time.Now()
 
 	result, err := util.CategoryCollection.InsertOne(ctx, category)
@@ -70,10 +83,17 @@ func AddCategory(ctx context.Context, category model.Category) (interface{}, err
 }
 
 func UpdateCategory(ctx context.Context, id primitive.ObjectID, category model.Category) error {
+	if _, err := money.Resolve(ctx, category.Currency); err != nil {
+		return err
+	}
+	if err := money.Validate(category.Budget, money.Currency(ctx)); err != nil {
+		return err
+	}
+
 	category.LastUpdate = time.Now()
 
-	filter := bson.M{"_id": id}
-	_, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": category})
+	filter := util.TenantFilter(ctx, "owner", id)
+	_, err := util.CategoryCollection.UpdateOne(ctx, filter, bson.M{"$set": bson.M{"name": category.Name, "icon": category.Icon, "budget": category.Budget, "last_update": category.LastUpdate}})
 
 	if err != nil {
 		return err
@@ -89,33 +109,5 @@ func UpdateCategory(ctx context.Context, id primitive.ObjectID, category model.C
 }
 
 func DeleteCategory(ctx context.Context, id primitive.ObjectID) error {
-	categoryUpdate := bson.M{
-		"$set": bson.M{
-			"is_deleted":  true,
-			"last_update": time.Now(),
-		},
-	}
-	_, err := util.CategoryCollection.UpdateOne(ctx, bson.M{"_id": id}, categoryUpdate)
-	if err != nil {
-		return fmt.Errorf("Error deleting category: %w", err)
-	}
-
-	transactionUpdate := bson.M{
-		"$set": bson.M{
-			"is_deleted":  true,
-			"last_update": time.Now(),
-		},
-	}
-	_, err = util.TransactionCollection.UpdateMany(ctx, bson.M{"category": id}, transactionUpdate)
-	if err != nil {
-		return fmt.Errorf("Error deleting related transactions: %w", err)
-	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "categories",
-		"action":     "delete",
-		"detail":     id,
-	})
-
-	return err
+	return archiveUnreferenced(ctx, util.CategoryCollection, "categories", id)
 }

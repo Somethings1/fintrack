@@ -1,40 +1,14 @@
-import { useEffect, useState } from "react";
-import { Notification } from "@/models/Notification";
-import { getStoredNotifications } from "@/services/notificationService";
-import { useRefresh } from "@/context/RefreshProvider";
-
-let cachedNotifications: Notification[] = [];
-const subscribers = new Set<(notifications: Notification[]) => void>();
-let isInitialized = false;
-
-async function refreshData() {
-    const data = await getStoredNotifications();
-    cachedNotifications = data;
-    subscribers.forEach((callback) => callback(cachedNotifications));
-}
-
+import { registerRefreshCallback,unregisterRefreshCallback } from '@/context/RefreshBus';
+import type { Notification } from '@/models/Notification';
+import { getStoredNotifications } from '@/services/notificationService';
+import { useEffect,useState } from 'react';
 export function useNotifications() {
-    const [notifications, setNotifications] = useState<Notification[]>(cachedNotifications);
-    const { register, unregister } = useRefresh();
-
+    const [items, setItems] = useState<Notification[]>([]);
     useEffect(() => {
-        subscribers.add(setNotifications);
-
-        const onRefresh = () => refreshData();
-
-        register("notifications", onRefresh);
-
-        if (!isInitialized) {
-            isInitialized = true;
-            refreshData();
-        }
-
-        return () => {
-            subscribers.delete(setNotifications);
-            unregister("notifications", onRefresh);
-        };
+        let active = true;
+        const refresh = () => { void getStoredNotifications().then(data => { if (active) setItems(data); }).catch(() => { if (active) setItems([]); }); };
+        registerRefreshCallback('notifications', refresh); refresh();
+        return () => { active = false; unregisterRefreshCallback('notifications', refresh); };
     }, []);
-
-    return notifications;
+    return items;
 }
-

@@ -1,13 +1,13 @@
 // src/components/modals/AddEditTransactionModal.tsx
-import React from 'react';
-import { Modal } from 'antd';
 import TransactionForm from '@/components/forms/TransactionForm'; // Assuming path
+import { AccountOption,CategoryOption } from '@/hooks/useTransactions'; // Import option types
 import { Transaction } from '@/models/Transaction'; // Use base Transaction or ResolvedTransaction if needed by form
-import { AccountOption, CategoryOption } from '@/hooks/useTransactions'; // Import option types
+import { Modal } from 'antd';
+import React from 'react';
 
 // Define the shape of the data expected by the form's onSubmit
 // This might need adjustment based on what TransactionForm actually returns
-type TransactionFormSubmitValues = Omit<Transaction, '_id' | 'creator' | 'isDeleted'> & Partial<Pick<Transaction, 'creator'>>;
+type TransactionFormSubmitValues = Partial<Transaction>;
 
 interface AddEditTransactionModalProps {
     open: boolean;
@@ -25,8 +25,6 @@ const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = ({
     onSubmit,
     transactionToEdit,
     defaultTransaction,
-    accountOptions,
-    categoryOptions,
 }) => {
     const modalTitle = transactionToEdit ? "Edit Transaction" : "Add New Transaction";
 
@@ -54,8 +52,6 @@ const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = ({
                     transaction={initialFormValues}
                     onSubmit={onSubmit}
                     onCancel={onCancel} // Pass cancel handler to the form if it has its own cancel button
-                    accountOptions={accountOptions}
-                    categoryOptions={categoryOptions}
                 />
             )}
         </Modal>

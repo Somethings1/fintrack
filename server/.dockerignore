@@ -1,0 +1,7 @@
+**/.env*
+**/*_test.go
+test
+.git
+*.log
+coverage.out
+fintrack

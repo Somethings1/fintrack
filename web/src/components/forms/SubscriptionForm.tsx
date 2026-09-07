@@ -1,27 +1,30 @@
-import React, { useEffect, useState } from "react";
-import {
-    Form,
-    InputNumber,
-    Button,
-    DatePicker,
-    Select,
-    Space,
-    Input,
-    message,
-    Popconfirm,
-    Alert,
-    Row,
-    Col,
-} from "antd";
-import dayjs from "dayjs";
-import { Subscription } from "@/models/Subscription";
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import IconPickerField from "@/components/IconPickerField";
 import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
+import { Saving } from "@/models/Saving";
+import { Subscription } from "@/models/Subscription";
 import { getStoredAccounts } from "@/services/accountService";
-import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
-import { addSubscription, updateSubscription, deleteSubscriptions } from "@/services/subscriptionService";
+import { getStoredSavings } from "@/services/savingService";
+import { addSubscription,deleteSubscriptions,updateSubscription } from "@/services/subscriptionService";
+import {
+Alert,
+Button,
+Col,
+DatePicker,
+Form,
+Input,
+InputNumber,
+message,
+Popconfirm,
+Row,
+Select,
+Space,
+} from "antd";
+import dayjs from "dayjs";
+import React,{ useEffect,useState } from "react";
 
 interface SubscriptionFormProps {
     subscription?: Partial<Subscription>;
@@ -30,7 +33,7 @@ interface SubscriptionFormProps {
 }
 
 const intervalOptions = [
-    ...(import.meta.env.DEV ? [{ label: "Test", value: "test" }] : []),
+    { label: "Day", value: "day" },
     { label: "Week", value: "week" },
     { label: "Month", value: "month" },
     { label: "Year", value: "year" },
@@ -38,8 +41,10 @@ const intervalOptions = [
 
 const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, true) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [accounts, setAccounts] = useState<Account[]>([]);
-    const [savings, setSavings] = useState<Account[]>([]);
+    const [savings, setSavings] = useState<Saving[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -72,15 +77,15 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             startDate: subscription.startDate ? dayjs(subscription.startDate) : undefined,
             nextActive: subscription.nextActive ? dayjs(subscription.nextActive) : undefined,
         });
-    }, [subscription]);
+    }, [subscription, form]);
 
-    const handleFinish = async (values: any) => {
+    const handleFinish = async (values: Omit<Subscription, 'startDate'> & { startDate: dayjs.Dayjs }) => {
         const formatted: Subscription = {
             ...subscription,
             ...values,
             creator: localStorage.getItem("username") ?? "",
             remindBefore: values.remindBefore ?? 1,
-            startDate: values.startDate?.toISOString() ?? subscription.startDate,
+            startDate: values.startDate?.toDate() ?? subscription.startDate,
             isDeleted: false,
         };
 
@@ -99,7 +104,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteSubscriptions([subscription!._id]);
+            await deleteSubscriptions([subscription!._id!]);
             onCancel?.();
         } catch (err) {
             console.error(err);
@@ -143,9 +148,9 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             <Form.Item
                 name="amount"
                 label="Amount"
-                rules={[{ required: true, message: "Please enter the subscription amount." }]}
+                rules={[moneyRule, { required: true, message: "Please enter the subscription amount." }]}
             >
-                <InputNumber style={{ width: "100%" }} />
+                <InputNumber style={{ width: "100%" }} min={10 ** -precision} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item
@@ -194,7 +199,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
                     label="Interval"
                     rules={[{ required: true, message: "Please select how often this subscription occurs." }]}
                 >
-                    <Select options={intervalOptions} />
+                    <Select disabled={(subscription.currentInterval ?? 0) > 0} options={intervalOptions} />
                 </Form.Item>
             }
 

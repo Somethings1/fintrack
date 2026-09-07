@@ -1,41 +1,14 @@
-import { useEffect, useState } from "react";
-import { Account } from "@/models/Account";
-import { getStoredAccounts } from "@/services/accountService";
-import { useRefresh } from "@/context/RefreshProvider";
-
-let cachedAccounts: Account[] = [];
-const subscribers = new Set<(accounts: Account[]) => void>();
-
-let isInitialized = false;
-
-async function refreshData() {
-    const data = await getStoredAccounts();
-    cachedAccounts = data;
-    subscribers.forEach((callback) => callback(cachedAccounts));
-}
-
+import { registerRefreshCallback,unregisterRefreshCallback } from '@/context/RefreshBus';
+import type { Account } from '@/models/Account';
+import { getStoredAccounts } from '@/services/accountService';
+import { useEffect,useState } from 'react';
 export function useAccounts() {
-    const [accounts, setAccounts] = useState<Account[]>(cachedAccounts);
-    const { register, unregister } = useRefresh();
-
+    const [items, setItems] = useState<Account[]>([]);
     useEffect(() => {
-        subscribers.add(setAccounts);
-
-        const onRefresh = () => refreshData();
-
-        register("accounts", onRefresh);
-
-        if (!isInitialized) {
-            isInitialized = true;
-            refreshData();
-        }
-
-        return () => {
-            subscribers.delete(setAccounts);
-            unregister("accounts", onRefresh);
-        };
+        let active = true;
+        const refresh = () => { void getStoredAccounts().then(data => { if (active) setItems(data); }).catch(() => { if (active) setItems([]); }); };
+        registerRefreshCallback('accounts', refresh); refresh();
+        return () => { active = false; unregisterRefreshCallback('accounts', refresh); };
     }, []);
-
-    return accounts;
+    return items;
 }
-

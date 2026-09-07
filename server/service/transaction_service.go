@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fintrack/server/money"
 	"fmt"
 	"time"
 
@@ -16,8 +17,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetTransactionByID(id string) (model.Transaction, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func GetTransactionByID(parent context.Context, id string) (model.Transaction, error) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -27,7 +28,7 @@ func GetTransactionByID(id string) (model.Transaction, error) {
 
 	var transaction model.Transaction
 
-	err = util.TransactionCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&transaction)
+	err = util.TransactionCollection.FindOne(ctx, util.TenantFilter(ctx, "creator", objectID)).Decode(&transaction)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return model.Transaction{}, errors.New("transaction not found")
@@ -41,20 +42,42 @@ func GetTransactionByID(id string) (model.Transaction, error) {
 func FetchTransactionsSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
 	filter := bson.M{
 		"last_update": bson.M{
-			"$gt": since,
+			"$gte": since,
 		},
 		"creator": username,
 	}
 
 	opts := options.Find().SetSort(bson.D{
-		{Key: "last_update", Value: -1},
+		{Key: "last_update", Value: 1}, {Key: "_id", Value: 1},
 	})
 
 	return util.TransactionCollection.Find(ctx, filter, opts)
 }
 
 func addTransactionInternal(ctx context.Context, transaction model.Transaction) (interface{}, error) {
-	session, err := util.MongoClient.StartSession()
+	transaction.Creator, _ = ctx.Value(util.UserIdKey).(string)
+	transaction.IsDeleted = false
+	var currencyErr error
+	transaction.Currency, currencyErr = money.Resolve(ctx, transaction.Currency)
+	if currencyErr != nil {
+		return nil, currencyErr
+	}
+	if err := validateTransaction(transaction); err != nil {
+		return nil, err
+	}
+	transaction.ID = primitive.NewObjectID()
+	transaction.RequestKey, _ = ctx.Value(util.RequestKey).(string)
+	transaction.RequestHash = transactionDigest(transaction)
+	if transaction.RequestKey != "" {
+		id, err := replayTransaction(ctx, transaction.RequestKey, transaction.RequestHash)
+		if err == nil {
+			return id, nil
+		}
+		if !errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, err
+		}
+	}
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start session: %w", err)
 	}
@@ -63,6 +86,9 @@ func addTransactionInternal(ctx context.Context, transaction model.Transaction) 
 	transaction.LastUpdate = time.Now()
 
 	result, err := session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+		if err := validateCategory(sc, transaction); err != nil {
+			return nil, err
+		}
 		res, err := util.TransactionCollection.InsertOne(sc, transaction)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to insert transaction: %w", err)
@@ -83,6 +109,9 @@ func addTransactionInternal(ctx context.Context, transaction model.Transaction) 
 		return res.InsertedID, nil
 	})
 
+	if err != nil && transaction.RequestKey != "" && mongo.IsDuplicateKeyError(err) {
+		return replayTransaction(ctx, transaction.RequestKey, transaction.RequestHash)
+	}
 	return result, err
 }
 
@@ -105,122 +134,98 @@ func AddTransaction(ctx context.Context, transaction model.Transaction) (interfa
 	return result, nil
 }
 
-
 func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.Transaction) error {
-	newTx.LastUpdate = time.Now()
-	err := util.MongoClient.UseSession(ctx, func(sc mongo.SessionContext) error {
-		if err := sc.StartTransaction(); err != nil {
-			return err
-		}
-
-		var oldTx model.Transaction
-		err := util.TransactionCollection.FindOne(sc, bson.M{"_id": id}).Decode(&oldTx)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		// Reverse old transaction
-		_, err = util.AdjustBalance(sc, oldTx.SourceAccount, oldTx.Amount)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-		_, err = util.AdjustBalance(sc, oldTx.DestinationAccount, -oldTx.Amount)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		// Apply new transaction
-		_, err = util.AdjustBalance(sc, newTx.SourceAccount, -newTx.Amount)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-		_, err = util.AdjustBalance(sc, newTx.DestinationAccount, newTx.Amount)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		// Update transaction record
-		_, err = util.TransactionCollection.UpdateOne(
-			sc,
-			bson.M{"_id": id},
-			bson.M{"$set": newTx},
-		)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		return sc.CommitTransaction(sc)
-	})
-
+	newTx.Creator, _ = ctx.Value(util.UserIdKey).(string)
+	newTx.ID = id
+	newTx.IsDeleted = false
+	var currencyErr error
+	newTx.Currency, currencyErr = money.Resolve(ctx, newTx.Currency)
+	if currencyErr != nil {
+		return currencyErr
+	}
+	if err := validateTransaction(newTx); err != nil {
+		return err
+	}
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return err
 	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "transactions",
-		"action":     "update",
-		"detail":     newTx,
+	defer session.EndSession(ctx)
+	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+		var old model.Transaction
+		if err := util.TransactionCollection.FindOne(sc, util.TenantFilter(sc, "creator", id)).Decode(&old); err != nil {
+			return nil, err
+		}
+		if err := validateCategory(sc, newTx); err != nil {
+			return nil, err
+		}
+		for _, change := range []struct {
+			id     primitive.ObjectID
+			amount money.Amount
+		}{{old.SourceAccount, old.Amount}, {old.DestinationAccount, -old.Amount}, {newTx.SourceAccount, -newTx.Amount}, {newTx.DestinationAccount, newTx.Amount}} {
+			if _, err := util.AdjustBalance(sc, change.id, change.amount); err != nil {
+				return nil, err
+			}
+		}
+		newTx.LastUpdate = time.Now().UTC()
+		// BSON omitempty excludes inapplicable references from $set. Explicitly
+		// clear the old side when changing expense/income/transfer types so a
+		// later reversal cannot use stale source, destination or category IDs.
+		update := bson.M{"$set": newTx}
+		unset := bson.M{}
+		for field, ref := range map[string]primitive.ObjectID{"source_account": newTx.SourceAccount, "destination_account": newTx.DestinationAccount, "category": newTx.Category} {
+			if ref.IsZero() {
+				unset[field] = ""
+			}
+		}
+		if len(unset) > 0 {
+			update["$unset"] = unset
+		}
+		result, err := util.TransactionCollection.UpdateOne(sc, util.TenantFilter(sc, "creator", id), update)
+		if err != nil {
+			return nil, err
+		}
+		if result.MatchedCount != 1 {
+			return nil, mongo.ErrNoDocuments
+		}
+		return nil, nil
 	})
-
-	return nil
+	if err == nil {
+		socket.BroadcastFromContext(ctx, map[string]interface{}{"collection": "transactions", "action": "update"})
+	}
+	return err
 }
 
 func DeleteTransaction(ctx context.Context, id primitive.ObjectID) error {
-	err := util.MongoClient.UseSession(ctx, func(sc mongo.SessionContext) error {
-		if err := sc.StartTransaction(); err != nil {
-			return err
-		}
-
-		var tx model.Transaction
-		err := util.TransactionCollection.FindOne(sc, bson.M{"_id": id}).Decode(&tx)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		// Reverse balance effect
-		_, err = util.AdjustBalance(sc, tx.SourceAccount, tx.Amount)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-		_, err = util.AdjustBalance(sc, tx.DestinationAccount, -tx.Amount)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		// Soft delete the transaction
-		update := bson.M{
-			"$set": bson.M{
-				"is_deleted":  true,
-				"last_update": time.Now(),
-			},
-		}
-		_, err = util.TransactionCollection.UpdateOne(sc, bson.M{"_id": id}, update)
-		if err != nil {
-			_ = sc.AbortTransaction(sc)
-			return err
-		}
-
-		return sc.CommitTransaction(sc)
-	})
-
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return err
 	}
-
-	socket.BroadcastFromContext(ctx, map[string]interface{}{
-		"collection": "transactions",
-		"action":     "delete",
-		"detail":     id,
+	defer session.EndSession(ctx)
+	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+		var tx model.Transaction
+		if err := util.TransactionCollection.FindOne(sc, util.TenantFilter(sc, "creator", id)).Decode(&tx); err != nil {
+			return nil, err
+		}
+		for _, change := range []struct {
+			id     primitive.ObjectID
+			amount money.Amount
+		}{{tx.SourceAccount, tx.Amount}, {tx.DestinationAccount, -tx.Amount}} {
+			if _, err := util.AdjustBalance(sc, change.id, change.amount); err != nil {
+				return nil, err
+			}
+		}
+		result, err := util.TransactionCollection.UpdateOne(sc, util.TenantFilter(sc, "creator", id), bson.M{"$set": bson.M{"is_deleted": true, "last_update": time.Now().UTC()}})
+		if err != nil {
+			return nil, err
+		}
+		if result.MatchedCount != 1 {
+			return nil, mongo.ErrNoDocuments
+		}
+		return nil, nil
 	})
-
-	return nil
+	if err == nil {
+		socket.BroadcastFromContext(ctx, map[string]interface{}{"collection": "transactions", "action": "delete"})
+	}
+	return err
 }

@@ -1,50 +1,40 @@
 package middleware
 
 import (
-    "io"
-    "fmt"
-    "time"
-    "bytes"
-    "github.com/gin-gonic/gin"
+	"fintrack/server/telemetry"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"log/slog"
+	"net/http"
+	"time"
 )
 
+// LoggingMiddleware deliberately excludes URLs, query strings, user IDs, credentials,
+// request/response bodies, and panic values. Route templates have bounded cardinality.
 func LoggingMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        start := time.Now();
-        method := c.Request.Method
-        path := c.Request.URL.Path
-
-        c.Next()
-
-        duration := time.Since(start)
-        fmt.Printf("[%s at %s] %s\n", method, path, duration)
-    }
+	return func(c *gin.Context) {
+		started := time.Now()
+		requestID := uuid.NewString()
+		c.Header("X-Request-ID", requestID)
+		c.Next()
+		telemetry.Request(c.Writer.Status(), time.Since(started))
+		route := c.FullPath()
+		if route == "" {
+			route = "unmatched"
+		}
+		slog.Info("http_request", "request_id", requestID, "method", c.Request.Method,
+			"route", route, "status", c.Writer.Status(), "duration_ms", time.Since(started).Milliseconds())
+	}
 }
 
-func PrintRequestDetails() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        fmt.Println("------------------------------------------")
-        fmt.Println("HTTP Method:", c.Request.Method)
-
-        fmt.Println("Request Headers:")
-        for key, value := range c.Request.Header {
-            fmt.Printf("%s: %s\n", key, value)
-        }
-
-        fmt.Println("Query Parameters:")
-        for key, value := range c.Request.URL.Query() {
-            fmt.Printf("%s: %s\n", key, value)
-        }
-
-        var body []byte
-        if c.Request.Body != nil {
-            body, _ = io.ReadAll(c.Request.Body)
-            fmt.Println("Request Body:", string(body))
-
-            c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
-        }
-
-        c.Next()
-    }
+func Recovery() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if recover() != nil {
+				slog.Error("request_panic", "request_id", c.Writer.Header().Get("X-Request-ID"))
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			}
+		}()
+		c.Next()
+	}
 }
-

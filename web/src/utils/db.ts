@@ -1,103 +1,72 @@
-import { openDB } from 'idb';
+import { openDB,type IDBPDatabase } from 'idb';
 
-const DB_NAME = 'FinanceTracker';
-const DB_VERSION = 4;
-const TRANSACTION_STORE = 'transactions';
-const ACCOUNT_STORE = 'accounts';
-const SAVING_STORE = 'savings';
-const CATEGORY_STORE = 'categories';
-const SUBSCRIPTION_STORE = 'subscriptions';
-const NOTIFICATION_STORE = 'notifications';
+const STORES = ['transactions', 'accounts', 'savings', 'categories', 'subscriptions', 'notifications'];
+let connection: Promise<IDBPDatabase> | undefined;
+let connectionName = '';
 
 export async function getDB() {
-    return openDB(DB_NAME, DB_VERSION, {
-        upgrade(db) {
-            if (!db.objectStoreNames.contains(TRANSACTION_STORE)) {
-                db.createObjectStore(TRANSACTION_STORE, { keyPath: '_id' });
-            }
-            if (!db.objectStoreNames.contains(ACCOUNT_STORE)) {
-                db.createObjectStore(ACCOUNT_STORE, { keyPath: '_id' });
-            }
-            if (!db.objectStoreNames.contains(SAVING_STORE)) {
-                db.createObjectStore(SAVING_STORE, { keyPath: '_id' });
-            }
-            if (!db.objectStoreNames.contains(CATEGORY_STORE)) {
-                db.createObjectStore(CATEGORY_STORE, { keyPath: '_id' });
-            }
-            if (!db.objectStoreNames.contains(SUBSCRIPTION_STORE)) {
-                db.createObjectStore(SUBSCRIPTION_STORE, { keyPath: '_id' });
-            }
-            if (!db.objectStoreNames.contains(NOTIFICATION_STORE)) {
-                db.createObjectStore(NOTIFICATION_STORE, { keyPath: '_id' });
-            }
-        }
-    });
-}
-
-export async function saveToDB(storeName: string, data: any[]) {
-    try {
-        const db = await getDB();
-        const tx = db.transaction(storeName, "readwrite");
-        const store = tx.objectStore(storeName);
-
-        data.forEach(item => {
-            store.put(item);
+    const user = localStorage.getItem('username');
+    if (!user) throw new Error('A signed-in user is required for the local cache');
+    const name = `FinanceTracker:money-v1:${user}`;
+    if (!connection || connectionName !== name) {
+        const previous = connection;
+        connectionName = name;
+        const opening = openDB(name, 1, {
+            upgrade(db) { for (const store of STORES) db.createObjectStore(store, { keyPath: '_id' }); },
+            blocking() { void opening.then(db => db.close()); if (connection === opening) connection = undefined; },
+            terminated() { if (connection === opening) connection = undefined; },
         });
-
-        await tx.done;
-    } catch (error) {
-        console.error(`Error storing data in IndexedDB (${storeName}):`, error);
-        throw new Error("Error caching data. Contact our customer service for help");
+        connection = opening;
+        void previous?.then(db => db.close());
     }
+    const db = await connection;
+    if (localStorage.getItem('username') !== user) throw new Error('Session changed during cache access');
+    return db;
 }
 
-export async function getFromDB(storeName: string): Promise<any[]> {
+export async function clearUserCache(user = localStorage.getItem('username')) {
+    if (connection) (await connection).close();
+    connection = undefined;
+    for (const name of ['FinanceTracker', ...(user ? [`FinanceTracker:${user}`, `FinanceTracker:money-v1:${user}`] : [])]) {
+        await new Promise<void>((resolve, reject) => {
+            const request = indexedDB.deleteDatabase(name);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+            request.onblocked = () => reject(new Error('Close other FinTrack tabs to clear the cache'));
+        });
+    }
+    connectionName = '';
+}
+
+export async function saveToDB(storeName: string, data: unknown[], expectedUser = localStorage.getItem('username')) {
+    if (!STORES.includes(storeName)) throw new Error('Unknown cache store');
+    if (!expectedUser || localStorage.getItem('username') !== expectedUser) throw new Error('Session changed during sync');
+    const db = await getDB();
+    if (localStorage.getItem('username') !== expectedUser) throw new Error('Session changed during sync');
+    const tx = db.transaction(storeName, 'readwrite');
     try {
-        const db = await getDB();
-        if (!db.objectStoreNames.contains(storeName)) {
-            console.error(`Object store ${storeName} does not exist.`);
-            return [];
+        for (const record of data) {
+            if (!record || typeof record !== 'object' || !('_id' in record) || typeof record._id !== 'string') {
+                throw new Error('Invalid cache record');
+            }
+            await tx.store.put(record);
         }
-        const tx = db.transaction(storeName, "readonly");
-        const store = tx.objectStore(storeName);
-        return await store.getAll();
-    } catch (error) {
-        console.error(`Error fetching data from IndexedDB (${storeName}):`, error);
-        throw new Error("Error caching data. Contact our customer service for help");
-    }
-}
-
-export async function updateDB(storeName: string, data: any) {
-    try {
-        const db = await getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-        store.put(data);
         await tx.done;
     } catch (error) {
-        console.error(`[updateDB] Failed to update ${storeName}:`, error, data);
-        throw new Error("Error caching data. Contact our customer service for help");
+        try { tx.abort(); } catch { /* transaction may already have aborted */ }
+        await tx.done.catch(() => undefined);
+        throw error;
     }
 }
-
+export async function getFromDB<T>(storeName: string): Promise<T[]> {
+    const db = await getDB();
+    return db.getAll(storeName) as Promise<T[]>;
+}
+export async function updateDB(storeName: string, data: unknown) { await saveToDB(storeName, [data]); }
 export async function deleteFromDB(storeName: string, id: string) {
-    try {
-        const db = await getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-
-        const existing = await store.get(id);
-        if (!existing) {
-            console.warn(`[deleteFromDB] No record found in ${storeName} with id ${id}`);
-            return;
-        }
-
-        existing.isDeleted = true;
-        existing.lastUpdate = new Date().toISOString();
-
-        await updateDB(storeName, existing);
-    } catch (error) {
-        console.error(`[deleteFromDB] Failed to soft delete from ${storeName}:`, error);
-        throw new Error("Error caching data. Contact our customer service for help");
-    }
+    const db = await getDB();
+    const tx = db.transaction(storeName, 'readwrite');
+    const existing = await tx.store.get(id);
+    if (existing) await tx.store.put({ ...existing, isDeleted: true });
+    await tx.done;
 }

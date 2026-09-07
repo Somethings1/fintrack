@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { Form, Input, InputNumber, Button, Space, Popconfirm, message } from "antd";
-import { Account } from "@/models/Account";
-import { addAccount, updateAccount, deleteAccounts } from "@/services/accountService";
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import IconPickerField from "@/components/IconPickerField";
+import { Account } from "@/models/Account";
+import { addAccount,deleteAccounts,updateAccount } from "@/services/accountService";
+import { Button,Form,Input,InputNumber,Popconfirm,Space,message } from "antd";
+import React,{ useEffect,useState } from "react";
 
 interface AccountFormProps {
     account?: Partial<Account>;
@@ -12,16 +14,18 @@ interface AccountFormProps {
 
 const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, false) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (account) {
             form.setFieldsValue(account);
         }
-    }, [account]);
+    }, [account, form]);
 
-    const handleFinish = async (values: any) => {
-        const updated: Account = {
+    const handleFinish = async (values: Account) => {
+        const updated: Partial<Account> = {
             _id: account?._id,
             owner: localStorage.getItem("username") ?? "",
             name: values.name,
@@ -47,7 +51,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteAccounts([account!._id]);
+            await deleteAccounts([account!._id!]);
             message.success("Account deleted successfully");
             onCancel?.();
         } catch (err) {
@@ -90,12 +94,12 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
             <Form.Item
                 name="balance"
                 label="Balance"
-                rules={[{
+                rules={[moneyRule, {
                     required: true,
                     message: "Please specify a balance"
                 }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber disabled={!!account?._id} style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item wrapperCol={{ offset: 6, span: 18 }}>

@@ -15,8 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetNotificationById(id string) (model.Notification, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func GetNotificationById(parent context.Context, id string) (model.Notification, error) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -26,7 +26,7 @@ func GetNotificationById(id string) (model.Notification, error) {
 
 	var notification model.Notification
 
-	err = util.NotificationCollection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&notification)
+	err = util.NotificationCollection.FindOne(ctx, util.TenantFilter(ctx, "owner", objectID)).Decode(&notification)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return model.Notification{}, errors.New("transaction not found")
@@ -40,13 +40,13 @@ func GetNotificationById(id string) (model.Notification, error) {
 func FetchNotificationSince(ctx context.Context, username string, since time.Time) (*mongo.Cursor, error) {
 	filter := bson.M{
 		"last_update": bson.M{
-			"$gt": since,
+			"$gte": since,
 		},
 		"owner": username,
 	}
 
 	opts := options.Find().SetSort(bson.D{
-		{Key: "last_update", Value: -1},
+		{Key: "last_update", Value: 1}, {Key: "_id", Value: 1},
 	})
 
 	return util.NotificationCollection.Find(ctx, filter, opts)
@@ -70,11 +70,12 @@ func AddNotification(ctx context.Context, notif model.Notification) (interface{}
 }
 
 func MarkAsRead(ctx context.Context, notifIDs []primitive.ObjectID) error {
-    filter := bson.M{
-        "_id": bson.M{
-            "$in": notifIDs,
-        },
-    }
+	filter := bson.M{
+		"owner": ctx.Value(util.UserIdKey),
+		"_id": bson.M{
+			"$in": notifIDs,
+		},
+	}
 	update := bson.M{
 		"$set": bson.M{
 			"read":        true,
@@ -98,7 +99,7 @@ func MarkAsRead(ctx context.Context, notifIDs []primitive.ObjectID) error {
 }
 
 func UpdateNotification(ctx context.Context, id primitive.ObjectID, notif model.Notification) error {
-	filter := bson.M{"_id": id}
+	filter := util.TenantFilter(ctx, "owner", id)
 	notif.LastUpdate = time.Now()
 	update := bson.M{"$set": notif}
 
@@ -117,7 +118,7 @@ func UpdateNotification(ctx context.Context, id primitive.ObjectID, notif model.
 }
 
 func DeleteNotification(ctx context.Context, id primitive.ObjectID) error {
-	filter := bson.M{"_id": id}
+	filter := util.TenantFilter(ctx, "owner", id)
 	update := bson.M{
 		"$set": bson.M{
 			"is_deleted":  true,

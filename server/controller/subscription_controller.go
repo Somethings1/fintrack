@@ -1,11 +1,9 @@
 package controller
 
 import (
-	"fmt"
-	"io"
+	"errors"
+	"fintrack/server/util"
 	"net/http"
-	"time"
-    "encoding/json"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -19,42 +17,7 @@ import (
 //////////////////
 
 func GetSubscriptionsSince(c *gin.Context) {
-	sinceStr := c.Param("time")
-	username := c.GetString("username")
-
-	sinceTime, err := time.Parse(time.RFC3339, sinceStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format"})
-		return
-	}
-
-    ctx := c.Request.Context()
-
-	cursor, err := service.FetchSubscriptionsSince(ctx, username, sinceTime)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error fetching subscriptions",
-			"detail": err.Error(),
-		})
-		return
-	}
-	defer cursor.Close(ctx)
-
-	c.Header("Content-Type", "application/json")
-	c.Status(http.StatusOK)
-
-	c.Stream(func(w io.Writer) bool {
-		if cursor.Next(ctx) {
-			var subscription model.Subscription
-			if err := cursor.Decode(&subscription); err != nil {
-				fmt.Println("Error decoding subscription:", err)
-				return false
-			}
-			json.NewEncoder(w).Encode(subscription)
-			return true
-		}
-		return false
-	})
+	streamSince[model.Subscription](c, util.SubscriptionCollection, "creator")
 }
 
 func AddSubscription(c *gin.Context) {
@@ -64,9 +27,12 @@ func AddSubscription(c *gin.Context) {
 	result, err := service.AddSubscription(c.Request.Context(), subscription)
 
 	if err != nil {
+		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error adding new subscription",
-			"detail": err.Error(),
+			"error": "Error adding new subscription",
 		})
 		return
 	}
@@ -89,9 +55,12 @@ func UpdateSubscription(c *gin.Context) {
 
 	err = service.UpdateSubscription(c.Request.Context(), id, newTx)
 	if err != nil {
+		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error updating subscription",
-			"detail": err.Error(),
+			"error": "Error updating subscription",
 		})
 		return
 	}
@@ -108,9 +77,12 @@ func DeleteSubscription(c *gin.Context) {
 
 	err = service.DeleteSubscription(c.Request.Context(), id)
 	if err != nil {
+		if errors.Is(err, service.ErrScheduleImmutable) || errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Error deleting subscription",
-			"detail": err.Error(),
+			"error": "Error deleting subscription",
 		})
 		return
 	}

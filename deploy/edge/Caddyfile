@@ -1,0 +1,32 @@
+{
+    admin off
+    http_port 8080
+    https_port 8443
+    auto_https disable_redirects
+    email {$ACME_EMAIL}
+    servers {
+        timeouts {
+            read_header 10s
+            read_body 30s
+            idle 2m
+        }
+    }
+}
+http://{$APP_DOMAIN} {
+    redir https://{$APP_DOMAIN}{uri} permanent
+}
+https://{$APP_DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    header -Server
+    request_body {
+        max_size 1MB
+    }
+    reverse_proxy web:8080 {
+        flush_interval -1
+        transport http {
+            dial_timeout 5s
+            response_header_timeout 15s
+        }
+    }
+    # No access logs containing paths, cookies, bearer tokens or query strings.
+}

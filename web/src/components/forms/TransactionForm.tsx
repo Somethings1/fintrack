@@ -1,37 +1,44 @@
-import React, { useEffect, useState } from "react";
-import {
-    Form,
-    InputNumber,
-    Button,
-    DatePicker,
-    Radio,
-    Select,
-    Space,
-    Input
-} from "antd";
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import { Account } from "@/models/Account";
-import { Transaction } from "@/models/Transaction";
 import { Category } from "@/models/Category";
+import { Saving } from "@/models/Saving";
+import { Transaction } from "@/models/Transaction";
 import { getStoredAccounts } from "@/services/accountService";
-import { getStoredSavings } from "@/services/savingService";
 import { getStoredCategories } from "@/services/categoryService";
-import dayjs from "dayjs";
-import { useRefresh } from "@/context/RefreshProvider";
+import { getStoredSavings } from "@/services/savingService";
+import type { TransactionValues } from "@/utils/transactionUtils";
 import { normalizeTransaction } from "@/utils/transactionUtils";
+import type { RadioChangeEvent } from "antd";
+import {
+Button,
+DatePicker,
+Form,
+Input,
+InputNumber,
+Radio,
+Select,
+Space
+} from "antd";
+import dayjs from "dayjs";
+import React,{ useEffect,useRef,useState } from "react";
 
 interface TransactionFormProps {
     transaction: Partial<Transaction>;
-    onSubmit: (values: Transaction) => void;
+    onSubmit: (values: Partial<Transaction>) => void | Promise<void>;
     onCancel?: () => void;
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, true) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
+    const submitting = useRef(false);
+    const [busy, setBusy] = useState(false);
     const [transactionType, setTransactionType] = useState<string>('income');
     const [accounts, setAccounts] = useState<Account[]>([]);
-    const [savings, setSavings] = useState<Account[]>([]);
+    const [savings, setSavings] = useState<Saving[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const { triggerRefresh } = useRefresh();
 
     const combinedAccounts = [...accounts.map(a => ({ ...a, type: "account" })), ...savings.map(s => ({ ...s, type: "saving" }))];
 
@@ -47,7 +54,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
             destinationAccount: destinationAccount === "000000000000000000000000" ? undefined : destinationAccount,
             category: category === "000000000000000000000000" ? undefined : category,
         });
-    }, [transaction._id]);
+    }, [transaction, form]);
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -64,18 +71,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
         fetchAll();
     }, []);
 
-    const handleTransactionTypeChange = (e: any) => {
+    const handleTransactionTypeChange = (e: RadioChangeEvent) => {
         setTransactionType(e.target.value);
     };
 
-    const handleFinish = (values: any) => {
-        values = normalizeTransaction(values);
+    const handleFinish = async (values: TransactionValues) => {
+        if (submitting.current) return;
+        submitting.current = true; setBusy(true);
+        const normalized = normalizeTransaction(values);
         const updatedTransaction = {
-            ...values,
+            ...normalized,
             _id: transaction._id,
         };
 
-        onSubmit(updatedTransaction);
+        try { await onSubmit(updatedTransaction); } finally { submitting.current = false; setBusy(false); }
     };
 
     const renderAccountOptions = () =>
@@ -99,13 +108,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                 name="type"
                 wrapperCol={{ span: 24 }}
                 rules={[{ required: true, message: "Please select a transaction type." }]}>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <Radio.Group onChange={handleTransactionTypeChange} value={transactionType}>
+                <Radio.Group style={{ display: 'flex', justifyContent: 'center' }} onChange={handleTransactionTypeChange}>
                         <Radio.Button value="income">Income</Radio.Button>
                         <Radio.Button value="expense">Expense</Radio.Button>
                         <Radio.Button value="transfer">Transfer</Radio.Button>
-                    </Radio.Group>
-                </div>
+                </Radio.Group>
             </Form.Item>
 
             <Form.Item
@@ -119,8 +126,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                 <DatePicker showTime style={{ width: "100%" }} />
             </Form.Item>
 
-            <Form.Item name="amount" label="Amount" rules={[{ required: true }]}>
-                <InputNumber style={{ width: "100%" }} />
+            <Form.Item name="amount" label="Amount" rules={[moneyRule, { required: true }]}>
+                <InputNumber min={10 ** -precision} step={10 ** -precision} max={1e12} style={{ width: "100%" }} />
             </Form.Item>
 
             {
@@ -198,13 +205,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
             }
 
             <Form.Item name="note" label="Note">
-                <Input.TextArea placeholder="Enter a note" />
+                <Input.TextArea maxLength={500} placeholder="Enter a note" />
             </Form.Item>
 
             <Form.Item>
                 <Space style={{ display: 'flex', justifyContent: 'end' }}>
                     <Button onClick={onCancel}>Cancel</Button>
-                    <Button type="primary" htmlType="submit">Submit</Button>
+                    <Button type="primary" htmlType="submit" loading={busy} disabled={busy}>Submit</Button>
                 </Space>
             </Form.Item>
         </Form >

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { Form, Popover, Button } from "antd";
-import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
+import Picker from "@emoji-mart/react";
+import { Button,Form,Popover } from "antd";
+import React,{ useState } from "react";
 
 interface IconPickerFieldProps {
     name: string;
@@ -19,7 +19,7 @@ const IconPickerField: React.FC<IconPickerFieldProps> = ({
     const [selectedEmoji, setSelectedEmoji] = useState(initialValue || "💰");
     const [open, setOpen] = useState(false);
 
-    const handleEmojiSelect = (emoji: any) => {
+    const handleEmojiSelect = (emoji: { native: string }) => {
         setSelectedEmoji(emoji.native);
         onIconChange?.(emoji.native);
         setOpen(false);

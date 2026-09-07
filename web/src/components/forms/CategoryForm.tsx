@@ -1,22 +1,23 @@
-import React, { useEffect, useState } from "react";
-import {
-    Form,
-    Input,
-    Button,
-    InputNumber,
-    Radio,
-    Space,
-    Popconfirm,
-    message,
-} from "antd";
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
+import IconPickerField from "@/components/IconPickerField";
 import { Category } from "@/models/Category";
 import {
-    deleteCategories,
-    addCategory,
-    updateCategory,
+addCategory,
+deleteCategories,
+updateCategory,
 } from "@/services/categoryService";
-import { useRefresh } from "@/context/refreshProvider";
-import IconPickerField from "@/components/IconPickerField";
+import {
+Button,
+Form,
+Input,
+InputNumber,
+Popconfirm,
+Radio,
+Space,
+message,
+} from "antd";
+import React,{ useEffect,useState } from "react";
 
 interface CategoryFormProps {
     category?: Partial<Category>;
@@ -30,6 +31,8 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     onCancel,
 }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, false) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
@@ -39,10 +42,10 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
         else {
             form.setFieldValue("type", "expense" );
         }
-    }, [category]);
+    }, [category, form]);
 
-    const handleFinish = async (values: any) => {
-        const updated: Category = {
+    const handleFinish = async (values: Category) => {
+        const updated: Partial<Category> = {
             _id: category?._id,
             owner: localStorage.getItem("username") ?? "",
             name: values.name,
@@ -69,7 +72,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteCategories([category!._id]);
+            await deleteCategories([category!._id!]);
             message.success("Category deleted successfully");
             onCancel?.();
         } catch (err) {
@@ -91,7 +94,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             onFinish={handleFinish}
         >
             <Form.Item name="type" label="Type" rules={[{ required: true }]}>
-                <Radio.Group>
+                <Radio.Group disabled={!!category?._id}>
                     <Radio.Button value="income">Income</Radio.Button>
                     <Radio.Button value="expense">Expense</Radio.Button>
                 </Radio.Group>
@@ -112,9 +115,9 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             <Form.Item
                 name="budget"
                 label="Budget"
-                rules={[{ required: true, message: "Please enter a budget amount" }]}
+                rules={[moneyRule, { required: true, message: "Please enter a budget amount" }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item wrapperCol={{ offset: 6, span: 18 }}>
@@ -123,7 +126,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                         {category && (
                             <Popconfirm
                                 title="Are you sure you want to delete this category?"
-                                description="All transactions linked to this category will also be deleted or invalidated. This action cannot be undone."
+                                description="Referenced categories cannot be archived. Historical transactions are never deleted by this action."
                                 okText="Yes, Delete"
                                 cancelText="Cancel"
                                 okButtonProps={{ danger: true }}
