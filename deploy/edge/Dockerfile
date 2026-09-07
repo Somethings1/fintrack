@@ -19,7 +19,11 @@ RUN apk upgrade --no-cache \
     && adduser -S -D -H -u 65532 -G caddy caddy \
     && mkdir -p /data /config /etc/caddy \
     && chown -R 65532:65532 /data /config
-ENV HOME=/tmp
+# HOME stays ephemeral, while Caddy's durable certificate and config state is
+# explicitly redirected into the writable/persistent paths mounted by production.
+ENV HOME=/tmp \
+    XDG_DATA_HOME=/data \
+    XDG_CONFIG_HOME=/config
 COPY --from=build --chown=65532:65532 /out/caddy /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 USER 65532:65532
