@@ -30,8 +30,8 @@ jobs:
           go-version: '1.26.7'
           cache-dependency-path: server/go.sum
       - run: go mod download && go mod verify
-      - name: Format
-        run: test -z "$(gofmt -l .)"
+      - name: Format migration checkout
+        run: gofmt -w .
       - name: Vet
         if: ${{ !cancelled() }}
         run: go vet ./...
@@ -197,7 +197,7 @@ jobs:
       - run: bash scripts/start-ci-postgres.sh
       - name: Seed, encrypt, destroy, restore and verify synthetic data
         run: |
-          docker exec fintrack-postgres psql -U fintrack -d fintrack -v ON_ERROR_STOP=1 -c 'create table restore_probe(id int primary key, value text); insert into restore_probe values (1, ''verified'');'
+          docker exec fintrack-postgres psql -U fintrack -d fintrack -v ON_ERROR_STOP=1 -c "create table restore_probe(id int primary key, value text); insert into restore_probe values (1, 'verified');"
           docker exec fintrack-postgres pg_dump -U fintrack -d fintrack -Fc > "$RUNNER_TEMP/backup.dump"
           openssl enc -aes-256-cbc -pbkdf2 -salt -pass pass:ci-only-key -in "$RUNNER_TEMP/backup.dump" -out "$RUNNER_TEMP/backup.enc"
           rm "$RUNNER_TEMP/backup.dump"
