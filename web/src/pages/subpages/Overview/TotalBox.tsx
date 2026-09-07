@@ -1,3 +1,4 @@
+import { subtractMoney } from "@/utils/money";
 import Balance from "@/components/Balance";
 import RoundedBox from "@/components/RoundedBox";
 import { colors } from "@/theme/color";
@@ -22,22 +23,25 @@ const TotalBox: React.FC<Props> = ({
 }) => {
     const [current, setCurrent] = useState(0);
     const [previous, setPrevious] = useState(0);
+    const [failure, setFailure] = useState(false);
 
 
     useEffect(() => {
         let active = true;
         const fetch = async () => {
-            const cur = await calculateCurrent();
-            const prev = await calculatePrevious();
-            if (!active) return;
-            setCurrent(cur);
-            setPrevious(prev);
+            try {
+                const [cur, prev] = await Promise.all([calculateCurrent(), calculatePrevious()]);
+                subtractMoney(cur, prev); // Validate before storing values for render.
+                if (!active) return;
+                setFailure(false); setCurrent(cur); setPrevious(prev);
+            } catch { if (active) setFailure(true); }
         };
         void fetch();
         return () => { active = false; };
     }, [calculateCurrent, calculatePrevious]);
 
-    const diff = current - previous;
+    if (failure) return <RoundedBox><Title level={5}>{title}</Title><p role="alert">Total unavailable. Refresh or reduce the reporting range.</p></RoundedBox>;
+    const diff = subtractMoney(current, previous);
     const isHighlight =
         highlightDirection === "increase" ? diff >= 0 : diff <= 0;
 

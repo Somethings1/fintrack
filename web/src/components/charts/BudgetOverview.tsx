@@ -1,3 +1,4 @@
+import { addMoney } from "@/utils/money";
 import { LinkOutlined } from "@ant-design/icons";
 import { Button,Empty,Spin,Tabs,Typography } from "antd";
 import React,{ useEffect,useState } from "react";
@@ -63,7 +64,7 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({ linkToBudget }) => {
                 return relevantCategories
                     .map((cat, index) => {
                         const catTxs = filteredTxs.filter((tx) => tx.category === cat._id);
-                        const total = catTxs.reduce((acc, tx) => acc + tx.amount, 0);
+                        const total = catTxs.reduce((acc, tx) => addMoney(acc, tx.amount), 0);
                         return {
                             name: cat.name,
                             icon: cat.icon,
@@ -116,7 +117,7 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({ linkToBudget }) => {
     };
 
     const renderChart = (chartData: BudgetSlice[], type: "income" | "expense") => {
-        const totalValue = chartData.reduce((acc, item) => acc + item.value, 0);
+        const totalValue = chartData.reduce((acc, item) => addMoney(acc, item.value), 0);
 
         if (chartData.length === 0) {
             return <Empty description="No data for this month" image={Empty.PRESENTED_IMAGE_SIMPLE} />;

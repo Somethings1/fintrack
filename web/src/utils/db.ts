@@ -7,7 +7,7 @@ let connectionName = '';
 export async function getDB() {
     const user = localStorage.getItem('username');
     if (!user) throw new Error('A signed-in user is required for the local cache');
-    const name = `FinanceTracker:${user}`;
+    const name = `FinanceTracker:money-v1:${user}`;
     if (!connection || connectionName !== name) {
         const previous = connection;
         connectionName = name;
@@ -27,7 +27,7 @@ export async function getDB() {
 export async function clearUserCache(user = localStorage.getItem('username')) {
     if (connection) (await connection).close();
     connection = undefined;
-    for (const name of ['FinanceTracker', ...(user ? [`FinanceTracker:${user}`] : [])]) {
+    for (const name of ['FinanceTracker', ...(user ? [`FinanceTracker:${user}`, `FinanceTracker:money-v1:${user}`] : [])]) {
         await new Promise<void>((resolve, reject) => {
             const request = indexedDB.deleteDatabase(name);
             request.onsuccess = () => resolve();

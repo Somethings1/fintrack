@@ -72,7 +72,7 @@ func AddSubscription(ctx context.Context, sub model.Subscription) (interface{}, 
 	sub.LastUpdate = time.Now().UTC()
 	sub.IsDeleted = false
 	sub.IsActive = true
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, sub model.Su
 	if err := validateSubscription(sub); err != nil {
 		return err
 	}
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return err
 	}

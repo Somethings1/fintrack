@@ -1,3 +1,5 @@
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import IconPickerField from "@/components/IconPickerField";
 import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
@@ -39,6 +41,8 @@ const intervalOptions = [
 
 const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, true) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [savings, setSavings] = useState<Saving[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -144,9 +148,9 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
             <Form.Item
                 name="amount"
                 label="Amount"
-                rules={[{ required: true, message: "Please enter the subscription amount." }]}
+                rules={[moneyRule, { required: true, message: "Please enter the subscription amount." }]}
             >
-                <InputNumber style={{ width: "100%" }} />
+                <InputNumber style={{ width: "100%" }} min={10 ** -precision} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item
@@ -195,7 +199,7 @@ const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ subscription = {}, 
                     label="Interval"
                     rules={[{ required: true, message: "Please select how often this subscription occurs." }]}
                 >
-                    <Select options={intervalOptions} />
+                    <Select disabled={(subscription.currentInterval ?? 0) > 0} options={intervalOptions} />
                 </Form.Item>
             }
 

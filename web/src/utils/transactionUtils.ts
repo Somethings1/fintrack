@@ -41,9 +41,9 @@ export type TransactionValues = Omit<Partial<Transaction>, 'dateTime'> & { dateT
 export const normalizeTransaction = (values: TransactionValues): Partial<Transaction> => ({
     ...values,
     dateTime: values.dateTime ? dayjs(values.dateTime).toDate() : new Date(),
-    sourceAccount: values.sourceAccount || undefined,
-    destinationAccount: values.destinationAccount || undefined,
-    category: values.category || undefined,
+    sourceAccount: values.type === 'income' ? undefined : values.sourceAccount || undefined,
+    destinationAccount: values.type === 'expense' ? undefined : values.destinationAccount || undefined,
+    category: values.type === 'transfer' ? undefined : values.category || undefined,
     creator: localStorage.getItem('username') ?? '',
     isDeleted: false,
     note: values.note || '',

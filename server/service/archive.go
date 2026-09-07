@@ -18,7 +18,7 @@ var ErrIdempotencyConflict = errors.New("idempotency key was already used for an
 // Archive only unreferenced objects. Never cascade-delete ledger entries without
 // the balance reversals and explicit user intent required by transaction deletion.
 func archiveUnreferenced(ctx context.Context, collection *mongo.Collection, kind string, id primitive.ObjectID) error {
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return err
 	}

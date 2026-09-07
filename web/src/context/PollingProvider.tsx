@@ -15,7 +15,7 @@ export function PollingProvider({ children }: { children: ReactNode }) {
             if (controller.signal.aborted || !user) return;
             if (inFlight.has(collection)) { dirty.add(collection); return; }
             inFlight.add(collection);
-            const key = `lastSync:${user}:${collection}`;
+            const key = `lastSync:money-v1:${user}:${collection}`;
             try {
                 const since = localStorage.getItem(key) ?? new Date(0).toISOString();
                 const latest = await fetchStreamedEntities(`/api/${collection}/get-since/${encodeURIComponent(since)}`, collection, controller.signal);

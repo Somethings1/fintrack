@@ -1,3 +1,4 @@
+import { subtractMoney } from "@/utils/money";
 import Balance from "@/components/Balance";
 import ProgressBar from "@/components/charts/ProgressBar";
 import SavingForm from "@/components/forms/SavingForm";
@@ -29,7 +30,7 @@ const SavingBox: React.FC<SavingBoxProps> = ({ saving }) => {
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
     const percentage = Math.min(100, (saving.balance / saving.goal) * 100);
-    const remaining = Math.max(0, saving.goal - saving.balance);
+    const remaining = Math.max(0, subtractMoney(saving.goal, saving.balance));
 
     return (
         <RoundedBox style={{ position: "relative", padding: 16 }}>

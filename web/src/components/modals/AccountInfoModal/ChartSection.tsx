@@ -1,3 +1,4 @@
+import { addMoney, subtractMoney } from "@/utils/money";
 import { Account } from "@/models/Account";
 import { Transaction } from "@/models/Transaction";
 import dayjs from "dayjs";
@@ -72,10 +73,10 @@ const ChartSection: React.FC<ChartSectionProps> = ({ account, transactions, mode
             if (!buckets[key]) return;
 
             if (tx.destinationAccount === account._id) {
-                buckets[key].income += tx.amount;
+                buckets[key].income = addMoney(buckets[key].income, tx.amount);
             }
             if (tx.sourceAccount === account._id) {
-                buckets[key].expense += tx.amount;
+                buckets[key].expense = addMoney(buckets[key].expense, tx.amount);
             }
         });
 
@@ -91,8 +92,8 @@ const ChartSection: React.FC<ChartSectionProps> = ({ account, transactions, mode
 
         const backtracked = reversed.map((entry) => {
             const computedBalance = current;
-            current -= entry.income;
-            current += entry.expense;
+            current = subtractMoney(current, entry.income);
+            current = addMoney(current, entry.expense);
             return { ...entry, computedBalance };
         });
 

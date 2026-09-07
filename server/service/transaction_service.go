@@ -77,7 +77,7 @@ func addTransactionInternal(ctx context.Context, transaction model.Transaction) 
 			return nil, err
 		}
 	}
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start session: %w", err)
 	}
@@ -146,7 +146,7 @@ func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.T
 	if err := validateTransaction(newTx); err != nil {
 		return err
 	}
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.T
 }
 
 func DeleteTransaction(ctx context.Context, id primitive.ObjectID) error {
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return err
 	}

@@ -1,3 +1,4 @@
+import { addMoney, subtractMoney } from "@/utils/money";
 import {
 ArrowDownOutlined,
 ArrowUpOutlined,
@@ -37,22 +38,22 @@ const AccountBox: React.FC<AccountBoxProps> = ({ account }) => {
             );
 
             const adjustment = txThisMonth.reduce((sum, tx) => {
-                if (tx.sourceAccount === account._id) return sum + tx.amount;
-                if (tx.destinationAccount === account._id) return sum - tx.amount;
+                if (tx.sourceAccount === account._id) return addMoney(sum, tx.amount);
+                if (tx.destinationAccount === account._id) return subtractMoney(sum, tx.amount);
                 return sum;
             }, 0);
 
-            const previousBalance = (account.balance || 0) + adjustment;
+            const previousBalance = addMoney(account.balance || 0, adjustment);
 
             if (previousBalance === 0) {
                 setPercentChange(null);
             } else {
-                const change = ((account.balance || 0) - previousBalance) / previousBalance * 100;
+                const change = subtractMoney(account.balance || 0, previousBalance) / previousBalance * 100;
                 setPercentChange(change);
             }
         };
 
-        calculateChange();
+        void calculateChange().catch(() => setPercentChange(null));
     }, [account]);
 
     const renderChange = () => {

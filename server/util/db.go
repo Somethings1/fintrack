@@ -9,7 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 	"time"
 )
 
@@ -105,4 +107,10 @@ func AdjustBalance(sc mongo.SessionContext, id primitive.ObjectID, amount money.
 		return result.ModifiedCount, nil
 	}
 	return 0, errors.New("account is missing, deleted, in a different currency, or not owned")
+}
+
+// StartLedgerSession pins financial transactions to durable majority writes and
+// snapshot reads even when an operator supplies a weaker default URI setting.
+func StartLedgerSession() (mongo.Session, error) {
+	return MongoClient.StartSession(options.Session().SetDefaultReadConcern(readconcern.Snapshot()).SetDefaultWriteConcern(writeconcern.Majority()).SetDefaultReadPreference(readpref.Primary()))
 }

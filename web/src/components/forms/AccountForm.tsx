@@ -1,3 +1,5 @@
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import IconPickerField from "@/components/IconPickerField";
 import { Account } from "@/models/Account";
 import { addAccount,deleteAccounts,updateAccount } from "@/services/accountService";
@@ -12,6 +14,8 @@ interface AccountFormProps {
 
 const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, false) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
@@ -90,12 +94,12 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onSubmit, onCancel }
             <Form.Item
                 name="balance"
                 label="Balance"
-                rules={[{
+                rules={[moneyRule, {
                     required: true,
                     message: "Please specify a balance"
                 }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber disabled={!!account?._id} style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item wrapperCol={{ offset: 6, span: 18 }}>

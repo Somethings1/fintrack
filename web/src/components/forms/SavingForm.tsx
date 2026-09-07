@@ -1,3 +1,5 @@
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import IconPickerField from "@/components/IconPickerField";
 import { useRefresh } from "@/context/refresh-context";
 import { Saving } from "@/models/Saving";
@@ -31,6 +33,8 @@ const SavingForm: React.FC<SavingFormProps> = ({
     onCancel,
 }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, false) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [isDeleting, setIsDeleting] = useState(false);
     const { trigger: triggerRefresh } = useRefresh();
 
@@ -127,23 +131,23 @@ const SavingForm: React.FC<SavingFormProps> = ({
             <Form.Item
                 name="balance"
                 label="Initial balance"
-                rules={[{
+                rules={[moneyRule, {
                     required: true,
                     message: "Please specify a balance"
                 }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber disabled={!!saving?._id} style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item
                 name="goal"
                 label="Goal balance"
-                rules={[{
+                rules={[moneyRule, {
                     required: true,
                     message: "Please specify a goal."
                 }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item

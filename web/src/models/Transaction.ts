@@ -1,4 +1,5 @@
 export interface Transaction {
+    currency?: string;
   _id: string; // MongoDB ObjectId as string
   creator: string;
   amount: number;

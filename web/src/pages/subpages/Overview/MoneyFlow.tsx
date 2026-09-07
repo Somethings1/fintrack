@@ -1,3 +1,4 @@
+import { addMoney } from "@/utils/money";
 import RoundedBox from "@/components/RoundedBox";
 import { useTransactions } from "@/hooks/useTransactions";
 import { colors } from "@/theme/color";
@@ -101,14 +102,14 @@ const MoneyFlow: React.FC<MoneyFlowProps> = ({ account }) => {
                 .reduce(
                     (acc, t) => {
                         if (t.type === "income") {
-                            acc.income += t.amount || 0;
+                            acc.income = addMoney(acc.income, t.amount || 0);
                         } else if (t.type === "expense") {
-                            acc.expense += t.amount || 0;
+                            acc.expense = addMoney(acc.expense, t.amount || 0);
                         } else if (t.type === "transfer" && account) {
                             if (t.sourceAccount === account) {
-                                acc.expense += t.amount || 0;
+                                acc.expense = addMoney(acc.expense, t.amount || 0);
                             } else if (t.destinationAccount === account) {
-                                acc.income += t.amount || 0;
+                                acc.income = addMoney(acc.income, t.amount || 0);
                             }
                         }
                         return acc;

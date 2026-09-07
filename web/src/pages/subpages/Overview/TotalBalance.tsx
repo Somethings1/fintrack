@@ -1,3 +1,4 @@
+import { addMoney, subtractMoney } from "@/utils/money";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useSavings } from "@/hooks/useSavings";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -10,10 +11,10 @@ const TotalBalance: React.FC = () => {
     const savings = useSavings();
     const accounts = useAccounts();
     const getCurrent = async () => {
-        const accTotal = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-        const savTotal = savings.reduce((sum, s) => sum + (s.balance || 0), 0);
+        const accTotal = accounts.reduce((sum, a) => addMoney(sum, a.balance || 0), 0);
+        const savTotal = savings.reduce((sum, s) => addMoney(sum, s.balance || 0), 0);
 
-        return accTotal + savTotal;
+        return addMoney(accTotal, savTotal);
     };
 
     const getPrevious = async () => {
@@ -24,15 +25,15 @@ const TotalBalance: React.FC = () => {
         );
 
         const adjustment = txThisMonth.reduce((sum, tx) => {
-            if (tx.type === "income") return sum - tx.amount;
-            if (tx.type === "expense") return sum + tx.amount;
+            if (tx.type === "income") return subtractMoney(sum, tx.amount);
+            if (tx.type === "expense") return addMoney(sum, tx.amount);
             return sum;
         }, 0);
 
-        const accTotal = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-        const savTotal = savings.reduce((sum, s) => sum + (s.balance || 0), 0);
+        const accTotal = accounts.reduce((sum, a) => addMoney(sum, a.balance || 0), 0);
+        const savTotal = savings.reduce((sum, s) => addMoney(sum, s.balance || 0), 0);
 
-        return accTotal + savTotal + adjustment;
+        return addMoney(addMoney(accTotal, savTotal), adjustment);
     };
 
     return (

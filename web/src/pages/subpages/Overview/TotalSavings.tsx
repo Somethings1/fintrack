@@ -1,3 +1,4 @@
+import { addMoney, subtractMoney } from "@/utils/money";
 import { useSavings } from "@/hooks/useSavings";
 import { useTransactions } from "@/hooks/useTransactions";
 import dayjs from "dayjs";
@@ -9,7 +10,7 @@ const TotalSavings: React.FC = () => {
     const { transactions } = useTransactions();
 
     const getCurrent = async () => {
-        return savings.reduce((sum, s) => sum + (s.balance || 0), 0);
+        return savings.reduce((sum, s) => addMoney(sum, s.balance || 0), 0);
     };
 
     const getPrevious = async () => {
@@ -25,13 +26,13 @@ const TotalSavings: React.FC = () => {
             const fromSaving = savingIds.includes(t.sourceAccount ?? '');
             const toSaving = savingIds.includes(t.destinationAccount ?? '');
 
-            if (fromSaving) sum += t.amount; // pretend it was never withdrawn
-            if (toSaving) sum -= t.amount;   // pretend it was never deposited
+            if (fromSaving) sum = addMoney(sum, t.amount); // pretend it was never withdrawn
+            if (toSaving) sum = subtractMoney(sum, t.amount);   // pretend it was never deposited
 
             return sum;
         }, 0);
 
-        return savings.reduce((sum, s) => sum + (s.balance || 0), 0) + adjustment;
+        return addMoney(savings.reduce((sum, s) => addMoney(sum, s.balance || 0), 0), adjustment);
     };
 
     return (

@@ -1,3 +1,4 @@
+import { addMoney } from "@/utils/money";
 import type { Category } from "@/models/Category";
 import type { Transaction } from "@/models/Transaction";
 import { colors } from "@/theme/color";
@@ -43,7 +44,7 @@ const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }: { m
                 d.getMonth() === previousMonth.month() &&
                 d.getFullYear() === previousMonth.year()
             ) {
-                prevSpentMap[tx.category ?? ''] = (prevSpentMap[tx.category ?? ''] || 0) + tx.amount;
+                prevSpentMap[tx.category ?? ''] = addMoney(prevSpentMap[tx.category ?? ''] || 0, tx.amount);
             }
         });
         return prevSpentMap;
@@ -63,7 +64,7 @@ const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }: { m
         };
     });
 
-    const totalSpent = rawData.reduce((acc, item) => acc + item.spent, 0);
+    const totalSpent = rawData.reduce((acc, item) => addMoney(acc, item.spent), 0);
 
     const data = rawData
         .map((item, i) => ({
@@ -146,7 +147,7 @@ const BudgetAnalysis = ({ month, type, categories, spentMap, transactions }: { m
                     <div style={{ marginBottom: "5px" }}>{type == 'income' ? "Gained" : "Spent"}</div>
                     <Balance amount={totalSpent} type="" align="left" size="l" />
                     <div style={{ borderBottom: "0.5px solid grey", width: "100%", margin: "5px 0" }}></div>
-                    <Balance amount={categories.reduce((sum, cat) => sum + (cat.budget ?? 0), 0)} type="" align="left" size="l" />
+                    <Balance amount={categories.reduce((sum, cat) => addMoney(sum, cat.budget ?? 0), 0)} type="" align="left" size="l" />
                     <div style={{ marginTop: "5px" }}>{type == 'income' ? "Expected" : "Allowed"}</div>
                 </div>
             </div>

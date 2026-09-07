@@ -1,3 +1,5 @@
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import { Account } from "@/models/Account";
 import { Category } from "@/models/Category";
 import { Saving } from "@/models/Saving";
@@ -29,6 +31,8 @@ interface TransactionFormProps {
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit, onCancel }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, true) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const submitting = useRef(false);
     const [busy, setBusy] = useState(false);
     const [transactionType, setTransactionType] = useState<string>('income');
@@ -104,13 +108,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                 name="type"
                 wrapperCol={{ span: 24 }}
                 rules={[{ required: true, message: "Please select a transaction type." }]}>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <Radio.Group onChange={handleTransactionTypeChange} value={transactionType}>
+                <Radio.Group style={{ display: 'flex', justifyContent: 'center' }} onChange={handleTransactionTypeChange}>
                         <Radio.Button value="income">Income</Radio.Button>
                         <Radio.Button value="expense">Expense</Radio.Button>
                         <Radio.Button value="transfer">Transfer</Radio.Button>
-                    </Radio.Group>
-                </div>
+                </Radio.Group>
             </Form.Item>
 
             <Form.Item
@@ -124,8 +126,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ transaction, onSubmit
                 <DatePicker showTime style={{ width: "100%" }} />
             </Form.Item>
 
-            <Form.Item name="amount" label="Amount" rules={[{ required: true }]}>
-                <InputNumber min={0.00000001} max={1e12} style={{ width: "100%" }} />
+            <Form.Item name="amount" label="Amount" rules={[moneyRule, { required: true }]}>
+                <InputNumber min={10 ** -precision} step={10 ** -precision} max={1e12} style={{ width: "100%" }} />
             </Form.Item>
 
             {

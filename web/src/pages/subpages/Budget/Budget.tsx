@@ -1,3 +1,4 @@
+import { addMoney } from "@/utils/money";
 import CategoryForm from "@/components/forms/CategoryForm";
 import Subtitle from "@/components/Subtitle";
 import Title from "@/components/Title";
@@ -44,7 +45,7 @@ const Budget = () => {
 
             const spentMap: Record<string, number> = {};
             filteredTxs.forEach(tx => {
-                spentMap[tx.category ?? ''] = (spentMap[tx.category ?? ''] || 0) + tx.amount;
+                spentMap[tx.category ?? ''] = addMoney(spentMap[tx.category ?? ''] || 0, tx.amount);
             });
 
             setSpentByCategory(spentMap);

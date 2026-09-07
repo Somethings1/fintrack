@@ -63,7 +63,8 @@ func validateSubscription(sub model.Subscription) error {
 func subscriptionContext(sc mongo.SessionContext, sub model.Subscription) mongo.SessionContext {
 	ctx := money.WithCurrency(context.WithValue(sc, util.UserIdKey, sub.Creator), sub.Currency)
 	ctx = context.WithValue(ctx, util.ClientIdKey, "")
-	return mongo.NewSessionContext(ctx, sc)
+	// Preserve the driver session itself, not its SessionContext wrapper.
+	return mongo.NewSessionContext(ctx, mongo.SessionFromContext(sc))
 }
 func touchSubscriptionReferences(sc mongo.SessionContext, sub model.Subscription) error {
 	tx := model.Transaction{Type: "expense", Creator: sub.Creator, Currency: sub.Currency, Category: sub.Category}
@@ -79,7 +80,7 @@ func touchSubscriptionReferences(sc mongo.SessionContext, sub model.Subscription
 // occurrence, and posts its balance effect. Retried/crashed/concurrent workers
 // cannot commit only part of an occurrence, and tombstones retain deduplication.
 func ProcessOccurrence(ctx context.Context, id primitive.ObjectID, due, now time.Time, currency string) (bool, error) {
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return false, err
 	}
@@ -150,7 +151,7 @@ func ProcessOccurrence(ctx context.Context, id primitive.ObjectID, due, now time
 }
 
 func ProcessReminder(ctx context.Context, id primitive.ObjectID, notifyAt, now time.Time, currency string) (bool, error) {
-	session, err := util.MongoClient.StartSession()
+	session, err := util.StartLedgerSession()
 	if err != nil {
 		return false, err
 	}

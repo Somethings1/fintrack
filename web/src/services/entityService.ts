@@ -1,3 +1,4 @@
+import { getLedgerConfig } from "@/config/ledger";
 import { triggerRefresh } from '@/context/RefreshBus';
 import { deleteFromDB,getDB,saveToDB } from '@/utils/db';
 import { transactionRequest } from "@/utils/idempotency";
@@ -31,7 +32,7 @@ export async function getEntity<T>(store: string, id: string): Promise<T | null>
 }
 function syncChanged(store: string) { triggerRefresh(store); triggerRefresh('sync'); }
 export async function addEntity<T extends object>(url: string, store: string, entity: T): Promise<string> {
-    const body = JSON.stringify(entity);
+    const body = JSON.stringify(store === 'notifications' ? entity : { ...entity, currency: getLedgerConfig().currency });
     const send = async (key?: string) => {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (key) headers['Idempotency-Key'] = key;
@@ -45,7 +46,7 @@ export async function addEntity<T extends object>(url: string, store: string, en
     return store === 'transactions' ? transactionRequest(body, localStorage.getItem('username') ?? '', send) : send();
 }
 export async function updateEntity<T>(url: string, store: string, id: string, updated: T) {
-    const response = await apiFetch(`${url}/update/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+    const response = await apiFetch(`${url}/update/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(store === 'notifications' ? updated : { ...updated, currency: getLedgerConfig().currency }) });
     await requireSuccess(response);
     syncChanged(store);
 }

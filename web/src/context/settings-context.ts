@@ -3,7 +3,8 @@ export interface Settings {
     id?: string;
     email: string;
     full_name?: string;
-    avatar_url?: string;
+    avatar_url?: string; // Ephemeral signed URL; never persisted.
+    avatar_path?: string;
     notification_income: boolean;
     notification_expense: boolean;
     display_locale: string;

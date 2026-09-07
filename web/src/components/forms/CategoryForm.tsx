@@ -1,3 +1,5 @@
+import { getLedgerConfig } from "@/config/ledger";
+import { validateMoney } from "@/utils/money";
 import IconPickerField from "@/components/IconPickerField";
 import { Category } from "@/models/Category";
 import {
@@ -29,6 +31,8 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     onCancel,
 }) => {
     const [form] = Form.useForm();
+    const { precision, currency } = getLedgerConfig();
+    const moneyRule = { validator: (_: unknown, value: unknown) => validateMoney(value, precision, false) ? Promise.resolve() : Promise.reject(new Error(`Enter a valid ${currency} amount (up to ${precision} decimal places).`)) };
     const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
@@ -90,7 +94,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             onFinish={handleFinish}
         >
             <Form.Item name="type" label="Type" rules={[{ required: true }]}>
-                <Radio.Group>
+                <Radio.Group disabled={!!category?._id}>
                     <Radio.Button value="income">Income</Radio.Button>
                     <Radio.Button value="expense">Expense</Radio.Button>
                 </Radio.Group>
@@ -111,9 +115,9 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
             <Form.Item
                 name="budget"
                 label="Budget"
-                rules={[{ required: true, message: "Please enter a budget amount" }]}
+                rules={[moneyRule, { required: true, message: "Please enter a budget amount" }]}
             >
-                <InputNumber style={{ width: "100%" }} min={0} />
+                <InputNumber style={{ width: "100%" }} min={0} max={1e12} step={10 ** -precision} />
             </Form.Item>
 
             <Form.Item wrapperCol={{ offset: 6, span: 18 }}>
@@ -122,7 +126,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
                         {category && (
                             <Popconfirm
                                 title="Are you sure you want to delete this category?"
-                                description="All transactions linked to this category will also be deleted or invalidated. This action cannot be undone."
+                                description="Referenced categories cannot be archived. Historical transactions are never deleted by this action."
                                 okText="Yes, Delete"
                                 cancelText="Cancel"
                                 okButtonProps={{ danger: true }}
