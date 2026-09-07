@@ -102,7 +102,7 @@ func CatchUpSubscription(_ctx context.Context, sub model.Subscription) error {
 	transactions := []model.Transaction{}
 	newInterval := 1
 	nextActive := sub.StartDate
-    ctx := context.WithValue(_ctx, util.ClientIdKey, "")
+	ctx := context.WithValue(_ctx, util.ClientIdKey, "")
 
 	for !nextActive.After(now) {
 		txn := model.Transaction{

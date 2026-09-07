@@ -1,11 +1,11 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
-    "encoding/json"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -28,7 +28,7 @@ func GetSubscriptionsSince(c *gin.Context) {
 		return
 	}
 
-    ctx := c.Request.Context()
+	ctx := c.Request.Context()
 
 	cursor, err := service.FetchSubscriptionsSince(ctx, username, sinceTime)
 	if err != nil {

@@ -2,10 +2,10 @@ package cronjob
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
-    "fmt"
 
 	"fintrack/server/model"
 	"fintrack/server/service"
@@ -15,124 +15,123 @@ import (
 )
 
 func CreateSubscriptionNotificationsCron() {
-    ticker := time.NewTicker(1 * time.Hour)
-    if os.Getenv("DEV") == "true" {
-        ticker = time.NewTicker(1 * time.Minute)
-    }
-    defer ticker.Stop()
+	ticker := time.NewTicker(1 * time.Hour)
+	if os.Getenv("DEV") == "true" {
+		ticker = time.NewTicker(1 * time.Minute)
+	}
+	defer ticker.Stop()
 
-    for {
-        <-ticker.C
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	for {
+		<-ticker.C
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-        now := time.Now()
+		now := time.Now()
 
-        filter := bson.M{
-            "is_active": true,
-            "notify_at": bson.M{
-                "$lte": now,
-                "$gt": time.Time{},
-            },
-            "is_deleted": false,
-        }
+		filter := bson.M{
+			"is_active": true,
+			"notify_at": bson.M{
+				"$lte": now,
+				"$gt":  time.Time{},
+			},
+			"is_deleted": false,
+		}
 
-        cursor, err := util.SubscriptionCollection.Find(ctx, filter)
-        if err != nil {
-            log.Println("Error fetching subscriptions for notifications:", err)
-            cancel()
-            continue
-        }
+		cursor, err := util.SubscriptionCollection.Find(ctx, filter)
+		if err != nil {
+			log.Println("Error fetching subscriptions for notifications:", err)
+			cancel()
+			continue
+		}
 
-        for cursor.Next(ctx) {
-            var sub model.Subscription
-            if err := cursor.Decode(&sub); err != nil {
-                log.Println("Error decoding subscription:", err)
-                continue
-            }
+		for cursor.Next(ctx) {
+			var sub model.Subscription
+			if err := cursor.Decode(&sub); err != nil {
+				log.Println("Error decoding subscription:", err)
+				continue
+			}
 
-            ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
-            ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
+			ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
+			ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
 
-            notif := model.Notification{
-                Owner: sub.Creator,
-                Type: model.TypeSubscription,
-                ReferenceId: sub.ID,
-                Title: "Subscription Alert",
-                Message: fmt.Sprintf("Your subscription %s is about to due in %d days.", sub.Name, sub.RemindBefore),
-                ScheduledAt: time.Now(),
-            }
+			notif := model.Notification{
+				Owner:       sub.Creator,
+				Type:        model.TypeSubscription,
+				ReferenceId: sub.ID,
+				Title:       "Subscription Alert",
+				Message:     fmt.Sprintf("Your subscription %s is about to due in %d days.", sub.Name, sub.RemindBefore),
+				ScheduledAt: time.Now(),
+			}
 
-            if _, err := service.AddNotification(ctxWithInfo, notif); err != nil {
-                log.Println("Failed to create notification for subscription:", err)
-            }
+			if _, err := service.AddNotification(ctxWithInfo, notif); err != nil {
+				log.Println("Failed to create notification for subscription:", err)
+			}
 
-            service.OnNotificationCreated(ctxWithInfo, sub.ID)
-        }
+			service.OnNotificationCreated(ctxWithInfo, sub.ID)
+		}
 
-        cursor.Close(ctx)
-        cancel()
-    }
+		cursor.Close(ctx)
+		cancel()
+	}
 }
 
 func CreateSubscriptionTransactionCron() {
-    ticker := time.NewTicker(1 * time.Hour)
-    if os.Getenv("DEV") == "true" {
-        ticker = time.NewTicker(1 * time.Minute)
-    }
-    defer ticker.Stop()
+	ticker := time.NewTicker(1 * time.Hour)
+	if os.Getenv("DEV") == "true" {
+		ticker = time.NewTicker(1 * time.Minute)
+	}
+	defer ticker.Stop()
 
-    for {
-        <-ticker.C
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	for {
+		<-ticker.C
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-        now := time.Now()
+		now := time.Now()
 
-        filter := bson.M{
-            "is_active": true,
-            "next_active": bson.M{"$lte": now},
-            "is_deleted": false,
-        }
+		filter := bson.M{
+			"is_active":   true,
+			"next_active": bson.M{"$lte": now},
+			"is_deleted":  false,
+		}
 
-        cursor, err := util.SubscriptionCollection.Find(ctx, filter)
-        if err != nil {
-            log.Println("Error fetching subscriptions for transactions:", err)
-            cancel()
-            continue
-        }
+		cursor, err := util.SubscriptionCollection.Find(ctx, filter)
+		if err != nil {
+			log.Println("Error fetching subscriptions for transactions:", err)
+			cancel()
+			continue
+		}
 
-        for cursor.Next(ctx) {
-            var sub model.Subscription
-            if err := cursor.Decode(&sub); err != nil {
-                log.Println("Error decoding subscription:", err)
-                continue
-            }
+		for cursor.Next(ctx) {
+			var sub model.Subscription
+			if err := cursor.Decode(&sub); err != nil {
+				log.Println("Error decoding subscription:", err)
+				continue
+			}
 
-            ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
-            ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
+			ctxWithInfo := context.WithValue(ctx, util.UserIdKey, sub.Creator)
+			ctxWithInfo = context.WithValue(ctxWithInfo, util.ClientIdKey, "a")
 
-            txn := model.Transaction{
-                Creator:        sub.Creator,
-                Amount:         sub.Amount,
-                SourceAccount:  sub.SourceAccount,
-                Category:       sub.Category,
-                DateTime:       now,
-                Type:           "expense",
-                Note:           "Subscription payment for " + sub.Name,
-                IsDeleted:      false,
-            }
+			txn := model.Transaction{
+				Creator:       sub.Creator,
+				Amount:        sub.Amount,
+				SourceAccount: sub.SourceAccount,
+				Category:      sub.Category,
+				DateTime:      now,
+				Type:          "expense",
+				Note:          "Subscription payment for " + sub.Name,
+				IsDeleted:     false,
+			}
 
-            if _, err := service.AddTransaction(ctxWithInfo, txn); err != nil {
-                log.Println("Failed to create transaction for subscription:", err)
-                continue
-            }
+			if _, err := service.AddTransaction(ctxWithInfo, txn); err != nil {
+				log.Println("Failed to create transaction for subscription:", err)
+				continue
+			}
 
-            if err := service.OnTransactionCreated(ctxWithInfo, sub.ID); err != nil {
-                log.Println("Failed to update subscription after transaction:", err)
-            }
-        }
+			if err := service.OnTransactionCreated(ctxWithInfo, sub.ID); err != nil {
+				log.Println("Failed to update subscription after transaction:", err)
+			}
+		}
 
-        cursor.Close(ctx)
-        cancel()
-    }
+		cursor.Close(ctx)
+		cancel()
+	}
 }
-

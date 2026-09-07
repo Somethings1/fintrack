@@ -138,12 +138,12 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 		}
 
 		subscription := model.Subscription{
-            Icon:            _subscription.Icon,
-			Name:            _subscription.Name,
-			Creator:         _subscription.Creator,
-			Amount:          _subscription.Amount,
-			SourceAccount:   srcID,
-			Category:        category.ID,
+			Icon:          _subscription.Icon,
+			Name:          _subscription.Name,
+			Creator:       _subscription.Creator,
+			Amount:        _subscription.Amount,
+			SourceAccount: srcID,
+			Category:      category.ID,
 
 			StartDate:       StartDate,
 			Interval:        _subscription.Interval,
@@ -151,10 +151,10 @@ func SubscriptionFormatMiddleware() gin.HandlerFunc {
 			CurrentInterval: _subscription.CurrentInterval,
 			RemindBefore:    _subscription.RemindBefore,
 
-			NextActive:      StartDate,
-			NotifyAt:        StartDate.AddDate(0, 0, -_subscription.RemindBefore),
-			IsActive:        true,
-			IsDeleted:       false,
+			NextActive: StartDate,
+			NotifyAt:   StartDate.AddDate(0, 0, -_subscription.RemindBefore),
+			IsActive:   true,
+			IsDeleted:  false,
 		}
 
 		c.Set("subscription", subscription)

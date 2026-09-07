@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
-    "io"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -27,7 +27,7 @@ func createAccount(token string, account Account) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-    req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -64,7 +64,7 @@ func updateAccount(token string, id primitive.ObjectID, account Account) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-    req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -85,7 +85,7 @@ func getAccounts(token string) ([]Account, error) {
 	if err != nil {
 		return nil, err
 	}
-    req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -94,21 +94,21 @@ func getAccounts(token string) ([]Account, error) {
 	}
 	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("get failed: status code %d", resp.StatusCode)
-    }
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get failed: status code %d", resp.StatusCode)
+	}
 
 	var accounts []Account
-    decoder := json.NewDecoder(resp.Body)
-    for {
-        var account Account
-        if err := decoder.Decode(&account); err == io.EOF {
-            break
-        } else if err != nil {
-            return nil, err
-        }
-        accounts = append(accounts, account)
-    }
+	decoder := json.NewDecoder(resp.Body)
+	for {
+		var account Account
+		if err := decoder.Decode(&account); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
 	return accounts, nil
 }
 
@@ -117,7 +117,7 @@ func deleteAccount(token string, id primitive.ObjectID) error {
 	if err != nil {
 		return err
 	}
-    req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

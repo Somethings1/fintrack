@@ -111,7 +111,6 @@ func MarkNotificationsRead(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-
 func UpdateNotification(c *gin.Context) {
 	tmp, _ := c.Get("notification")
 	notification := tmp.(model.Notification)

@@ -105,7 +105,6 @@ func AddTransaction(ctx context.Context, transaction model.Transaction) (interfa
 	return result, nil
 }
 
-
 func UpdateTransaction(ctx context.Context, id primitive.ObjectID, newTx model.Transaction) error {
 	newTx.LastUpdate = time.Now()
 	err := util.MongoClient.UseSession(ctx, func(sc mongo.SessionContext) error {

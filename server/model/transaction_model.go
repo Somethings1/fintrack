@@ -18,4 +18,3 @@ type Transaction struct {
 	LastUpdate         time.Time          `bson:"last_update" json:"lastUpdate,omitempty"`
 	IsDeleted          bool               `bson:"is_deleted" json:"isDeleted"`
 }
-

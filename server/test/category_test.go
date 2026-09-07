@@ -4,22 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
-	"io"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Category struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Owner   string             `bson:"owner" json:"owner"`
-	Type    string             `bson:"type" json:"type"` // income or expense
-	Icon    string             `bson:"icon" json:"icon"`
-	Name    string             `bson:"name" json:"name"`
-	Budget  float64            `bson:"budget,omitempty" json:"budget,omitempty"`
+	ID     primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Owner  string             `bson:"owner" json:"owner"`
+	Type   string             `bson:"type" json:"type"` // income or expense
+	Icon   string             `bson:"icon" json:"icon"`
+	Name   string             `bson:"name" json:"name"`
+	Budget float64            `bson:"budget,omitempty" json:"budget,omitempty"`
 }
-
 
 // Create Category
 func createCategory(token string, category Category) (primitive.ObjectID, error) {
@@ -148,10 +147,10 @@ func TestCategoryFlow(t *testing.T) {
 
 	// Create a new category
 	category := Category{
-		Owner: "testaccount1",
-		Type:  "expense",
-		Icon:  "shopping-cart",
-		Name:  "Shopping",
+		Owner:  "testaccount1",
+		Type:   "expense",
+		Icon:   "shopping-cart",
+		Name:   "Shopping",
 		Budget: 200.0,
 	}
 	id, err := createCategory(token, category)

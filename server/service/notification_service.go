@@ -70,11 +70,11 @@ func AddNotification(ctx context.Context, notif model.Notification) (interface{}
 }
 
 func MarkAsRead(ctx context.Context, notifIDs []primitive.ObjectID) error {
-    filter := bson.M{
-        "_id": bson.M{
-            "$in": notifIDs,
-        },
-    }
+	filter := bson.M{
+		"_id": bson.M{
+			"$in": notifIDs,
+		},
+	}
 	update := bson.M{
 		"$set": bson.M{
 			"read":        true,

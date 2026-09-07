@@ -3,11 +3,11 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"fintrack/server/util"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
 	"time"
-    "fintrack/server/util"
 )
 
 func AuthMiddleware() gin.HandlerFunc {

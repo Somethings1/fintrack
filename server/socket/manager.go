@@ -48,9 +48,9 @@ func (m *WebSocketManager) Unregister(clientId string) {
 func (m *WebSocketManager) BroadcastToUserExcept(userId, exceptId string, message interface{}) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-    fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>\n")
-    fmt.Printf("Broadcasting to userId: %s, except clientId: %s\n", userId, exceptId)
-    fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>\n")
+	fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>\n")
+	fmt.Printf("Broadcasting to userId: %s, except clientId: %s\n", userId, exceptId)
+	fmt.Printf(">>>>>>>>>>>>>>>>>>>>>>>>>\n")
 
 	data, _ := json.Marshal(message)
 	for id, client := range m.clients {
@@ -81,9 +81,9 @@ func HandleWebSocket(c *gin.Context) {
 	Manager.Register(clientId, username, conn)
 
 	conn.WriteJSON(map[string]interface{}{
-        "collection":   "",
-        "action":       "init",
-		"detail":       clientId,
+		"collection": "",
+		"action":     "init",
+		"detail":     clientId,
 	})
 
 	go func() {
@@ -103,15 +103,15 @@ func HandleWebSocket(c *gin.Context) {
 }
 
 func BroadcastFromContext(ctx context.Context, message interface{}) {
-    userId, ok1 := ctx.Value(util.UserIdKey).(string)
-    clientId, ok2 := ctx.Value(util.ClientIdKey).(string)
+	userId, ok1 := ctx.Value(util.UserIdKey).(string)
+	clientId, ok2 := ctx.Value(util.ClientIdKey).(string)
 
-    if !ok1 || !ok2 {
-        log.Println("BroadcastFromContext: missing userId or clientId in context")
-        return
-    }
+	if !ok1 || !ok2 {
+		log.Println("BroadcastFromContext: missing userId or clientId in context")
+		return
+	}
 
-    Manager.BroadcastToUserExcept(userId, clientId, message)
+	Manager.BroadcastToUserExcept(userId, clientId, message)
 }
 
 var Manager = &WebSocketManager{

@@ -4,24 +4,23 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 	"time"
-    "io"
 )
 
 type Transaction struct {
-	ID               string  `json:"id,omitempty"`
-	Creator          string  `json:"creator"`
-	Amount           float64 `json:"amount"`
-	DateTime         string  `json:"date_time"`
-	Type             string  `json:"type"` // income, expense, transfer
-	SourceAccount    string  `json:"source_account,omitempty"`
-	DestinationAccount string `json:"destination_account,omitempty"`
-	Category         string  `json:"category,omitempty"`
-	Note             string  `json:"note"`
+	ID                 string  `json:"id,omitempty"`
+	Creator            string  `json:"creator"`
+	Amount             float64 `json:"amount"`
+	DateTime           string  `json:"date_time"`
+	Type               string  `json:"type"` // income, expense, transfer
+	SourceAccount      string  `json:"source_account,omitempty"`
+	DestinationAccount string  `json:"destination_account,omitempty"`
+	Category           string  `json:"category,omitempty"`
+	Note               string  `json:"note"`
 }
-
 
 func createTransaction(token string, transaction Transaction) (string, error) {
 	payload, _ := json.Marshal(transaction)
@@ -30,7 +29,7 @@ func createTransaction(token string, transaction Transaction) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-    req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -39,21 +38,21 @@ func createTransaction(token string, transaction Transaction) (string, error) {
 	}
 	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        type Error struct {
-            Message string `json:"error"`
-        }
+	if resp.StatusCode != http.StatusOK {
+		type Error struct {
+			Message string `json:"error"`
+		}
 
-        var errorResponse Error
-        if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
-            return "4", err
-        }
+		var errorResponse Error
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			return "4", err
+		}
 
-        return "3", fmt.Errorf("create failed: %s", errorResponse.Message)
+		return "3", fmt.Errorf("create failed: %s", errorResponse.Message)
 	}
 	var response struct {
-        Msg  string `json:"message"`
-		ID string `json:"id"`
+		Msg string `json:"message"`
+		ID  string `json:"id"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return "2", err
@@ -69,7 +68,6 @@ func updateTransaction(token, id string, transaction Transaction) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
-
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -98,21 +96,21 @@ func getTransactionsByYear(token, year string) ([]Transaction, error) {
 	}
 	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("get failed: status code %d", resp.StatusCode)
-    }
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get failed: status code %d", resp.StatusCode)
+	}
 
 	var transactions []Transaction
-    decoder := json.NewDecoder(resp.Body)
-    for {
-        var transaction Transaction
-        if err := decoder.Decode(&transaction); err == io.EOF {
-            break
-        } else if err != nil {
-            return nil, err
-        }
-        transactions = append(transactions, transaction)
-    }
+	decoder := json.NewDecoder(resp.Body)
+	for {
+		var transaction Transaction
+		if err := decoder.Decode(&transaction); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, transaction)
+	}
 	return transactions, nil
 }
 
@@ -145,13 +143,13 @@ func TestTransactionFlow(t *testing.T) {
 
 	// Create a new transaction
 	transaction := Transaction{
-		Creator:  "testaccount1",
-		Amount:   100.0,
-		DateTime: time.Now().Format(time.RFC3339),
-		Type:     "income",
-        Category: "675857a0e9c0f5df7df809ff",
-        SourceAccount: "6758476703a5bb195bfc2dd3",
-		Note:     "Test transaction",
+		Creator:       "testaccount1",
+		Amount:        100.0,
+		DateTime:      time.Now().Format(time.RFC3339),
+		Type:          "income",
+		Category:      "675857a0e9c0f5df7df809ff",
+		SourceAccount: "6758476703a5bb195bfc2dd3",
+		Note:          "Test transaction",
 	}
 	id, err := createTransaction(token, transaction)
 	if err != nil {
@@ -179,7 +177,7 @@ func TestTransactionFlow(t *testing.T) {
 	for _, tr := range transactions {
 		if tr.ID == id {
 			found = true
-            fmt.Println(tr.ID)
+			fmt.Println(tr.ID)
 			if tr.Amount != 200.0 || tr.Note != "Updated transaction" {
 				t.Errorf("Transaction update not reflected: %+v", t)
 			}
@@ -208,4 +206,3 @@ func TestTransactionFlow(t *testing.T) {
 	}
 	t.Log("Transaction deletion verified")
 }
-
