@@ -11,6 +11,10 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_A
 RUN test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY" && npm run build && npm run check:bundle
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
+# Apply vendor security fixes even when the upstream image rebuild lags.
+# Root is used only while building; the runtime remains UID 101.
+USER root
+RUN apk upgrade --no-cache
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /src/dist /usr/share/nginx/html
 USER 101:101
