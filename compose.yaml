@@ -6,8 +6,7 @@ services:
     environment:
       APP_ENV: production
       PORT: '8080'
-      MONGO_URI: ${MONGO_URI:?Provide an authenticated MongoDB replica-set URI}
-      MONGO_DATABASE: ${MONGO_DATABASE:-finance_db}
+      DATABASE_URL: ${DATABASE_URL:?Provide the Supabase PostgreSQL connection URL}
       SUPABASE_URL: ${SUPABASE_URL:?Provide your Supabase project URL}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Provide the public anon key, never a service-role key}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Provide exact HTTPS frontend origins}
