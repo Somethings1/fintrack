@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 async function login(page, email) {
-  await page.goto('/login');
+  // The app can independently redirect unauthenticated sessions to /login.
+  // Avoid racing an explicit goto against that client-side redirect; only
+  // navigate when we are not already on the login route, then wait for the
+  // form itself as the readiness signal.
+  if (!/\/login$/.test(new URL(page.url()).pathname)) {
+    await page.goto('/login', {waitUntil:'domcontentloaded'});
+  }
+  await expect(page.getByLabel('Email', {exact:true})).toBeVisible();
   await page.getByLabel('Email', {exact:true}).fill(email);
   await page.getByLabel('Password', {exact:true}).fill('ci-only-password');
   const result=page.waitForResponse(r=>r.url().includes('/auth/v1/token') && r.request().method()==='POST');
