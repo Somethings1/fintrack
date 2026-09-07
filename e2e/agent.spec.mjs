@@ -7,7 +7,7 @@ async function openChat(page) {
   await page.getByRole('button', {name:'Login',exact:true}).click();
   await expect(page).toHaveURL(/\/home$/);
   await page.getByRole('button', {name:'Open transaction assistant'}).click();
-  await page.getByRole('tab', {name:'Ask finances',exact:true}).click();
+  await expect(page.getByRole('tab', {name:'Chat',exact:true})).toHaveAttribute('aria-selected','true');
 }
 
 test('agent consent and disabled fallback use the real API', async ({page}) => {
@@ -54,10 +54,9 @@ test('agent chat supports follow-ups and clears ephemeral history', async ({page
   await ask.click();
   await expect(log.getByText(answer,{exact:true})).toBeVisible();
   expect(requests[2].history).toEqual([]);
-  // Close with a populated conversation, without using Clear chat again.
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button', {name:'Open transaction assistant'}).click();
-  await page.getByRole('tab', {name:'Ask finances',exact:true}).click();
+  await expect(page.getByRole('tab', {name:'Chat',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.getByRole('log', {name:'Financial conversation'})).toBeEmpty();
   await expect(page.getByLabel('Ask about your finances')).toHaveValue('');
   await expect(page.getByRole('checkbox', {name:/Send my question/})).not.toBeChecked();

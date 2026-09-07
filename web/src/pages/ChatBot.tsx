@@ -18,8 +18,10 @@ export default function ChatBot() {
     const [draft, setDraft] = useState<Partial<Transaction> | null>(null);
     const [status, setStatus] = useState('');
     const [busy, setBusy] = useState(false);
+    const [chatWriting, setChatWriting] = useState(false);
     const controller = useRef<AbortController | null>(null);
     const saving = useRef(false);
+    const chatSaving = useRef(false);
     const accounts = useAccounts(); const savings = useSavings(); const categories = useCategories();
     const names = new Map([...accounts, ...savings, ...categories].map(item => [item._id, item.name]));
     useEffect(() => () => controller.current?.abort(), []);
@@ -44,7 +46,7 @@ export default function ChatBot() {
         catch (error) { setStatus(error instanceof Error ? error.message : 'Saving failed. Check your transaction list before retrying.'); }
         finally { saving.current = false; setBusy(false); }
     };
-    const close = () => { if (saving.current) return; controller.current?.abort(); setBusy(false); setOpen(false); };
+    const close = () => { if (saving.current || chatSaving.current) return; controller.current?.abort(); setBusy(false); setOpen(false); };
     const draftPanel = <Space direction="vertical" style={{ width: '100%' }}>
         <Alert type="info" showIcon message="Drafts only. Nothing is saved until you confirm. This is not financial advice." />
         <Checkbox checked={consent} onChange={event => setConsent(event.target.checked)}>
@@ -69,9 +71,9 @@ export default function ChatBot() {
         <Button className="chatbot-toggle" icon={<RobotOutlined />} onClick={() => setOpen(true)} aria-label="Open transaction assistant">Assistant</Button>
         {/* Unmount on close: chat history, consent and requests must not survive a hidden modal. */}
         {open && <Modal title="FinTrack assistant" open onCancel={close} footer={null} width={680}>
-            <Tabs defaultActiveKey="draft" items={[
-                { key: 'draft', label: 'Draft transaction', children: draftPanel },
-                { key: 'chat', label: 'Ask finances', disabled: busy, children: <FinancialChat /> },
+            <Tabs defaultActiveKey="chat" items={[
+                { key: 'chat', label: 'Chat', disabled: busy, children: <FinancialChat onSavingChange={value => { chatSaving.current = value; setChatWriting(value); }} /> },
+                { key: 'draft', label: 'Draft transaction', disabled: chatWriting, children: draftPanel },
             ]} />
         </Modal>}
     </>;

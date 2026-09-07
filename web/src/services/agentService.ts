@@ -1,7 +1,8 @@
 import { apiFetch } from './apiClient';
+import { isAgentProposal, type AgentProposal } from './agentProposal';
 
 export interface AgentMessage { role: 'user' | 'assistant'; content: string }
-export interface AgentAnswer { answer: string; toolsUsed: string[] }
+export interface AgentAnswer { answer: string; toolsUsed: string[]; proposal?: AgentProposal }
 
 /** Send complete prior pairs only, bounded by the same UTF-8 budget as Go. */
 export function agentHistory(messages: AgentMessage[]): AgentMessage[] {
@@ -10,6 +11,7 @@ export function agentHistory(messages: AgentMessage[]): AgentMessage[] {
     let bytes = 0;
     for (let i = messages.length - 2; i >= 0 && result.length < 8; i -= 2) {
         const pair = messages.slice(i, i + 2);
+        if (pair.some(message => encoder.encode(message.content).length > 12_000)) break;
         const size = pair.reduce((total, message) => total + encoder.encode(message.content).length, 0);
         if (bytes + size > 24_000) break;
         result.unshift(...pair);
@@ -39,7 +41,8 @@ export async function askAgent(input: string, consent: boolean, history: AgentMe
     }
     const result: unknown = await response.json();
     if (!result || typeof result !== 'object' || !('answer' in result) || typeof result.answer !== 'string' || !result.answer.trim()
-        || !('toolsUsed' in result) || !Array.isArray(result.toolsUsed) || !result.toolsUsed.every(tool => typeof tool === 'string')) {
+        || !('toolsUsed' in result) || !Array.isArray(result.toolsUsed) || !result.toolsUsed.every(tool => typeof tool === 'string')
+        || ('proposal' in result && result.proposal !== undefined && !isAgentProposal(result.proposal))) {
         throw new Error('Invalid assistant response.');
     }
     return result as AgentAnswer;

@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MessageHandler adds investigation, not mutation, to the existing draft flow.
+// MessageHandler supports investigation and confirmation-only CRUD proposals.
 // Enabling it uses the same explicitly configured Gemini model and credentials.
 func MessageHandler(cfg config.Config) gin.HandlerFunc {
 	p := provider{
@@ -21,7 +21,7 @@ func MessageHandler(cfg config.Config) gin.HandlerFunc {
 		key:      cfg.AgentKey,
 		client:   &http.Client{Timeout: 18 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
-	return messageHandler(cfg.AgentEnabled, chatRunner{model: p, tools: LedgerTools{DB: util.DB}})
+	return messageHandler(cfg.AgentEnabled, chatRunner{model: p, tools: WorkspaceTools{LedgerTools{DB: util.DB}}})
 }
 
 func messageHandler(enabled bool, runner chatRunner) gin.HandlerFunc {
