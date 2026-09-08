@@ -1,0 +1,101 @@
+name: Mobile CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  mobile:
+    name: Mobile checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: https://api.example.test
+      EXPO_PUBLIC_SUPABASE_URL: https://auth.example.test
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: public-ci-config-not-a-real-key
+    defaults:
+      run: {working-directory: mobile}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22', cache: npm, cache-dependency-path: mobile/package-lock.json}
+      - run: npm ci
+      - name: Expo dependency compatibility
+        if: ${{ !cancelled() }}
+        run: npm run check:deps
+      - name: Typecheck
+        if: ${{ !cancelled() }}
+        run: npm run typecheck
+      - name: Zero-warning lint
+        if: ${{ !cancelled() }}
+        run: npm run lint
+      - name: Money, session, synchronization and retry contracts
+        if: ${{ !cancelled() }}
+        run: npm test
+      - name: Native component interaction tests
+        if: ${{ !cancelled() }}
+        run: npm run test:ui
+      - name: Export Android and iOS JavaScript bundles
+        if: ${{ !cancelled() }}
+        run: npm run export
+      - name: Generate native projects and check SQLCipher configuration
+        if: ${{ !cancelled() }}
+        run: |
+          npx expo prebuild --no-install --platform all
+          grep -q 'expo.sqlite.useSQLCipher=true' android/gradle.properties
+          grep -q 'expo.sqlite.useSQLCipher' ios/Podfile.properties.json
+      - name: Dependency vulnerability gate
+        if: ${{ !cancelled() }}
+        run: npm audit --audit-level=high
+      - name: Preserve reproducibility evidence
+        if: ${{ !cancelled() }}
+        working-directory: .
+        run: git archive --format=tar.gz -o mobile-source.tar.gz HEAD server mobile packages .github docs scripts tests
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() }}
+        with:
+          name: mobile-evidence
+          path: |
+            mobile-source.tar.gz
+            mobile/dist/metadata.json
+            mobile/android/gradle.properties
+            mobile/ios/Podfile.properties.json
+          retention-days: 3
+  android:
+    name: Android native compile
+    needs: mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: https://api.example.test
+      EXPO_PUBLIC_SUPABASE_URL: https://auth.example.test
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: public-ci-config-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22', cache: npm, cache-dependency-path: mobile/package-lock.json}
+      - name: Configure installed JDK 17
+        run: echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+      - run: npm ci --prefix mobile
+      - run: npx expo prebuild --no-install --platform android
+        working-directory: mobile
+      - name: Compile native Android development binary including SQLCipher
+        working-directory: mobile/android
+        run: ./gradlew :app:assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
+      - name: Preserve native compile reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: android-build-reports
+          path: mobile/android/build/reports/
+          retention-days: 3
