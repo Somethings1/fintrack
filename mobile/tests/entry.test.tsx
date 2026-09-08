@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import Entry from '../src/Entry';
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'stable-draft-id' }));
 jest.mock('react-native-safe-area-context', () => {
-  const { View } = require('react-native'); return { SafeAreaView: View, SafeAreaProvider: View };
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native'); return { SafeAreaView: View, SafeAreaProvider: View };
 });
 const config = { currency: 'USD', precision: 2, moneyVersion: 1 };
 const account = { _id: '111111111111111111111111', currency: 'USD', lastUpdate: '2026-09-08T00:00:00Z', name: 'Cash', balance: '100' };

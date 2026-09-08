@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
-import { collections, FinTrackClient, type Collection, type LedgerConfig, type LedgerRow, type Proposal, type Values, moneyText, sumAmounts, parseConfig } from '@fintrack/client';
+import { collections, FinTrackClient, type Collection, type LedgerConfig, type LedgerRow, type Proposal, moneyText, sumAmounts, parseConfig } from '@fintrack/client';
 import type { Auth } from './auth';
 import { openVault, type Vault, type Draft } from './vault';
 import { DraftSender } from './drafts';
@@ -63,7 +63,7 @@ export default function Workspace({ auth, owner }: { auth: Auth; owner: string }
     } catch (cause) { if (resources.api.current()) setError(cause instanceof Error ? cause.message : 'Connection unavailable. Showing cached data.'); }
     finally { try { await loadCache(); } catch { /* A closing or locked device store must not update a different session. */ } syncLock.current = false; if (resources.api.current()) setSyncing(false); }
   }, [resources, loadCache]);
-  useEffect(() => { void loadCache().then(refresh).catch(() => setError('Could not read device cache.')); }, [loadCache, refresh]);
+  useEffect(() => { let current = true; void Promise.resolve().then(() => current ? loadCache() : undefined).then(() => { if (current) return refresh(); }).catch(() => { if (current) setError('Could not read device cache.'); }); return () => { current = false; }; }, [loadCache, refresh]);
   useEffect(() => {
     const listener = AppState.addEventListener('change', state => {
       setActive(state === 'active');
@@ -106,7 +106,8 @@ export default function Workspace({ auth, owner }: { auth: Auth; owner: string }
   ]);
   const allAccounts = [...data.accounts, ...data.savings]; const label = (id?: string) => allAccounts.find(a => a._id === id)?.name || data.categories.find(c => c._id === id)?.name || id || '—';
   const month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
-  const expenses = data.transactions.filter(t => t.type === 'expense' && t.dateTime && new Date(t.dateTime) >= month);
+  const nextMonth = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+  const expenses = data.transactions.filter(t => t.type === 'expense' && t.dateTime && new Date(t.dateTime) >= month && new Date(t.dateTime) < nextMonth);
   const activity = [...data.transactions].filter(t => (t.note || '').toLowerCase().includes(query.toLowerCase())).sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
   return <SafeAreaView style={styles.screen}>
     <View style={[styles.row, { paddingHorizontal: 20, paddingVertical: 10 }]}><Text accessibilityRole="header" style={styles.title}>FinTrack</Text><Button title="Sign out" secondary disabled={mutating} onPress={logout} /></View>

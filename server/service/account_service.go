@@ -53,7 +53,7 @@ func UpdateAccount(ctx context.Context, id primitive.ObjectID, a model.Account) 
 	if err := money.Validate(a.Balance, money.Currency(ctx)); err != nil {
 		return err
 	}
-	res, err := util.DB.ExecContext(ctx, `UPDATE financial_accounts SET name=$1,icon=$2,last_update=now() WHERE id=$3 AND owner=$4 AND kind='account' AND is_deleted=false`, a.Name, a.Icon, id.Hex(), util.UserID(ctx))
+	res, err := conditionalUpdate(ctx, `UPDATE financial_accounts SET name=$1,icon=$2,last_update=now() WHERE id=$3 AND owner=$4 AND kind='account' AND is_deleted=false`, a.Name, a.Icon, id.Hex(), util.UserID(ctx))
 	if err != nil {
 		return err
 	}

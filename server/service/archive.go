@@ -7,6 +7,7 @@ import (
 	"fintrack/server/socket"
 	"fintrack/server/util"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
 )
 
 var ErrReferenced = errors.New("record is referenced by active financial records; remove or reassign those records explicitly first")
@@ -18,9 +19,12 @@ func archiveFinancialAccount(ctx context.Context, kind, collection string, id pr
 		return err
 	}
 	defer tx.Rollback()
-	var one int
-	err = tx.QueryRowContext(ctx, `SELECT 1 FROM financial_accounts WHERE id=$1 AND owner=$2 AND kind=$3 AND is_deleted=false FOR UPDATE`, id.Hex(), util.UserID(ctx), kind).Scan(&one)
+	var revision time.Time
+	err = tx.QueryRowContext(ctx, `SELECT last_update FROM financial_accounts WHERE id=$1 AND owner=$2 AND kind=$3 AND is_deleted=false FOR UPDATE`, id.Hex(), util.UserID(ctx), kind).Scan(&revision)
 	if err != nil {
+		return err
+	}
+	if err := util.CheckVersion(ctx, revision); err != nil {
 		return err
 	}
 	var referenced bool
@@ -51,9 +55,12 @@ func archiveCategory(ctx context.Context, id primitive.ObjectID) error {
 		return err
 	}
 	defer tx.Rollback()
-	var one int
-	err = tx.QueryRowContext(ctx, `SELECT 1 FROM categories WHERE id=$1 AND owner=$2 AND is_deleted=false FOR UPDATE`, id.Hex(), util.UserID(ctx)).Scan(&one)
+	var revision time.Time
+	err = tx.QueryRowContext(ctx, `SELECT last_update FROM categories WHERE id=$1 AND owner=$2 AND is_deleted=false FOR UPDATE`, id.Hex(), util.UserID(ctx)).Scan(&revision)
 	if err != nil {
+		return err
+	}
+	if err := util.CheckVersion(ctx, revision); err != nil {
 		return err
 	}
 	var referenced bool

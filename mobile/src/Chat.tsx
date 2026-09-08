@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
+import { AppState, KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
 import { type Answer, type FinTrackClient, type LedgerConfig, type Message, type Permissions, noPermissions } from '@fintrack/client';
 import { Button, Card, ErrorText, Field, Notice, styles } from './ui';
 
 interface Turn extends Answer { question: string; outcome?: string }
-export default function Chat({ api, config, refresh, active }: { api: FinTrackClient; config: LedgerConfig; refresh: () => Promise<void>; active: boolean }) {
+export default function Chat({ api, config, refresh, active, onWriting }: { api: FinTrackClient; config: LedgerConfig; refresh: () => Promise<void>; active: boolean; onWriting: (value: boolean) => void }) {
   const [input, setInput] = useState(''); const [consent, setConsent] = useState(false); const [scope, setScope] = useState<Permissions>(noPermissions);
   const [turns, setTurns] = useState<Turn[]>([]); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [saving, setSaving] = useState(false);
   const pending = useRef<AbortController | null>(null); const writing = useRef(false); const live = useRef(true); const used = useRef(new Set<string>());
   useEffect(() => { live.current = true; return () => { live.current = false; pending.current?.abort(); }; }, []);
-  useEffect(() => { if (!active) { pending.current?.abort(); setTurns([]); } }, [active]);
+  useEffect(() => { const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { pending.current?.abort(); setTurns([]); } }); return () => subscription.remove(); }, []);
   const clear = () => { if (writing.current) return; pending.current?.abort(); pending.current = null; setBusy(false); setTurns([]); setError(''); };
   const changeScope = (key: keyof Permissions, value: boolean) => {
     if (writing.current) return; clear(); setScope(previous => ({ ...previous, [key]: value, ...(key === 'allowChanges' && !value ? { allowDeletes: false } : {}) }));
@@ -30,10 +30,10 @@ export default function Chat({ api, config, refresh, active }: { api: FinTrackCl
   const confirm = async (turn: Turn) => {
     const p = turn.proposal;
     if (!p || writing.current || used.current.has(p.id) || turn.outcome || busy || !consent) return;
-    writing.current = true; used.current.add(p.id); setSaving(true);
+    writing.current = true; used.current.add(p.id); setSaving(true); onWriting(true);
     try { const id = await api.confirm(p, config, scope); if (live.current) outcome(p.id, `Saved in FinTrack. Record: ${id}`); }
     catch (cause) { if (live.current) outcome(p.id, cause instanceof Error ? cause.message : 'Save outcome is unknown. Inspect Activity before trying again.'); }
-    finally { writing.current = false; if (live.current) setSaving(false); await refresh(); }
+    finally { writing.current = false; onWriting(false); if (live.current) setSaving(false); await refresh(); }
   };
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
