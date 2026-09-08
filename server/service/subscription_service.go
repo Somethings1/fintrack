@@ -74,6 +74,9 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, v model.Subs
 	if err != nil {
 		return err
 	}
+	if err := util.CheckVersion(ctx, old.LastUpdate); err != nil {
+		return err
+	}
 	if old.ScheduleVersion != 2 || (old.CurrentInterval > 0 && (!old.StartDate.Equal(v.StartDate) || old.Interval != v.Interval)) {
 		return ErrScheduleImmutable
 	}
@@ -103,7 +106,7 @@ func UpdateSubscription(ctx context.Context, id primitive.ObjectID, v model.Subs
 	return nil
 }
 func DeleteSubscription(ctx context.Context, id primitive.ObjectID) error {
-	res, err := util.DB.ExecContext(ctx, `UPDATE subscriptions SET is_deleted=true,is_active=false,last_update=now() WHERE id=$1 AND creator=$2 AND is_deleted=false`, id.Hex(), util.UserID(ctx))
+	res, err := conditionalUpdate(ctx, `UPDATE subscriptions SET is_deleted=true,is_active=false,last_update=now() WHERE id=$1 AND creator=$2 AND is_deleted=false`, id.Hex(), util.UserID(ctx))
 	if err != nil {
 		return err
 	}

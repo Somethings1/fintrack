@@ -33,6 +33,9 @@ func UpdateTransaction(c *gin.Context) {
 	}
 	v, _ := c.Get("transaction")
 	err = service.UpdateTransaction(c.Request.Context(), id, v.(model.Transaction))
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrIdempotencyConflict) {
 			c.JSON(409, gin.H{"error": err.Error()})
@@ -50,6 +53,9 @@ func DeleteTransaction(c *gin.Context) {
 		return
 	}
 	err = service.DeleteTransaction(c.Request.Context(), id)
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Error deleting transaction"})
 		return
