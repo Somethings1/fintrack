@@ -1,4 +1,5 @@
 import { serialVault } from './vaultLifecycle';
+import { writeCachePage } from './cachePage';
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
@@ -44,10 +45,9 @@ async function open(origin: string, owner: string): Promise<Vault> {
     watermark: async collection => await getMeta(`since:${collection}`) ?? '1970-01-01T00:00:00Z',
     savePage: async (collection, rows, watermark) => {
       ensure();
-      await db.withExclusiveTransactionAsync(async tx => {
-        for (const row of rows) await tx.runAsync('INSERT OR REPLACE INTO records(collection,id,data) VALUES (?,?,?)', collection, row._id, JSON.stringify(row));
-        await tx.runAsync('INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)', `since:${collection}`, watermark);
-      });
+      // serialVault prevents interleaving. Reuse this keyed connection: Expo's
+      // exclusive helper opens another connection without our SQLCipher key.
+      await writeCachePage(db, collection, rows, watermark);
     },
     drafts: async () => { ensure(); return (await db.getAllAsync<{ data: string }>('SELECT data FROM drafts ORDER BY id')).map(row => JSON.parse(row.data) as Draft); },
     saveDraft: async draft => { ensure(); await db.runAsync('INSERT OR REPLACE INTO drafts(id,data) VALUES (?,?)', draft.id, JSON.stringify(draft)); },

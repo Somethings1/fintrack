@@ -125,7 +125,7 @@ func TestMobileConditionalMetadataDomains(t *testing.T) {
 	ctx := mobileContext()
 	account := app.create("/api/accounts/add", "alpha", map[string]any{"name": "Wallet", "balance": "100"}, "")
 	category := app.create("/api/categories/add", "alpha", map[string]any{"name": "Food", "type": "expense"}, "")
-	saving := app.create("/api/savings/add", "alpha", map[string]any{"name": "Trip", "balance": "0", "goal": "100"}, "")
+	saving := app.create("/api/savings/add", "alpha", map[string]any{"name": "Trip", "balance": "0", "goal": "100", "createdDate": "2026-09-08T00:00:00Z", "goalDate": "2027-01-01T00:00:00Z"}, "")
 	subValues := map[string]any{"name": "Music", "amount": "2", "sourceAccount": account, "category": category, "startDate": "2027-01-01T00:00:00Z", "interval": "month"}
 	subscription := app.create("/api/subscriptions/add", "alpha", subValues, "")
 	for _, tc := range []struct {
@@ -133,7 +133,7 @@ func TestMobileConditionalMetadataDomains(t *testing.T) {
 		values                 map[string]any
 	}{
 		{"accounts", "account", account, map[string]any{"name": "Renamed", "icon": ""}},
-		{"savings", "saving", saving, map[string]any{"name": "Trip", "goal": "120"}},
+		{"savings", "saving", saving, map[string]any{"name": "Trip", "goal": "120", "createdDate": "2026-09-08T00:00:00Z", "goalDate": "2027-01-01T00:00:00Z"}},
 		{"categories", "category", category, map[string]any{"name": "Food", "type": "expense", "budget": "40"}},
 		{"subscriptions", "subscription", subscription, subValues},
 	} {

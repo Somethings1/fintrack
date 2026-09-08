@@ -19,8 +19,12 @@ export default function RecordEditor({ entity, row, config, save, close }: { ent
       if (entity === 'category') { values.type = type; values.budget = normalizeAmount(amount, config); }
       if (entity === 'account' && !row) values.balance = normalizeAmount(amount, config);
       if (entity === 'saving') {
-        values.goal = normalizeAmount(amount, config); values.goalDate = day ? dateAtNoon(day) : '0001-01-01T00:00:00Z';
-        if (!row) { values.balance = '0'; values.createdDate = new Date().toISOString(); }
+        values.goal = normalizeAmount(amount, config);
+        const previousDay = row?.goalDate && !row.goalDate.startsWith('0001-') ? localDate(new Date(row.goalDate)) : '';
+        values.goalDate = row?.goalDate && day === previousDay ? row.goalDate : day ? dateAtNoon(day) : '0001-01-01T00:00:00Z';
+        // The API requires both dates even on update; preserve creation metadata.
+        values.createdDate = row ? row.createdDate ?? '0001-01-01T00:00:00Z' : new Date().toISOString();
+        if (!row) values.balance = '0';
       }
       if (amount.trim().startsWith('-')) throw new Error('Use a non-negative amount.');
       lock.current = true; setBusy(true); setAttempted(true);
