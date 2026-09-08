@@ -106,7 +106,7 @@ func newRouter(cfg config.Config) *gin.Engine {
 	notifs.POST("/add", middleware.NotificationFormatMiddleware(), controller.AddNotification)
 	notifs.GET("/get-since/:time", controller.GetNotificationsSince)
 	notifs.PUT("/mark-read", controller.MarkNotificationsRead)
-	notifs.PUT("/update/:id", middleware.NotificationOwnershipMiddleware(), controller.UpdateNotification)
+	notifs.PUT("/update/:id", middleware.NotificationOwnershipMiddleware(), middleware.NotificationFormatMiddleware(), controller.UpdateNotification)
 	notifs.DELETE("/delete/:id", middleware.NotificationOwnershipMiddleware(), controller.DeleteNotification)
 	return r
 }
