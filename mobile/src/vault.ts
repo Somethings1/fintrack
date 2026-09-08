@@ -1,3 +1,4 @@
+import { serialVault } from './vaultLifecycle';
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
@@ -36,7 +37,7 @@ async function open(origin: string, owner: string): Promise<Vault> {
   let closed = false;
   const ensure = () => { if (closed) throw new Error('Device store is closed.'); };
   const getMeta = async (key: string) => { ensure(); return (await db.getFirstAsync<{ value: string }>('SELECT value FROM meta WHERE key=?', key))?.value ?? null; };
-  return {
+  return serialVault({
     config: async () => { const raw = await getMeta('config'); return raw ? JSON.parse(raw) as LedgerConfig : null; },
     setConfig: async value => { ensure(); await db.runAsync('INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)', 'config', JSON.stringify(value)); },
     rows: async collection => { ensure(); return (await db.getAllAsync<{ data: string }>('SELECT data FROM records WHERE collection=?', collection)).map(row => JSON.parse(row.data) as LedgerRow).filter(row => !row.isDeleted); },
@@ -53,5 +54,5 @@ async function open(origin: string, owner: string): Promise<Vault> {
     removeDraft: async id => { ensure(); await db.runAsync('DELETE FROM drafts WHERE id=?', id); },
     clear: async () => { ensure(); await db.execAsync('DELETE FROM records; DELETE FROM drafts; DELETE FROM meta; PRAGMA wal_checkpoint(TRUNCATE);'); },
     close: async () => { if (!closed) { closed = true; await db.closeAsync(); } },
-  };
+  });
 }

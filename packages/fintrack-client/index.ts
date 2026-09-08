@@ -201,7 +201,8 @@ export class FinTrackClient {
   async confirm(proposal: Proposal, config: LedgerConfig, permissions: Permissions): Promise<string> {
     checkedProposal(proposal, config, permissions);
     const write = proposalWrite(proposal); const { text } = await this.request(write.path, write);
-    const response: unknown = JSON.parse(text);
+    let response: unknown;
+    try { response = JSON.parse(text); } catch { throw new APIError(0, true); }
     if (!object(response) || (proposal.operation === 'create' && !idPattern.test(String(response.id)))) throw new APIError(0, true);
     return proposal.operation === 'create' ? String(response.id) : proposal.recordId!;
   }

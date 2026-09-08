@@ -4,13 +4,12 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { apiOrigin } from '@fintrack/client';
 import { chunkedStorage } from './secureStorage';
+import { publicSupabaseKey } from './publicConfig';
 
 export function createAuth() {
   const origin = apiOrigin(process.env.EXPO_PUBLIC_API_URL ?? '', __DEV__);
   const url = apiOrigin(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '', __DEV__);
-  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-  if (!key || key.startsWith('sb_secret_')) throw new Error('Configure only the public Supabase anon/publishable key.');
-  // A public key is bundle configuration. Service-role/provider credentials are forbidden.
+  const key = publicSupabaseKey(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '');
   const storage = chunkedStorage({
     getItem: key => SecureStore.getItemAsync(key),
     setItem: (key, value) => SecureStore.setItemAsync(key, value, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }),
