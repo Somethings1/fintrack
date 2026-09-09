@@ -24,15 +24,16 @@ type changeArgs struct {
 // It is not an authorization token. Confirmation uses the ordinary owned CRUD
 // endpoints, which revalidate every write and enforce ledger invariants.
 type ChangeProposal struct {
-	ID         string                     `json:"id"`
-	Entity     string                     `json:"entity"`
-	Operation  string                     `json:"operation"`
-	RecordID   string                     `json:"recordId,omitempty"`
-	Currency   string                     `json:"currency"`
-	Values     map[string]json.RawMessage `json:"values"`
-	Before     map[string]json.RawMessage `json:"before,omitempty"`
-	References map[string]string          `json:"references"`
-	Warnings   []string                   `json:"warnings"`
+	RecordVersion string                     `json:"recordVersion,omitempty"`
+	ID            string                     `json:"id"`
+	Entity        string                     `json:"entity"`
+	Operation     string                     `json:"operation"`
+	RecordID      string                     `json:"recordId,omitempty"`
+	Currency      string                     `json:"currency"`
+	Values        map[string]json.RawMessage `json:"values"`
+	Before        map[string]json.RawMessage `json:"before,omitempty"`
+	References    map[string]string          `json:"references"`
+	Warnings      []string                   `json:"warnings"`
 }
 
 func jsonValue(v any) json.RawMessage {
@@ -113,6 +114,7 @@ func prepareChange(ctx context.Context, tx *sql.Tx, entity, name string, a chang
 			return nil, err
 		}
 		p.Before = cloneValues(previous.Values)
+		p.RecordVersion = previous.LastUpdate.UTC().Format(time.RFC3339Nano)
 	}
 	if op == "delete" {
 		p.Values = map[string]json.RawMessage{}

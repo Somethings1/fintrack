@@ -69,7 +69,7 @@ func UpdateSaving(ctx context.Context, id primitive.ObjectID, v model.Saving) er
 	if err := money.Validate(v.Goal, money.Currency(ctx)); err != nil {
 		return err
 	}
-	res, err := util.DB.ExecContext(ctx, `UPDATE financial_accounts SET name=$1,icon=$2,goal_micros=$3,goal_date=$4,last_update=now() WHERE id=$5 AND owner=$6 AND kind='saving' AND is_deleted=false`, v.Name, v.Icon, int64(v.Goal), nullTime(v.GoalDate), id.Hex(), util.UserID(ctx))
+	res, err := conditionalUpdate(ctx, `UPDATE financial_accounts SET name=$1,icon=$2,goal_micros=$3,goal_date=$4,last_update=now() WHERE id=$5 AND owner=$6 AND kind='saving' AND is_deleted=false`, v.Name, v.Icon, int64(v.Goal), nullTime(v.GoalDate), id.Hex(), util.UserID(ctx))
 	if err != nil {
 		return err
 	}

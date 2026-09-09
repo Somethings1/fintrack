@@ -34,6 +34,9 @@ func UpdateAccount(c *gin.Context) {
 		return
 	}
 	err = service.UpdateAccount(c.Request.Context(), id, v.(model.Account))
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrReferenced) || errors.Is(err, service.ErrIdempotencyConflict) {
 			c.JSON(409, gin.H{"error": err.Error()})
@@ -51,6 +54,9 @@ func DeleteAccount(c *gin.Context) {
 		return
 	}
 	err = service.DeleteAccount(c.Request.Context(), id)
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrReferenced) {
 			c.JSON(409, gin.H{"error": err.Error()})

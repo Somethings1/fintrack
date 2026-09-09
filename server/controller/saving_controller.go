@@ -29,6 +29,9 @@ func UpdateSaving(c *gin.Context) {
 		return
 	}
 	err = service.UpdateSaving(c.Request.Context(), id, v.(model.Saving))
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Error updating saving"})
 		return
@@ -42,6 +45,9 @@ func DeleteSaving(c *gin.Context) {
 		return
 	}
 	err = service.DeleteSaving(c.Request.Context(), id)
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrReferenced) {
 			c.JSON(409, gin.H{"error": err.Error()})

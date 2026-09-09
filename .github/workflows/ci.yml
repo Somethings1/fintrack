@@ -16,6 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  mobile:
+    uses: ./.github/workflows/mobile.yml
+
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -218,7 +221,7 @@ jobs:
   required:
     name: Required CI
     if: ${{ always() }}
-    needs: [backend, frontend, containers, policies, browser, restore]
+    needs: [backend, frontend, containers, policies, browser, restore, mobile]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -230,4 +233,5 @@ jobs:
           POLICIES: ${{ needs.policies.result }}
           BROWSER: ${{ needs.browser.result }}
           RESTORE: ${{ needs.restore.result }}
-        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success && test "$POLICIES" = success && test "$BROWSER" = success && test "$RESTORE" = success
+          MOBILE: ${{ needs.mobile.result }}
+        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success && test "$POLICIES" = success && test "$BROWSER" = success && test "$RESTORE" = success && test "$MOBILE" = success

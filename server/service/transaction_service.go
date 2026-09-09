@@ -111,6 +111,9 @@ func UpdateTransaction(ctx context.Context, id primitive.ObjectID, v model.Trans
 	if err != nil {
 		return err
 	}
+	if err := util.CheckVersion(ctx, old.LastUpdate); err != nil {
+		return err
+	}
 	if err := validateCategory(ctx, tx, v); err != nil {
 		return err
 	}
@@ -150,6 +153,9 @@ func DeleteTransaction(ctx context.Context, id primitive.ObjectID) error {
 	defer tx.Rollback()
 	v, err := scanTransaction(tx.QueryRowContext(ctx, `SELECT `+transactionCols+` FROM transactions WHERE id=$1 AND creator=$2 AND is_deleted=false FOR UPDATE`, id.Hex(), util.UserID(ctx)))
 	if err != nil {
+		return err
+	}
+	if err := util.CheckVersion(ctx, v.LastUpdate); err != nil {
 		return err
 	}
 	if err := lockTransactionAccounts(ctx, tx, v.SourceAccount, v.DestinationAccount); err != nil {

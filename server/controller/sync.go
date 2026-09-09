@@ -59,12 +59,21 @@ func streamSince[T any](c *gin.Context, fetch syncFetcher[T], identity syncIdent
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "synchronization unavailable"})
 		return
 	}
+	exact := c.GetHeader("Accept") == "application/vnd.fintrack.exact-v1+ndjson"
+	c.Header("Vary", "Accept")
 	c.Header("Content-Type", "application/x-ndjson")
 	c.Header("X-Accel-Buffering", "no")
 	enc := json.NewEncoder(c.Writer)
 	var last syncPosition
 	for _, row := range rows {
-		if err := enc.Encode(row); err != nil {
+		var output any = row
+		if exact {
+			output, err = exactMoneyRecord(row)
+			if err != nil {
+				return
+			}
+		}
+		if err := enc.Encode(output); err != nil {
 			return
 		}
 		last.Time, last.ID = identity(row)
@@ -75,4 +84,26 @@ func streamSince[T any](c *gin.Context, fetch syncFetcher[T], identity syncIdent
 		next = base64.RawURLEncoding.EncodeToString(raw)
 	}
 	_ = enc.Encode(gin.H{"_syncComplete": true, "nextCursor": next})
+}
+
+// Preserve the exact JSON decimal lexeme. A float64 conversion here would lose
+// cents for large balances before the native client's BigInt parser sees them.
+func exactMoneyRecord(value any) (map[string]json.RawMessage, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var row map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &row); err != nil {
+		return nil, err
+	}
+	for _, key := range []string{"amount", "balance", "openingBalance", "budget", "goal"} {
+		if v, ok := row[key]; ok {
+			row[key], err = json.Marshal(string(v))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return row, nil
 }

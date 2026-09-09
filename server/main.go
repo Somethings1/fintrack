@@ -33,7 +33,7 @@ func newRouter(cfg config.Config) *gin.Engine {
 	r := gin.New()
 	_ = r.SetTrustedProxies(nil)
 	r.Use(middleware.LoggingMiddleware(), middleware.Recovery(), middleware.SecurityHeaders())
-	r.Use(cors.New(cors.Config{AllowOrigins: cfg.AllowedOrigins, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Content-Type", "Authorization", "clientId", "Idempotency-Key"}, ExposeHeaders: []string{"X-Request-ID", "X-Agent-Run-ID"}, AllowCredentials: true, MaxAge: 12 * time.Hour}))
+	r.Use(cors.New(cors.Config{AllowOrigins: cfg.AllowedOrigins, AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Content-Type", "Authorization", "clientId", "Idempotency-Key", "If-Match"}, ExposeHeaders: []string{"X-Request-ID", "X-Agent-Run-ID"}, AllowCredentials: true, MaxAge: 12 * time.Hour}))
 	r.GET("/metrics", gin.WrapF(telemetry.Handler))
 	r.GET("/livez", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/readyz", func(c *gin.Context) {
@@ -57,7 +57,7 @@ func newRouter(cfg config.Config) *gin.Engine {
 	api := r.Group("/api", middleware.OriginGuard(cfg.AllowedOrigins), middleware.AuthMiddleware(cfg.SupabaseURL, cfg.SupabaseKey, authClient), middleware.ContextInjectorMiddleware(), func(c *gin.Context) {
 		c.Request = c.Request.WithContext(money.WithCurrency(c.Request.Context(), currency))
 		c.Next()
-	}, middleware.RateLimit(20, 60, 8192))
+	}, middleware.RecordPrecondition(), middleware.RateLimit(20, 60, 8192))
 	api.GET("/ws", socket.HandleWebSocket(cfg.AllowedOrigins))
 	agentGateway := agent.Gateway(cfg)
 	api.POST("/agent/draft", agentGateway, middleware.RateLimit(1.0/10, 3, 4096), agent.Handler(cfg))

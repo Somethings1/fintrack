@@ -33,6 +33,9 @@ func UpdateSubscription(c *gin.Context) {
 	}
 	v, _ := c.Get("subscription")
 	err = service.UpdateSubscription(c.Request.Context(), id, v.(model.Subscription))
+	if preconditionFailed(c, err) {
+		return
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrScheduleImmutable) {
 			c.JSON(409, gin.H{"error": err.Error()})
@@ -49,7 +52,11 @@ func DeleteSubscription(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid subscription ID"})
 		return
 	}
-	if err := service.DeleteSubscription(c.Request.Context(), id); err != nil {
+	err = service.DeleteSubscription(c.Request.Context(), id)
+	if preconditionFailed(c, err) {
+		return
+	}
+	if err != nil {
 		c.JSON(500, gin.H{"error": "Error deleting subscription"})
 		return
 	}

@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "FinTrack",
+    "slug": "fintrack-mobile",
+    "scheme": "fintrack",
+    "version": "0.1.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {"supportsTablet": true, "bundleIdentifier": "com.longnt27.fintrack"},
+    "android": {"package": "com.longnt27.fintrack", "allowBackup": false},
+    "plugins": [
+      ["expo-secure-store", {"configureAndroidBackup": true}],
+      ["expo-sqlite", {"useSQLCipher": true}]
+    ]
+  }
+}

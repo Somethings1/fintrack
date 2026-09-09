@@ -57,7 +57,7 @@ func UpdateCategory(ctx context.Context, id primitive.ObjectID, c model.Category
 	if err := money.Validate(c.Budget, money.Currency(ctx)); err != nil {
 		return err
 	}
-	res, err := util.DB.ExecContext(ctx, `UPDATE categories SET name=$1,icon=$2,budget_micros=$3,last_update=now() WHERE id=$4 AND owner=$5 AND is_deleted=false`, c.Name, c.Icon, int64(c.Budget), id.Hex(), util.UserID(ctx))
+	res, err := conditionalUpdate(ctx, `UPDATE categories SET name=$1,icon=$2,budget_micros=$3,last_update=now() WHERE id=$4 AND owner=$5 AND is_deleted=false`, c.Name, c.Icon, int64(c.Budget), id.Hex(), util.UserID(ctx))
 	if err != nil {
 		return err
 	}
