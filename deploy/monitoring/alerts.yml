@@ -5,7 +5,7 @@ groups:
         expr: up{job="fintrack"} == 0
         for: 2m
         labels: {severity: critical}
-        annotations: {summary: 'API metrics are unreachable; check readiness and MongoDB primary.'}
+        annotations: {summary: 'API metrics are unreachable; check readiness and PostgreSQL connectivity.'}
       - alert: FinTrackServerErrors
         expr: sum(rate(fintrack_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(fintrack_http_requests_total[5m])), 0.001) > 0.05
         for: 5m
@@ -26,3 +26,25 @@ groups:
         for: 5m
         labels: {severity: warning}
         annotations: {summary: 'Elevated client failures; check auth outages and quotas before relaxing limits.'}
+  - name: fintrack-agent
+    rules:
+      - alert: FinTrackAgentProviderErrors
+        expr: sum(increase(fintrack_agent_events_total{stage="provider",outcome=~"provider_error|timeout|error"}[10m])) / clamp_min(sum(increase(fintrack_agent_events_total{stage="provider"}[10m])), 1) > 0.10 and sum(increase(fintrack_agent_events_total{stage="provider"}[10m])) >= 20
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'Agent provider failures exceed 10%; inspect sanitized run references, provider configuration and availability.'}
+      - alert: FinTrackAgentLatency
+        expr: histogram_quantile(0.95, sum by (le) (rate(fintrack_agent_duration_seconds_bucket{stage="request"}[10m]))) > 15 and sum(increase(fintrack_agent_duration_seconds_count{stage="request"}[10m])) >= 20
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: 'Agent p95 request latency exceeds 15 seconds; inspect bounded tool/provider timings before raising limits.'}
+      - alert: FinTrackAgentUnknownUsage
+        expr: sum(increase(fintrack_agent_usage_total{known="false"}[10m])) / clamp_min(sum(increase(fintrack_agent_usage_total[10m])), 1) > 0.10 and sum(increase(fintrack_agent_usage_total[10m])) >= 20
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'Provider usage is missing for over 10% of calls; cost estimates are incomplete, not zero.'}
+      - alert: FinTrackAgentUsageLost
+        expr: sum(increase(fintrack_agent_usage_write_failures_total[5m])) > 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: 'Agent usage recording or retention failed; inspect database health without logging prompts or credentials.'}

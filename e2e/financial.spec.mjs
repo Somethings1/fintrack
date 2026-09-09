@@ -60,6 +60,7 @@ test('real ledger: exact decimal saves, confirmation, reload and user-switch iso
   await page.getByRole('menuitem',{name:'Accounts',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Browser Reserve'})).toBeVisible();
   await page.getByRole('button',{name:'Open transaction assistant'}).click();
+  await page.getByRole('tab',{name:'Draft transaction',exact:true}).click();
   await page.getByLabel('Describe a transaction').fill('Spend 1 on Food');
   await expect(page.getByRole('button',{name:'Prepare draft'})).toBeDisabled();
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
