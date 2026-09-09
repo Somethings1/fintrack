@@ -56,7 +56,7 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: .
         run: git archive --format=tar.gz -o mobile-source.tar.gz HEAD server mobile packages .github docs scripts tests
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: ${{ !cancelled() }}
         with:
           name: mobile-evidence
@@ -92,7 +92,7 @@ jobs:
         run: ./gradlew :app:assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
       - name: Preserve native compile reports
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: android-build-reports
           path: mobile/android/build/reports/
