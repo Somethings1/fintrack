@@ -64,7 +64,7 @@ jobs:
           govulncheck ./...
       - name: Coverage evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with: {name: backend-coverage, path: server/coverage.out, retention-days: 7}
       - name: Remove disposable database
         if: ${{ always() }}
@@ -136,7 +136,7 @@ jobs:
           for image in api web edge; do docker run --rm -v "$RUNNER_TEMP/scan:/scan" aquasec/trivy:0.74.0 image --input "/scan/$image.tar" --format cyclonedx --output "/scan/$image.cdx.json"; done
       - name: Preserve software inventories
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with: {name: container-sboms, path: '${{ runner.temp }}/scan/*.cdx.json', retention-days: 7}
       - name: Clean disposable stack
         if: ${{ always() }}
@@ -184,7 +184,7 @@ jobs:
         run: bash scripts/test-browser.sh
       - name: Browser evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: browser-evidence
           path: |
