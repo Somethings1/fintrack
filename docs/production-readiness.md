@@ -80,7 +80,7 @@ production deployment is performed by the hardening PR.
 
 ## Development
 
-Use Go 1.26.7, Node 22 and MongoDB 7 with a replica set. Copy the environment examples
+Use Go 1.27.1, Node 22 and MongoDB 7 with a replica set. Copy the environment examples
 and use a development Supabase project. For native development run a local replica
 set, `go run .` in `server`, and `npm ci --legacy-peer-deps && npm run dev` in `web`.
 Vite proxies `/api` and WebSockets to the local API. Set `LEDGER_CURRENCY` explicitly

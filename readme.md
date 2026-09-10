@@ -26,7 +26,7 @@ configuration, secrets, backups and independent release review remain operator a
 
 ## Development
 
-Prerequisites: Go 1.26.7, Node 22, MongoDB 7 configured as a replica set, and a development
+Prerequisites: Go 1.27.1, Node 22, MongoDB 7 configured as a replica set, and a development
 Supabase project. Use the committed lockfiles, not ad-hoc dependency upgrades.
 
 ```sh
