@@ -6,7 +6,7 @@ RUN apk add --no-cache git ca-certificates
 WORKDIR /src
 RUN git clone --depth 1 --branch v2.11.4 https://github.com/caddyserver/caddy.git . \
     && go get golang.org/x/crypto@v0.55.0 \
-              google.golang.org/grpc@v1.83.1 \
+              google.golang.org/grpc@v1.83.2 \
     && go mod verify \
     && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/caddy ./cmd/caddy
 
