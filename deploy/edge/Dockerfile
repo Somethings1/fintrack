@@ -1,7 +1,7 @@
 # Build the current stable Caddy release ourselves so the edge binary is produced
 # with the same patched Go toolchain used by the API and with security-fixed
 # transitive modules. The upstream v2.11.4 image was published before these fixes.
-FROM golang:1.26.7-alpine AS build
+FROM golang:1.27.1-alpine AS build
 RUN apk add --no-cache git ca-certificates
 WORKDIR /src
 RUN git clone --depth 1 --branch v2.11.4 https://github.com/caddyserver/caddy.git . \
