@@ -5,13 +5,10 @@ updates:
     schedule: {interval: weekly}
     open-pull-requests-limit: 5
     ignore:
-      # These majors require coordinated framework/toolchain migrations rather
-      # than isolated package bumps. Upgrade them deliberately in dedicated PRs.
-      - dependency-name: "@vitejs/plugin-react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@eslint/js"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: antd
+      # Frontend major upgrades routinely couple framework, compiler, lint and UI
+      # migrations. Keep minor/patch version updates and security updates automatic,
+      # but handle majors deliberately in coordinated PRs.
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: gomod
     directory: /server
