@@ -4,6 +4,15 @@ updates:
     directory: /web
     schedule: {interval: weekly}
     open-pull-requests-limit: 5
+    ignore:
+      # These majors require coordinated framework/toolchain migrations rather
+      # than isolated package bumps. Upgrade them deliberately in dedicated PRs.
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: antd
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: gomod
     directory: /server
     schedule: {interval: weekly}
@@ -17,6 +26,11 @@ updates:
   - package-ecosystem: docker
     directory: /web
     schedule: {interval: weekly}
+    ignore:
+      # Production intentionally follows the Node 22 runtime contract declared
+      # in web/package.json; major runtime migrations are manual.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /e2e
     schedule: {interval: weekly}
@@ -26,3 +40,8 @@ updates:
   - package-ecosystem: docker
     directory: /deploy/backup
     schedule: {interval: weekly}
+    ignore:
+      # This image serves legacy MongoDB migration/backup workflows. A database
+      # major upgrade needs an explicit compatibility and restore review.
+      - dependency-name: mongo
+        update-types: ["version-update:semver-major"]
